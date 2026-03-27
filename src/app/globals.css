@@ -1,26 +1,109 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fff8f0;
+  --background-strong: #f4e6d4;
+  --surface: rgba(255, 252, 247, 0.9);
+  --surface-strong: #fffdf9;
+  --foreground: #3f2f23;
+  --muted: #826b59;
+  --border: rgba(126, 96, 66, 0.15);
+  --shadow: 0 18px 50px rgba(95, 65, 36, 0.12);
+  --amber: #f0b458;
+  --amber-deep: #c8871a;
+  --blue: #7aa8d8;
+  --blue-deep: #4077b7;
+  --success: #7da76f;
+  --danger: #c96c58;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
+  margin: 0;
+  min-height: 100vh;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(240, 180, 88, 0.24), transparent 24rem),
+    radial-gradient(circle at top right, rgba(122, 168, 216, 0.2), transparent 22rem),
+    linear-gradient(180deg, #fffdf8 0%, var(--background) 45%, #fcefdc 100%);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(240, 180, 88, 0.35);
+}
+
+@theme inline {
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-heading);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-amber: var(--amber);
+  --color-amber-deep: var(--amber-deep);
+  --color-blue: var(--blue);
+  --color-blue-deep: var(--blue-deep);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading), serif;
+    letter-spacing: -0.03em;
+  }
+}
+
+@layer components {
+  .fridge-wrap {
+    @apply min-h-screen px-4 py-6 sm:px-6 sm:py-8;
+  }
+
+  .fridge-card {
+    background: linear-gradient(180deg, rgba(255, 253, 249, 0.94), rgba(255, 249, 240, 0.88));
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    @apply rounded-[2rem] backdrop-blur-sm;
+  }
+
+  .note-panel {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 248, 238, 0.92)),
+      linear-gradient(90deg, rgba(201, 108, 88, 0.08) 0, rgba(201, 108, 88, 0.08) 3px, transparent 3px, transparent 100%);
+    border: 1px solid rgba(126, 96, 66, 0.12);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    @apply rounded-[1.75rem];
+  }
+
+  .pin-dot {
+    @apply h-3 w-3 rounded-full transition;
+  }
 }

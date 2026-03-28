@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:local": "NEXT_FONT_GOOGLE_MOCKED_RESPONSES=./test/font-mock.json next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
@@ -22,6 +23,7 @@
     "resend": "^6.9.4"
   },
   "devDependencies": {
+    "@netlify/plugin-nextjs": "^5.15.9",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

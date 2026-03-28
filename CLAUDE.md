@@ -163,7 +163,7 @@ Cron-triggered notification dispatcher. Call every minute via Vercel Cron, GitHu
 - Finds `calendar_events` for today with `notify_before >= 0`
 - Checks `notification_log` for idempotency
 - Dispatches to enabled `notification_channels` matching `pin_code`
-- Supports: email (stubbed — integrate Resend/SendGrid/SES), Telegram (live), webhook (live)
+- Supports: email (Resend), Telegram (live), webhook (live)
 - Returns `{ sent: number, checked: number }`
 
 ---
@@ -172,13 +172,16 @@ Cron-triggered notification dispatcher. Call every minute via Vercel Cron, GitHu
 
 ```bash
 npm run dev           # Start dev server (Next.js turbopack)
-npm run build         # Production build
+npm run build         # Production build (requires internet for Google Fonts)
+npm run build:local   # Production build with mocked fonts — use in offline/restricted environments
 npm run start         # Start production server
 npm run lint          # ESLint (flat config, eslint.config.mjs)
 npm test              # Run tests once (vitest run)
 npm run test:watch    # Run tests in watch mode
 npm run test:coverage # Run tests with coverage report
 ```
+
+**Note on `next/font/google`:** Fonts (Fraunces, Nunito) are downloaded from Google at build time and self-hosted. `npm run build` requires outbound HTTPS access to `fonts.googleapis.com`. Use `npm run build:local` in air-gapped CI. The font mock is in `test/font-mock.json`.
 
 ---
 
@@ -233,6 +236,20 @@ Vitest is configured. Tests live alongside source files as `*.test.ts`.
 - `src/lib/suggestions.test.ts` — covers autocomplete and smartSuggest
 
 The vitest config (`vitest.config.ts`) sets up the `@/*` path alias and uses the `node` environment (no DOM needed for pure utility tests).
+
+---
+
+## Deployment
+
+Netlify is the target host. Configuration is in `netlify.toml`.
+
+- Build command: `npm run build`
+- Publish directory: `.next`
+- Plugin: `@netlify/plugin-nextjs` v5 (handles SSR + API routes as Netlify Functions)
+- Node version: 20
+- Set env vars in Netlify UI → Site configuration → Environment variables
+
+The cron job for `/api/notifications` must be scheduled externally (GitHub Actions, Netlify Scheduled Functions, etc.) since Netlify does not auto-run crons.
 
 ---
 

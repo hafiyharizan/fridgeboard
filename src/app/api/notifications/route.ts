@@ -10,12 +10,14 @@ import { createClient } from "@supabase/supabase-js";
 // Set up a cron (Vercel Cron, GitHub Actions, etc.) to call this every minute.
 // ---------------------------------------------------------------------------
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-);
-
 const CRON_SECRET = process.env.CRON_SECRET || "";
+
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Channel dispatchers — add real integrations here
@@ -88,6 +90,7 @@ export async function POST(request: Request) {
     }
   }
 
+  const supabase = getSupabase();
   const now = new Date();
   const todayKey = now.toISOString().slice(0, 10); // YYYY-MM-DD
 

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { NotifyChannel } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Cron-callable notification sender
@@ -10,28 +11,43 @@ import { createClient } from "@supabase/supabase-js";
 // Set up a cron (Vercel Cron, GitHub Actions, etc.) to call this every minute.
 // ---------------------------------------------------------------------------
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-);
-
 const CRON_SECRET = process.env.CRON_SECRET || "";
 
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+  );
+}
+
 // ---------------------------------------------------------------------------
-// Channel dispatchers — add real integrations here
+// Channel dispatchers
 // ---------------------------------------------------------------------------
 
 async function sendEmail(to: string, subject: string, body: string): Promise<boolean> {
-  // TODO: Integrate with Resend, SendGrid, AWS SES, etc.
-  // Example with Resend:
-  // const res = await fetch("https://api.resend.com/emails", {
-  //   method: "POST",
-  //   headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-  //   body: JSON.stringify({ from: "Fridgeboard <noreply@yourdomain.com>", to, subject, text: body }),
-  // });
-  // return res.ok;
-  console.log(`[EMAIL] To: ${to} | Subject: ${subject} | Body: ${body}`);
-  return true;
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL || "Fridgeboard <noreply@fridgeboard.app>";
+
+  if (!apiKey) {
+    console.log(`[EMAIL] RESEND_API_KEY not set — skipping. To: ${to}`);
+    return false;
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from, to, subject, text: body }),
+  });
+
+  if (!res.ok) {
+    const error = await res.text().catch(() => res.statusText);
+    console.error(`[EMAIL] Resend error (${res.status}): ${error}`);
+  }
+
+  return res.ok;
 }
 
 async function sendTelegram(chatId: string, message: string): Promise<boolean> {
@@ -46,6 +62,12 @@ async function sendTelegram(chatId: string, message: string): Promise<boolean> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: "Markdown" }),
   });
+
+  if (!res.ok) {
+    const error = await res.text().catch(() => res.statusText);
+    console.error(`[TELEGRAM] API error (${res.status}): ${error}`);
+  }
+
   return res.ok;
 }
 
@@ -75,6 +97,7 @@ export async function POST(request: Request) {
     }
   }
 
+  const supabase = getSupabase();
   const now = new Date();
   const todayKey = now.toISOString().slice(0, 10); // YYYY-MM-DD
 
@@ -92,10 +115,10 @@ export async function POST(request: Request) {
   let sent = 0;
 
   for (const event of events) {
-    const channels = (event.notify_channels as string[]) ?? [];
+    const channels = (event.notify_channels as NotifyChannel[]) ?? [];
     if (channels.length === 0) continue;
 
-    // Check notification_log to avoid duplicates
+    // Only skip if a prior run succeeded — failed attempts are retried each minute.
     const { data: existingLog } = await supabase
       .from("notification_log")
       .select("id")
@@ -116,6 +139,8 @@ export async function POST(request: Request) {
 
     const message = `📌 *Fridgeboard Reminder*\n\n*${event.title}*${event.note ? `\n${event.note}` : ""}\n\n📅 ${todayKey}`;
     const subject = `Fridgeboard: ${event.title}`;
+
+    const logs: { event_id: string; channel_type: string; status: string }[] = [];
 
     for (const channelType of channels) {
       const configs = channelConfigs.filter((c) => c.channel_type === channelType);
@@ -141,14 +166,13 @@ export async function POST(request: Request) {
             break;
         }
 
-        await supabase.from("notification_log").insert({
-          event_id: event.id,
-          channel_type: channelType,
-          status: success ? "sent" : "failed",
-        });
-
+        logs.push({ event_id: event.id, channel_type: channelType, status: success ? "sent" : "failed" });
         if (success) sent++;
       }
+    }
+
+    if (logs.length > 0) {
+      await supabase.from("notification_log").insert(logs);
     }
   }
 

@@ -1,0 +1,14 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Environment variables needed at build time (set values in Netlify UI → Site settings → Environment variables)
+# NEXT_PUBLIC_SUPABASE_URL
+# NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+# Edge functions / serverless functions are handled automatically by @netlify/plugin-nextjs
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

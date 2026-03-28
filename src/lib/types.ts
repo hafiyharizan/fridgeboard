@@ -16,9 +16,104 @@ export type Item = {
   text: string;
 };
 
+export type CalendarEventType = "event" | "reminder" | "todo";
+export type StickyColor = "amber" | "blue" | "rose" | "green" | "purple";
+export type Recurrence = "none" | "daily" | "weekly" | "biweekly" | "monthly" | "yearly";
+export type NotifyChannel = "email" | "telegram" | "webhook";
+
+export type CalendarEvent = {
+  id: string;
+  pin_code: string;
+  event_date: string;
+  title: string;
+  note: string | null;
+  event_type: CalendarEventType;
+  color: StickyColor;
+  is_done: boolean;
+  recurrence: Recurrence;
+  recurrence_end: string | null;
+  notify_before: number;
+  notify_channels: NotifyChannel[];
+  created_at: string;
+};
+
+/** A virtual occurrence of a recurring event expanded onto a specific date. */
+export type ExpandedCalendarEvent = CalendarEvent & {
+  /** The date this occurrence falls on (may differ from event_date for recurring). */
+  occurrence_date: string;
+  /** True if this is a generated occurrence, not the original row. */
+  is_recurrence: boolean;
+};
+
+export type NotificationChannelConfig = {
+  id: string;
+  pin_code: string;
+  channel_type: NotifyChannel;
+  channel_value: string;
+  label: string | null;
+  is_enabled: boolean;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
+      calendar_events: {
+        Row: CalendarEvent;
+        Insert: {
+          id?: string;
+          pin_code: string;
+          event_date: string;
+          title: string;
+          note?: string | null;
+          event_type?: CalendarEventType;
+          color?: StickyColor;
+          is_done?: boolean;
+          recurrence?: Recurrence;
+          recurrence_end?: string | null;
+          notify_before?: number;
+          notify_channels?: NotifyChannel[];
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          pin_code?: string;
+          event_date?: string;
+          title?: string;
+          note?: string | null;
+          event_type?: CalendarEventType;
+          color?: StickyColor;
+          is_done?: boolean;
+          recurrence?: Recurrence;
+          recurrence_end?: string | null;
+          notify_before?: number;
+          notify_channels?: NotifyChannel[];
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      notification_channels: {
+        Row: NotificationChannelConfig;
+        Insert: {
+          id?: string;
+          pin_code: string;
+          channel_type: NotifyChannel;
+          channel_value: string;
+          label?: string | null;
+          is_enabled?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          pin_code?: string;
+          channel_type?: NotifyChannel;
+          channel_value?: string;
+          label?: string | null;
+          is_enabled?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       items: {
         Row: Item;
         Insert: {

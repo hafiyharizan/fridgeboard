@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 const SESSION_PIN_KEY = "fridgeboard-pin";
 
@@ -33,9 +34,22 @@ export function PinEntry() {
 
   return (
     <main className="fridge-wrap flex items-center justify-center">
-      <section className="fridge-card relative w-full max-w-md overflow-hidden px-6 py-7 sm:px-8">
-        <div className="absolute -left-10 top-8 h-24 w-24 rounded-full bg-amber/30 blur-2xl" />
-        <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-blue/20 blur-2xl" />
+      <motion.section 
+        className="fridge-card relative w-full max-w-md overflow-hidden px-6 py-7 sm:px-8"
+        initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <motion.div 
+          animate={{ y: [0, 20, 0], x: [0, -15, 0], scale: [1, 1.1, 1] }}
+          className="absolute -left-10 top-8 h-32 w-32 rounded-full bg-amber/30 blur-3xl" 
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div 
+          animate={{ y: [0, -20, 0], x: [0, 20, 0], scale: [1, 1.2, 1] }}
+          className="absolute -right-4 top-0 h-36 w-36 rounded-full bg-blue/25 blur-3xl" 
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        />
 
         <div className="relative flex flex-col gap-8">
           <div className="space-y-3 text-center">
@@ -79,21 +93,31 @@ export function PinEntry() {
               ))}
             </div>
 
-            {error ? <p className="text-center text-sm text-danger">{error}</p> : null}
+            {error ? (
+              <motion.p 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center text-sm font-medium text-danger"
+              >
+                {error}
+              </motion.p>
+            ) : null}
 
-            <button
-              className="w-full rounded-[1.4rem] bg-foreground px-5 py-4 text-base font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#2f241b] focus:outline-none focus:ring-4 focus:ring-amber/25"
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="w-full rounded-[1.4rem] bg-foreground px-5 py-4 text-base font-bold text-white shadow-lg transition-colors hover:bg-[#2f241b] focus:outline-none focus:ring-4 focus:ring-amber/25"
               type="submit"
             >
               Open the fridge
-            </button>
+            </motion.button>
           </form>
 
           <p className="text-center text-xs uppercase tracking-[0.24em] text-muted/80">
             Warm, simple, always in sync
           </p>
         </div>
-      </section>
+      </motion.section>
     </main>
   );
 }

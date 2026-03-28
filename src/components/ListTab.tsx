@@ -1,7 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
+import { AnimatePresence } from "framer-motion";
 import { AddItemInput } from "@/components/AddItemInput";
 import { ItemRow } from "@/components/ItemRow";
+import { SuggestionPanel } from "@/components/SuggestionPanel";
 import { useRealtimeItems } from "@/hooks/useRealtimeItems";
 import type { FridgeList } from "@/lib/types";
 
@@ -20,6 +23,11 @@ export function ListTab({ list, pin }: ListTabProps) {
     removeItem,
     toggleItem,
   } = useRealtimeItems(list.id);
+
+  const existingItemTexts = useMemo(
+    () => items.filter((i) => !i.is_checked).map((i) => i.text),
+    [items],
+  );
 
   return (
     <section className="note-panel flex h-full flex-col overflow-hidden">
@@ -40,10 +48,20 @@ export function ListTab({ list, pin }: ListTabProps) {
           <AddItemInput
             busy={isWorking}
             buttonLabel={list.name === "Grocery" ? "Add item" : "Add task"}
+            existingItems={existingItemTexts}
+            listName={list.name}
             onAdd={addItem}
             placeholder={list.name === "Grocery" ? "Milk, scallions, pasta..." : "Call plumber, water plants..."}
           />
         </div>
+      </div>
+
+      <div className="border-b border-border/50 px-4 py-3 sm:px-5">
+        <SuggestionPanel
+          existingItems={existingItemTexts}
+          listName={list.name}
+          onAddItem={addItem}
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 pb-3 pt-3 sm:px-4">
@@ -63,15 +81,17 @@ export function ListTab({ list, pin }: ListTabProps) {
         ) : null}
 
         <div className="space-y-3">
-          {items.map((item) => (
-            <ItemRow
-              busy={isWorking}
-              item={item}
-              key={item.id}
-              onDelete={removeItem}
-              onToggle={toggleItem}
-            />
-          ))}
+          <AnimatePresence initial={false}>
+            {items.map((item) => (
+              <ItemRow
+                busy={isWorking}
+                item={item}
+                key={item.id}
+                onDelete={removeItem}
+                onToggle={toggleItem}
+              />
+            ))}
+          </AnimatePresence>
         </div>
       </div>
 

@@ -1,10 +1,14 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { autocomplete } from "@/lib/suggestions";
 
 type AddItemInputProps = {
   busy: boolean;
   buttonLabel: string;
+  existingItems: string[];
+  listName: string;
   onAdd: (text: string) => Promise<void>;
   placeholder: string;
 };
@@ -12,38 +16,139 @@ type AddItemInputProps = {
 export function AddItemInput({
   busy,
   buttonLabel,
+  existingItems,
+  listName,
   onAdd,
   placeholder,
 }: AddItemInputProps) {
   const [value, setValue] = useState("");
+  const [matches, setMatches] = useState<string[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Fuzzy search as user types
+  useEffect(() => {
+    const q = value.trim();
+    if (q.length < 1) {
+      setMatches([]);
+      setShowDropdown(false);
+      return;
+    }
+    const results = autocomplete(q, listName, existingItems);
+    setMatches(results);
+    setShowDropdown(results.length > 0);
+    setSelectedIndex(-1);
+  }, [value, listName, existingItems]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const submit = async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setShowDropdown(false);
+    setMatches([]);
+    setValue("");
+    await onAdd(trimmed);
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const nextValue = value.trim();
-
-    if (!nextValue) {
-      return;
+    if (selectedIndex >= 0 && matches[selectedIndex]) {
+      await submit(matches[selectedIndex]);
+    } else {
+      await submit(value);
     }
+  };
 
-    await onAdd(nextValue);
-    setValue("");
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showDropdown || matches.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev < matches.length - 1 ? prev + 1 : 0));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : matches.length - 1));
+    } else if (e.key === "Escape") {
+      setShowDropdown(false);
+      setSelectedIndex(-1);
+    }
+  };
+
+  // Highlight matching portion in dropdown
+  const highlightMatch = (text: string) => {
+    const q = value.trim().toLowerCase();
+    const idx = text.toLowerCase().indexOf(q);
+    if (idx === -1) return text;
+    return (
+      <>
+        {text.slice(0, idx)}
+        <span className="font-bold text-foreground">{text.slice(idx, idx + q.length)}</span>
+        {text.slice(idx + q.length)}
+      </>
+    );
   };
 
   return (
-    <form className="flex gap-3" onSubmit={handleSubmit}>
-      <input
-        className="min-w-0 flex-1 rounded-[1.2rem] border border-border bg-white px-4 py-3 text-base text-foreground outline-none transition placeholder:text-muted/55 focus:border-amber-deep focus:ring-4 focus:ring-amber/20"
-        onChange={(event) => setValue(event.target.value)}
-        placeholder={placeholder}
-        value={value}
-      />
-      <button
-        className="shrink-0 rounded-[1.2rem] bg-foreground px-4 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#2f241b] disabled:translate-y-0 disabled:opacity-60"
-        disabled={busy}
-        type="submit"
-      >
-        {buttonLabel}
-      </button>
-    </form>
+    <div className="relative" ref={wrapperRef}>
+      <form className="flex gap-3" onSubmit={handleSubmit}>
+        <input
+          className="min-w-0 flex-1 rounded-[1.2rem] border border-border bg-white px-4 py-3 text-base text-foreground outline-none transition placeholder:text-muted/55 focus:border-amber-deep focus:ring-4 focus:ring-amber/20"
+          onChange={(event) => setValue(event.target.value)}
+          onFocus={() => { if (matches.length > 0) setShowDropdown(true); }}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          value={value}
+        />
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="shrink-0 rounded-[1.2rem] bg-foreground px-4 py-3 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#2f241b] disabled:opacity-60"
+          disabled={busy}
+          type="submit"
+        >
+          {buttonLabel}
+        </motion.button>
+      </form>
+
+      <AnimatePresence>
+        {showDropdown && matches.length > 0 ? (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="absolute left-0 right-16 z-10 mt-2 overflow-hidden rounded-[1.2rem] border border-border bg-white/95 backdrop-blur-md shadow-[0_12px_32px_rgba(95,65,36,0.15)]"
+          >
+          {matches.map((match, i) => (
+            <button
+              className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition ${
+                i === selectedIndex
+                  ? "bg-amber/15 text-foreground"
+                  : "text-muted hover:bg-amber/8 hover:text-foreground"
+              }`}
+              key={match}
+              onMouseDown={(e) => { e.preventDefault(); void submit(match); }}
+              onMouseEnter={() => setSelectedIndex(i)}
+              type="button"
+            >
+              <span className="text-xs text-amber-deep">+</span>
+              {highlightMatch(match)}
+            </button>
+          ))}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
   );
 }

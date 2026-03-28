@@ -171,13 +171,14 @@ Cron-triggered notification dispatcher. Call every minute via Vercel Cron, GitHu
 ## Development Commands
 
 ```bash
-npm run dev      # Start dev server (Next.js turbopack)
-npm run build    # Production build
-npm run start    # Start production server
-npm run lint     # ESLint (flat config, eslint.config.mjs)
+npm run dev           # Start dev server (Next.js turbopack)
+npm run build         # Production build
+npm run start         # Start production server
+npm run lint          # ESLint (flat config, eslint.config.mjs)
+npm test              # Run tests once (vitest run)
+npm run test:watch    # Run tests in watch mode
+npm run test:coverage # Run tests with coverage report
 ```
-
-No test framework is configured.
 
 ---
 
@@ -214,21 +215,29 @@ No test framework is configured.
 
 ---
 
-## Notification Integrations (Incomplete)
+## Notification Integrations
 
-`src/app/api/notifications/route.ts` has stubbed email sending. To add email:
-1. Install provider SDK (e.g. `resend`)
-2. Add API key to env vars
-3. Implement the `sendEmail()` function body (marked with `// TODO`)
+All three channels are fully implemented in `src/app/api/notifications/route.ts`:
 
-Telegram and webhook are fully implemented.
+- **Email** — uses [Resend](https://resend.com). Requires `RESEND_API_KEY` and `RESEND_FROM_EMAIL` env vars. The `from` address must be a verified sender in your Resend account.
+- **Telegram** — live. Requires `TELEGRAM_BOT_TOKEN`. The `channel_value` is the Telegram chat ID.
+- **Webhook** — live. POSTs a JSON payload to the configured URL.
+
+---
+
+## Testing
+
+Vitest is configured. Tests live alongside source files as `*.test.ts`.
+
+- `src/lib/calendar.test.ts` — covers all pure calendar utilities and recurrence expansion
+- `src/lib/suggestions.test.ts` — covers autocomplete and smartSuggest
+
+The vitest config (`vitest.config.ts`) sets up the `@/*` path alias and uses the `node` environment (no DOM needed for pure utility tests).
 
 ---
 
 ## What Does NOT Exist
 
-- No testing framework
 - No authentication middleware (PIN is app-level only)
 - No admin panel
 - No server actions (all mutations go through Supabase client directly)
-- No `.env.example` file

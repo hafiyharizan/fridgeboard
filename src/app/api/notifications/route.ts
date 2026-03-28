@@ -22,16 +22,29 @@ const CRON_SECRET = process.env.CRON_SECRET || "";
 // ---------------------------------------------------------------------------
 
 async function sendEmail(to: string, subject: string, body: string): Promise<boolean> {
-  // TODO: Integrate with Resend, SendGrid, AWS SES, etc.
-  // Example with Resend:
-  // const res = await fetch("https://api.resend.com/emails", {
-  //   method: "POST",
-  //   headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-  //   body: JSON.stringify({ from: "Fridgeboard <noreply@yourdomain.com>", to, subject, text: body }),
-  // });
-  // return res.ok;
-  console.log(`[EMAIL] To: ${to} | Subject: ${subject} | Body: ${body}`);
-  return true;
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL || "Fridgeboard <noreply@fridgeboard.app>";
+
+  if (!apiKey) {
+    console.log(`[EMAIL] RESEND_API_KEY not set — skipping. To: ${to}`);
+    return false;
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from, to, subject, text: body }),
+  });
+
+  if (!res.ok) {
+    const error = await res.text().catch(() => res.statusText);
+    console.error(`[EMAIL] Resend error (${res.status}): ${error}`);
+  }
+
+  return res.ok;
 }
 
 async function sendTelegram(chatId: string, message: string): Promise<boolean> {

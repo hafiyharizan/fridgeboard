@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { autocomplete } from "@/lib/suggestions";
 
@@ -22,41 +22,34 @@ export function AddItemInput({
   placeholder,
 }: AddItemInputProps) {
   const [value, setValue] = useState("");
-  const [matches, setMatches] = useState<string[]>([]);
+  const [open, setOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [showDropdown, setShowDropdown] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Fuzzy search as user types
-  useEffect(() => {
+  // Derive matches — no effect needed
+  const matches = useMemo(() => {
     const q = value.trim();
-    if (q.length < 1) {
-      setMatches([]);
-      setShowDropdown(false);
-      return;
-    }
-    const results = autocomplete(q, listName, existingItems);
-    setMatches(results);
-    setShowDropdown(results.length > 0);
-    setSelectedIndex(-1);
+    if (q.length < 1) return [];
+    return autocomplete(q, listName, existingItems);
   }, [value, listName, existingItems]);
+
+  const showDropdown = open && matches.length > 0;
 
   // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
+        setOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  });
 
   const submit = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    setShowDropdown(false);
-    setMatches([]);
+    setOpen(false);
     setValue("");
     await onAdd(trimmed);
   };
@@ -80,7 +73,7 @@ export function AddItemInput({
       e.preventDefault();
       setSelectedIndex((prev) => (prev > 0 ? prev - 1 : matches.length - 1));
     } else if (e.key === "Escape") {
-      setShowDropdown(false);
+      setOpen(false);
       setSelectedIndex(-1);
     }
   };
@@ -104,8 +97,8 @@ export function AddItemInput({
       <form className="flex gap-3" onSubmit={handleSubmit}>
         <input
           className="min-w-0 flex-1 rounded-[1.2rem] border border-border bg-white px-4 py-3 text-base text-foreground outline-none transition placeholder:text-muted/55 focus:border-amber-deep focus:ring-4 focus:ring-amber/20"
-          onChange={(event) => setValue(event.target.value)}
-          onFocus={() => { if (matches.length > 0) setShowDropdown(true); }}
+          onChange={(event) => { setValue(event.target.value); setOpen(true); setSelectedIndex(-1); }}
+          onFocus={() => { if (matches.length > 0) setOpen(true); }}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           value={value}

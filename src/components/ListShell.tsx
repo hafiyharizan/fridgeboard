@@ -43,7 +43,15 @@ export function ListShell() {
         .order("created_at", { ascending: true });
 
       if (fetchError) {
-        setError(fetchError.message);
+        const isNetworkError =
+          fetchError.message.toLowerCase().includes("load failed") ||
+          fetchError.message.toLowerCase().includes("failed to fetch") ||
+          fetchError.message.toLowerCase().includes("network");
+        setError(
+          isNetworkError
+            ? "Could not connect to the database. Check that NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set, then redeploy."
+            : fetchError.message,
+        );
         setLoading(false);
         return;
       }

@@ -5,6 +5,9 @@
 [build.environment]
   NODE_VERSION = "20"
   SECRETS_SCAN_OMIT_PATHS = ".env.example"
+  # NEXT_PUBLIC_* vars are intentionally embedded in the client bundle by Next.js.
+  # They are not secrets — the Supabase anon key is safe to expose in the browser.
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY"
 
 # Environment variables needed at build time (set values in Netlify UI → Site settings → Environment variables)
 # NEXT_PUBLIC_SUPABASE_URL

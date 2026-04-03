@@ -16,7 +16,7 @@ const CRON_SECRET = process.env.CRON_SECRET || "";
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY || "",
   );
 }
 
@@ -99,12 +99,12 @@ export async function POST(request: Request) {
 
   const supabase = getSupabase();
   const now = new Date();
-  const todayKey = now.toISOString().slice(0, 10); // YYYY-MM-DD
+  const todayKey = now.toISOString().slice(0, 10);
 
   // Find events happening today that have notifications enabled
   const { data: events, error: eventsError } = await supabase
     .from("calendar_events")
-    .select("*")
+    .select("id, pin_code, event_date, title, note, event_type, notify_channels")
     .eq("event_date", todayKey)
     .gte("notify_before", 0);
 
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
     const message = `📌 *Fridgeboard Reminder*\n\n*${event.title}*${event.note ? `\n${event.note}` : ""}\n\n📅 ${todayKey}`;
     const subject = `Fridgeboard: ${event.title}`;
 
-    const logs: { event_id: string; channel_type: string; status: string }[] = [];
+    const logs: { event_id: string; channel_type: NotifyChannel; status: "sent" | "failed" }[] = [];
 
     for (const channelType of channels) {
       const configs = channelConfigs.filter((c) => c.channel_type === channelType);
@@ -164,6 +164,10 @@ export async function POST(request: Request) {
               event_type: event.event_type,
             });
             break;
+          default: {
+            const _exhaustive: never = channelType;
+            void _exhaustive;
+          }
         }
 
         logs.push({ event_id: event.id, channel_type: channelType, status: success ? "sent" : "failed" });

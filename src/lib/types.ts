@@ -55,6 +55,15 @@ export type NotificationChannelConfig = {
   created_at: string;
 };
 
+export type UserProfile = {
+  id: string;
+  user_id: string;
+  pin_code: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -155,6 +164,26 @@ export type Database = {
           id?: string;
           name?: string;
           pin_code?: string;
+        };
+        Relationships: [];
+      };
+      user_profiles: {
+        Row: UserProfile;
+        Insert: {
+          id?: string;
+          user_id: string;
+          pin_code: string;
+          display_name?: string | null;
+          avatar_url?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          pin_code?: string;
+          display_name?: string | null;
+          avatar_url?: string | null;
+          created_at?: string;
         };
         Relationships: [];
       };

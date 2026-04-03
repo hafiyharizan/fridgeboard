@@ -1,13 +1,9 @@
-import { createBrowserClient } from "@supabase/ssr";
+import { createBrowserClient, createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/types";
 
 let browserClient: ReturnType<typeof createBrowserClient<Database>> | null = null;
 
-export function createSupabaseBrowserClient() {
-  if (browserClient) {
-    return browserClient;
-  }
-
+function getSupabaseEnv() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
@@ -22,7 +18,68 @@ export function createSupabaseBrowserClient() {
     );
   }
 
+  return { url, key };
+}
+
+export function createSupabaseBrowserClient() {
+  if (browserClient) {
+    return browserClient;
+  }
+
+  const { url, key } = getSupabaseEnv();
   browserClient = createBrowserClient<Database>(url, key);
 
   return browserClient;
+}
+
+/**
+ * Creates a Supabase client for use in middleware.
+ * Accepts the NextRequest/NextResponse so it can read and write cookies.
+ */
+export function createSupabaseMiddlewareClient(
+  request: { cookies: { getAll(): Array<{ name: string; value: string }> } },
+  response: {
+    cookies: {
+      set(name: string, value: string, options?: Record<string, unknown>): void;
+    };
+  },
+) {
+  const { url, key } = getSupabaseEnv();
+  return createServerClient<Database>(url, key, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        for (const { name, value, options } of cookiesToSet) {
+          response.cookies.set(name, value, options);
+        }
+      },
+    },
+  });
+}
+
+/**
+ * Creates a Supabase client for use in route handlers.
+ * Accepts a cookies() store from next/headers.
+ */
+export function createSupabaseRouteClient(
+  cookieStore: {
+    getAll(): Array<{ name: string; value: string }>;
+    set(name: string, value: string, options?: Record<string, unknown>): void;
+  },
+) {
+  const { url, key } = getSupabaseEnv();
+  return createServerClient<Database>(url, key, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        for (const { name, value, options } of cookiesToSet) {
+          cookieStore.set(name, value, options);
+        }
+      },
+    },
+  });
 }

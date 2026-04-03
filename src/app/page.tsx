@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import { PinEntry } from "@/components/PinEntry";
 
 export default function HomePage() {
-  return <PinEntry />;
+  return (
+    <Suspense>
+      <PinEntry />
+    </Suspense>
+  );
 }

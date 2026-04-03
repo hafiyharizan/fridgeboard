@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import { LogOut } from "lucide-react";
 import { CalendarTab } from "@/components/CalendarTab";
 import { ListTab } from "@/components/ListTab";
+import { getSessionPin, setSessionPin, clearSessionPin } from "@/lib/auth";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import type { FridgeList } from "@/lib/types";
-
-const SESSION_PIN_KEY = "fridgeboard-pin";
 
 const CALENDAR_TAB_ID = "__calendar__";
 
@@ -23,23 +24,17 @@ export function ListShell() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [lists, setLists] = useState<FridgeList[]>([]);
   const [activeListId, setActiveListId] = useState("");
-  const [pin] = useState(() =>
-    typeof window === "undefined" ? "" : sessionStorage.getItem(SESSION_PIN_KEY) ?? "",
-  );
+  const [pin, setPin] = useState(() => getSessionPin() ?? "");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [authUser, setAuthUser] = useState<{ name: string; avatar: string | null } | null>(null);
 
   useEffect(() => {
-    if (!pin) {
-      router.replace("/");
-      return;
-    }
-
-    const loadLists = async () => {
+    const loadLists = async (pinCode: string) => {
       const { data, error: fetchError } = await supabase
         .from("lists")
         .select("*")
-        .eq("pin_code", pin)
+        .eq("pin_code", pinCode)
         .order("created_at", { ascending: true });
 
       if (fetchError) {
@@ -61,14 +56,74 @@ export function ListShell() {
       setLoading(false);
     };
 
-    void loadLists();
+    const init = async () => {
+      let resolvedPin = pin;
+
+      // Single getUser call — needed for both auth-resolution and UI enrichment
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!resolvedPin) {
+        if (!user) {
+          router.replace("/");
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("pin_code, display_name, avatar_url")
+          .eq("user_id", user.id)
+          .single();
+
+        if (profile?.pin_code) {
+          resolvedPin = profile.pin_code;
+          setPin(resolvedPin);
+          setSessionPin(resolvedPin);
+          setAuthUser({
+            name: profile.display_name ?? user.email ?? "User",
+            avatar: profile.avatar_url,
+          });
+        } else {
+          router.replace("/setup-pin");
+          return;
+        }
+
+        await loadLists(resolvedPin);
+      } else {
+        // PIN exists — fetch lists immediately, enrich auth UI in parallel
+        const listsPromise = loadLists(resolvedPin);
+
+        if (user) {
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("display_name, avatar_url")
+            .eq("user_id", user.id)
+            .single();
+
+          if (profile) {
+            setAuthUser({
+              name: profile.display_name ?? user.email ?? "User",
+              avatar: profile.avatar_url,
+            });
+          }
+        }
+
+        await listsPromise;
+      }
+    };
+
+    void init();
   }, [pin, router, supabase]);
 
   const isCalendarActive = activeListId === CALENDAR_TAB_ID;
   const activeList = isCalendarActive ? null : (lists.find((list) => list.id === activeListId) ?? lists[0]);
 
-  const handleResetPin = () => {
-    sessionStorage.removeItem(SESSION_PIN_KEY);
+  const handleResetPin = async () => {
+    clearSessionPin();
+    if (authUser) {
+      await supabase.auth.signOut();
+    }
     router.replace("/");
   };
 
@@ -122,9 +177,27 @@ export function ListShell() {
           <div className="relative space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-2">
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted">
-                  Shared with PIN {pin}
-                </p>
+                {authUser ? (
+                  <div className="flex items-center gap-2">
+                    {authUser.avatar ? (
+                      <Image
+                        alt=""
+                        className="rounded-full"
+                        height={24}
+                        referrerPolicy="no-referrer"
+                        src={authUser.avatar}
+                        width={24}
+                      />
+                    ) : null}
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted">
+                      {authUser.name} &middot; PIN {pin}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted">
+                    Shared with PIN {pin}
+                  </p>
+                )}
                 <div>
                   <h1 className="text-4xl text-foreground sm:text-[2.8rem]">Fridgeboard</h1>
                   <p className="mt-1 max-w-md text-sm leading-6 text-muted sm:text-base">
@@ -134,11 +207,18 @@ export function ListShell() {
               </div>
 
               <button
-                className="rounded-full border border-border bg-white/70 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-muted transition hover:bg-white"
+                className="flex items-center gap-1.5 rounded-full border border-border bg-white/70 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-muted transition hover:bg-white"
                 onClick={handleResetPin}
                 type="button"
               >
-                Change PIN
+                {authUser ? (
+                  <>
+                    <LogOut className="h-3.5 w-3.5" />
+                    Sign out
+                  </>
+                ) : (
+                  "Change PIN"
+                )}
               </button>
             </div>
 

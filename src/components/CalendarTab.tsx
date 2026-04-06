@@ -5,11 +5,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AddEventModal } from "@/components/AddEventModal";
 import { CalendarGrid } from "@/components/CalendarGrid";
+import { CalendarSettings } from "@/components/CalendarSettings";
+import { DayDetailSheet } from "@/components/DayDetailSheet";
 import { EventDetail } from "@/components/EventDetail";
-import { NotificationSettings } from "@/components/NotificationSettings";
+import { PushNotificationButton } from "@/components/PushNotificationButton";
 import { useRealtimeCalendar } from "@/hooks/useRealtimeCalendar";
 import { getMonthName } from "@/lib/calendar";
-import type { ExpandedCalendarEvent } from "@/lib/types";
+import type { CalendarImportSource, ExpandedCalendarEvent } from "@/lib/types";
 
 type CalendarTabProps = {
   pin: string;
@@ -19,11 +21,21 @@ export function CalendarTab({ pin }: CalendarTabProps) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [addingToDate, setAddingToDate] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<ExpandedCalendarEvent | null>(null);
 
-  const { getMonthEvents, availableChannels, loading, isWorking, error, addEvent, toggleDone, removeEvent } =
-    useRealtimeCalendar(pin);
+  const {
+    getMonthEvents,
+    loading,
+    isWorking,
+    error,
+    addEvent,
+    toggleDone,
+    removeEvent,
+    importSource,
+    createSyncLink,
+  } = useRealtimeCalendar(pin);
 
   const monthEvents = useMemo(() => getMonthEvents(year, month), [getMonthEvents, year, month]);
 
@@ -60,6 +72,10 @@ export function CalendarTab({ pin }: CalendarTabProps) {
     setSelectedEvent(null);
   };
 
+  const handleImport = async (source: CalendarImportSource) => {
+    return importSource(source, year);
+  };
+
   return (
     <section className="note-panel flex h-full flex-col overflow-hidden">
       {/* Header */}
@@ -69,7 +85,10 @@ export function CalendarTab({ pin }: CalendarTabProps) {
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted">Calendar</p>
             <h2 className="text-3xl text-foreground sm:text-[2.2rem]">What&apos;s coming up?</h2>
           </div>
-          <NotificationSettings pin={pin} />
+          <div className="flex items-center gap-2">
+            <CalendarSettings busy={isWorking} onCreateSyncLink={createSyncLink} onImport={handleImport} year={year} />
+            <PushNotificationButton pin={pin} />
+          </div>
         </div>
 
         {/* Month navigation */}
@@ -119,7 +138,7 @@ export function CalendarTab({ pin }: CalendarTabProps) {
             year={year}
             month={month}
             events={monthEvents}
-            onDayClick={setSelectedDate}
+            onDayClick={setExpandedDate}
             onEventClick={setSelectedEvent}
           />
         )}
@@ -141,14 +160,30 @@ export function CalendarTab({ pin }: CalendarTabProps) {
       ) : null}
 
       {/* Add event modal */}
+      {/* Day detail sheet — tap a day to see its events */}
       <AnimatePresence>
-        {selectedDate ? (
+        {expandedDate ? (
+          <DayDetailSheet
+            dateKey={expandedDate}
+            events={monthEvents.filter((e) => e.occurrence_date === expandedDate)}
+            onAddEvent={() => setAddingToDate(expandedDate)}
+            onClose={() => setExpandedDate(null)}
+            onSelectEvent={(event) => {
+              setExpandedDate(null);
+              setSelectedEvent(event);
+            }}
+          />
+        ) : null}
+      </AnimatePresence>
+
+      {/* Add event modal */}
+      <AnimatePresence>
+        {addingToDate ? (
           <AddEventModal
-            availableChannels={availableChannels}
             busy={isWorking}
-            dateKey={selectedDate}
+            dateKey={addingToDate}
             onAdd={addEvent}
-            onClose={() => setSelectedDate(null)}
+            onClose={() => setAddingToDate(null)}
           />
         ) : null}
       </AnimatePresence>

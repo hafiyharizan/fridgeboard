@@ -21,6 +21,7 @@ function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     id: "evt-1",
     pin_code: "1234",
     event_date: "2026-03-01",
+    event_time: null,
     title: "Test event",
     note: null,
     event_type: "event",
@@ -31,6 +32,9 @@ function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     notify_before: -1,
     notify_channels: [],
     created_at: "2026-01-01T00:00:00Z",
+    source_type: "manual",
+    source_label: null,
+    source_event_id: null,
     ...overrides,
   };
 }

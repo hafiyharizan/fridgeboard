@@ -152,10 +152,10 @@ export function ListShell() {
         <header className="relative overflow-hidden border-b border-border px-5 pb-5 pt-6 sm:px-7">
           <div className="absolute inset-x-0 top-0 h-28 bg-[linear-gradient(180deg,rgba(255,255,255,0.32),transparent)]" />
           <div className="relative space-y-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-2">
+            <div className="flex flex-col gap-4 pr-14 sm:flex-row sm:items-start sm:justify-between sm:pr-0">
+              <div className="min-w-0 flex-1 space-y-2">
                 {authUser ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     {authUser.avatar ? (
                       <Image
                         alt=""
@@ -166,15 +166,15 @@ export function ListShell() {
                         width={24}
                       />
                     ) : null}
-                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted">
-                      {authUser.name} &middot; Household PIN {pin}
+                    <p className="min-w-0 text-xs font-bold uppercase tracking-[0.18em] text-muted">
+                      {authUser.name}
                     </p>
                   </div>
                 ) : null}
                 <div>
                   <h1 className="text-4xl text-foreground sm:text-[2.8rem]">Fridgeboard</h1>
                   <p className="mt-1 max-w-md text-sm leading-6 text-muted sm:text-base">
-                    Keep the kitchen calm. Tap between grocery and to-do, and every change shows up on both phones.
+                    Keep the kitchen calm. Tap between grocery and to-do, and every change shows up for all family members.
                   </p>
                 </div>
               </div>
@@ -182,12 +182,15 @@ export function ListShell() {
               <motion.button
                 whileHover={{ y: -1, boxShadow: "0 8px 20px rgba(95, 65, 36, 0.08)" }}
                 whileTap={{ scale: 0.98 }}
-                className="flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-white/70 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-muted transition-all duration-200 hover:bg-white hover:text-foreground"
+                className="absolute right-0 top-0 inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full border border-border bg-white/70 p-2.5 text-muted transition-all duration-200 hover:bg-white hover:text-foreground sm:static sm:w-fit sm:justify-start sm:px-3 sm:py-2"
                 onClick={handleResetPin}
+                title="Sign out"
                 type="button"
               >
                 <LogOut className="h-3.5 w-3.5" />
-                Sign out
+                <span className="hidden whitespace-nowrap text-xs font-bold uppercase tracking-[0.18em] sm:inline">
+                  Sign out
+                </span>
               </motion.button>
             </div>
 

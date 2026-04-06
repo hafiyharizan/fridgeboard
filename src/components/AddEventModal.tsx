@@ -74,7 +74,7 @@ export function AddEventModal({ dateKey, busy, onClose, onAdd }: AddEventModalPr
       recurrence,
       recurrence_end: recurrence !== "none" && recurrenceEnd ? recurrenceEnd : undefined,
       notify_before: canSetReminder ? notifyBefore : -1,
-      notify_channels: [],
+      notify_channels: [] as NotifyChannel[],
     });
 
     onClose();

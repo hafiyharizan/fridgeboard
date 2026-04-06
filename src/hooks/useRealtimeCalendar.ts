@@ -9,6 +9,7 @@ import type {
   CalendarEventType,
   CalendarImportSource,
   ExpandedCalendarEvent,
+  NotifyChannel,
   Recurrence,
   StickyColor,
 } from "@/lib/types";
@@ -106,7 +107,7 @@ export function useRealtimeCalendar(pinCode: string) {
     recurrence: Recurrence;
     recurrence_end?: string;
     notify_before: number;
-    notify_channels: [];
+    notify_channels: NotifyChannel[];
   }) => {
     setIsWorking(true);
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createSupabaseRouteClient } from "@/lib/supabase";
 import { ensureUserProfile } from "@/lib/user-profile";
+import { buildAppUrl } from "@/lib/site-url";
 import { cookies } from "next/headers";
 
 export async function GET(request: NextRequest) {
@@ -19,15 +20,15 @@ export async function GET(request: NextRequest) {
         const profile = await ensureUserProfile(supabase, user);
 
         if (profile.pin_code) {
-          return NextResponse.redirect(`${origin}/list`);
+          return NextResponse.redirect(buildAppUrl("/list", origin));
         }
 
-        return NextResponse.redirect(`${origin}/setup-household`);
+        return NextResponse.redirect(buildAppUrl("/setup-household", origin));
       } catch {
-        return NextResponse.redirect(`${origin}/?error=auth`);
+        return NextResponse.redirect(buildAppUrl("/?error=auth", origin));
       }
     }
   }
 
-  return NextResponse.redirect(`${origin}/?error=auth`);
+  return NextResponse.redirect(buildAppUrl("/?error=auth", origin));
 }

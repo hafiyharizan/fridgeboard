@@ -36,9 +36,9 @@ export function SuggestionPanel({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.2, delay: i * 0.05 }}
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.05, y: -1 }}
               whileTap={{ scale: 0.95 }}
-              className="flex items-center gap-1.5 rounded-full border border-amber/40 bg-amber/10 py-1.5 pl-3 pr-2.5 text-sm font-medium text-foreground transition-colors hover:border-amber-deep/50 hover:bg-amber/20 focus:outline-none focus:ring-2 focus:ring-amber/50"
+              className="flex cursor-pointer items-center gap-1.5 rounded-full border border-amber/40 bg-amber/10 py-1.5 pl-3 pr-2.5 text-sm font-medium text-foreground shadow-[0_1px_0_rgba(200,135,26,0.12)] transition-all duration-200 hover:border-amber-deep/50 hover:bg-amber/20 hover:shadow-[0_10px_24px_rgba(200,135,26,0.14)] focus:outline-none focus:ring-2 focus:ring-amber/50"
               key={text}
               onClick={() => onAddItem(text)}
               title={`Add "${text}"`}

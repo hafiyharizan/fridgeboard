@@ -20,11 +20,15 @@ export type CalendarEventType = "event" | "reminder" | "todo";
 export type StickyColor = "amber" | "blue" | "rose" | "green" | "purple";
 export type Recurrence = "none" | "daily" | "weekly" | "biweekly" | "monthly" | "yearly";
 export type NotifyChannel = "email" | "telegram" | "webhook";
+export type CalendarSourceType = "manual" | "islamic" | "wa_public_holiday" | "malaysia_public_holiday";
+export type CalendarImportSource = Exclude<CalendarSourceType, "manual">;
 
 export type CalendarEvent = {
   id: string;
   pin_code: string;
   event_date: string;
+  /** Time in HH:MM (24-hour) format. Null for all-day events. */
+  event_time: string | null;
   title: string;
   note: string | null;
   event_type: CalendarEventType;
@@ -35,6 +39,9 @@ export type CalendarEvent = {
   notify_before: number;
   notify_channels: NotifyChannel[];
   created_at: string;
+  source_type: CalendarSourceType;
+  source_label: string | null;
+  source_event_id: string | null;
 };
 
 /** A virtual occurrence of a recurring event expanded onto a specific date. */
@@ -55,6 +62,22 @@ export type NotificationChannelConfig = {
   created_at: string;
 };
 
+export type PushSubscriptionRecord = {
+  id: string;
+  pin_code: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  user_agent: string | null;
+  created_at: string;
+};
+
+export type CalendarSyncToken = {
+  pin_code: string;
+  token: string;
+  created_at: string;
+};
+
 export type Household = {
   pin_code: string;
   created_by: string | null;
@@ -70,6 +93,14 @@ export type UserProfile = {
   created_at: string;
 };
 
+export type NotificationLog = {
+  id: string;
+  event_id: string;
+  channel_type: string;
+  sent_at: string;
+  status: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -79,6 +110,7 @@ export type Database = {
           id?: string;
           pin_code: string;
           event_date: string;
+          event_time?: string | null;
           title: string;
           note?: string | null;
           event_type?: CalendarEventType;
@@ -89,11 +121,15 @@ export type Database = {
           notify_before?: number;
           notify_channels?: NotifyChannel[];
           created_at?: string;
+          source_type?: CalendarSourceType;
+          source_label?: string | null;
+          source_event_id?: string | null;
         };
         Update: {
           id?: string;
           pin_code?: string;
           event_date?: string;
+          event_time?: string | null;
           title?: string;
           note?: string | null;
           event_type?: CalendarEventType;
@@ -103,6 +139,53 @@ export type Database = {
           recurrence_end?: string | null;
           notify_before?: number;
           notify_channels?: NotifyChannel[];
+          created_at?: string;
+          source_type?: CalendarSourceType;
+          source_label?: string | null;
+          source_event_id?: string | null;
+        };
+        Relationships: [];
+      };
+      calendar_sync_tokens: {
+        Row: CalendarSyncToken;
+        Insert: {
+          pin_code: string;
+          token?: string;
+          created_at?: string;
+        };
+        Update: {
+          pin_code?: string;
+          token?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "calendar_sync_tokens_pin_code_fkey";
+            columns: ["pin_code"];
+            isOneToOne: true;
+            referencedRelation: "households";
+            referencedColumns: ["pin_code"];
+          },
+        ];
+      };
+      push_subscriptions: {
+        Row: PushSubscriptionRecord;
+        Insert: {
+          id?: string;
+          pin_code: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          user_agent?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          pin_code?: string;
+          endpoint?: string;
+          p256dh?: string;
+          auth?: string;
+          user_agent?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -187,6 +270,24 @@ export type Database = {
         };
         Relationships: [];
       };
+      notification_log: {
+        Row: NotificationLog;
+        Insert: {
+          id?: string;
+          event_id: string;
+          channel_type: string;
+          sent_at?: string;
+          status: string;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          channel_type?: string;
+          sent_at?: string;
+          status?: string;
+        };
+        Relationships: [];
+      };
       user_profiles: {
         Row: UserProfile;
         Insert: {
@@ -217,9 +318,19 @@ export type Database = {
         };
         Returns: string;
       };
+      ensure_calendar_sync_token: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
       current_user_pin: {
         Args: Record<string, never>;
         Returns: string | null;
+      };
+      get_calendar_feed: {
+        Args: {
+          feed_token: string;
+        };
+        Returns: CalendarEvent[];
       };
       join_household: {
         Args: {
@@ -228,6 +339,12 @@ export type Database = {
           profile_avatar_url?: string | null;
         };
         Returns: string;
+      };
+      validate_calendar_sync_token: {
+        Args: {
+          feed_token: string;
+        };
+        Returns: boolean;
       };
     };
     Enums: Record<string, never>;

@@ -1,8 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Bell, Check, Repeat, Trash2, X } from "lucide-react";
-import { NOTIFY_BEFORE_OPTIONS, RECURRENCE_LABELS } from "@/lib/calendar";
+import { Bell, Check, Clock, Repeat, Trash2, X } from "lucide-react";
+import { formatEventTime, NOTIFY_BEFORE_OPTIONS, RECURRENCE_LABELS } from "@/lib/calendar";
 import type { ExpandedCalendarEvent, StickyColor } from "@/lib/types";
 
 const STICKY_BG: Record<StickyColor, string> = {
@@ -35,6 +35,8 @@ export function EventDetail({ event, busy, onClose, onToggle, onDelete }: EventD
   });
 
   const notifyLabel = NOTIFY_BEFORE_OPTIONS.find((o) => o.value === event.notify_before)?.label;
+
+  const displayTime = event.event_time ? formatEventTime(event.event_time) : null;
 
   return (
     <motion.div
@@ -75,6 +77,14 @@ export function EventDetail({ event, busy, onClose, onToggle, onDelete }: EventD
             <p className="mt-1 text-sm leading-relaxed text-muted">{event.note}</p>
           ) : null}
 
+          {/* Time badge */}
+          {displayTime ? (
+            <p className="mt-1 flex items-center gap-1 text-sm font-medium text-muted">
+              <Clock className="h-3 w-3" />
+              {displayTime}
+            </p>
+          ) : null}
+
           {/* Recurrence & notification badges */}
           <div className="mt-3 flex flex-wrap gap-1.5">
             {event.recurrence !== "none" ? (
@@ -87,21 +97,22 @@ export function EventDetail({ event, busy, onClose, onToggle, onDelete }: EventD
               </span>
             ) : null}
 
-            {event.notify_before >= 0 ? (
+            {event.notify_before >= 0 && notifyLabel ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-border bg-white/60 px-2 py-0.5 text-[0.65rem] font-bold text-muted">
                 <Bell className="h-2.5 w-2.5" />
                 {notifyLabel}
-                {event.notify_channels.length > 0 ? (
-                  <span className="text-muted/60">
-                    via {event.notify_channels.join(", ")}
-                  </span>
-                ) : null}
               </span>
             ) : null}
 
             {event.is_recurrence ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-blue/30 bg-blue/10 px-2 py-0.5 text-[0.65rem] font-bold text-blue-deep">
                 Recurring occurrence
+              </span>
+            ) : null}
+
+            {event.source_type !== "manual" && event.source_label ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-white/60 px-2 py-0.5 text-[0.65rem] font-bold text-muted">
+                Imported · {event.source_label}
               </span>
             ) : null}
           </div>

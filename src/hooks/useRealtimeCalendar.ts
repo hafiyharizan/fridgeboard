@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import { expandRecurrences, getMonthRange } from "@/lib/calendar";
 import type {
   CalendarEvent,
   CalendarEventType,
+  CalendarImportSource,
   ExpandedCalendarEvent,
-  NotificationChannelConfig,
   NotifyChannel,
   Recurrence,
   StickyColor,
@@ -17,7 +17,6 @@ import type {
 export function useRealtimeCalendar(pinCode: string) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [rawEvents, setRawEvents] = useState<CalendarEvent[]>([]);
-  const [channels, setChannels] = useState<NotificationChannelConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState("");
@@ -44,19 +43,7 @@ export function useRealtimeCalendar(pinCode: string) {
       setLoading(false);
     };
 
-    const fetchChannels = async () => {
-      const { data } = await supabase
-        .from("notification_channels")
-        .select("*")
-        .eq("pin_code", pinCode)
-        .eq("is_enabled", true);
-      if (isMounted) {
-        setChannels((data ?? []) as NotificationChannelConfig[]);
-      }
-    };
-
     void fetchEvents();
-    void fetchChannels();
 
     const syncFromPayload = (payload: RealtimePostgresChangesPayload<CalendarEvent>) => {
       setRawEvents((current) => {
@@ -102,19 +89,17 @@ export function useRealtimeCalendar(pinCode: string) {
   }, [pinCode, supabase]);
 
   /** Expand recurring events for a specific month. */
-  const getMonthEvents = (year: number, month: number): ExpandedCalendarEvent[] => {
-    const { start, end } = getMonthRange(year, month);
-    return expandRecurrences(rawEvents, start, end);
-  };
-
-  /** Available notification channel types for this PIN. */
-  const availableChannels: NotifyChannel[] = useMemo(
-    () => [...new Set(channels.map((c) => c.channel_type))],
-    [channels],
+  const getMonthEvents = useCallback(
+    (year: number, month: number): ExpandedCalendarEvent[] => {
+      const { start, end } = getMonthRange(year, month);
+      return expandRecurrences(rawEvents, start, end);
+    },
+    [rawEvents],
   );
 
   const addEvent = async (data: {
     event_date: string;
+    event_time?: string | null;
     title: string;
     note?: string;
     event_type: CalendarEventType;
@@ -129,6 +114,7 @@ export function useRealtimeCalendar(pinCode: string) {
     const { error: insertError } = await supabase.from("calendar_events").insert({
       pin_code: pinCode,
       event_date: data.event_date,
+      event_time: data.event_time ?? null,
       title: data.title,
       note: data.note,
       event_type: data.event_type,
@@ -185,15 +171,86 @@ export function useRealtimeCalendar(pinCode: string) {
     setError("");
   };
 
+  const importSource = async (source: CalendarImportSource, year: number) => {
+    setIsWorking(true);
+
+    try {
+      const response = await fetch("/api/calendar/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ source, year }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        imported?: number;
+        skipped?: number;
+        total?: number;
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Could not import that calendar.");
+      }
+
+      setError("");
+      return {
+        imported: payload.imported ?? 0,
+        skipped: payload.skipped ?? 0,
+        total: payload.total ?? 0,
+      };
+    } catch (importError) {
+      setError(importError instanceof Error ? importError.message : "Could not import that calendar.");
+      return null;
+    } finally {
+      setIsWorking(false);
+    }
+  };
+
+  const createSyncLink = async () => {
+    setIsWorking(true);
+
+    try {
+      const response = await fetch("/api/calendar/sync", {
+        method: "POST",
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        feedUrl?: string;
+        appleUrl?: string;
+        googleUrl?: string;
+      };
+
+      if (!response.ok || !payload.feedUrl || !payload.appleUrl || !payload.googleUrl) {
+        throw new Error(payload.error || "Could not create a sync link.");
+      }
+
+      setError("");
+      return {
+        feedUrl: payload.feedUrl,
+        appleUrl: payload.appleUrl,
+        googleUrl: payload.googleUrl,
+      };
+    } catch (syncError) {
+      setError(syncError instanceof Error ? syncError.message : "Could not create a sync link.");
+      return null;
+    } finally {
+      setIsWorking(false);
+    }
+  };
+
   return {
     rawEvents,
     getMonthEvents,
-    availableChannels,
     loading,
     isWorking,
     error,
     addEvent,
     toggleDone,
     removeEvent,
+    importSource,
+    createSyncLink,
   };
 }

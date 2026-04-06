@@ -1,0 +1,17 @@
+{
+  "name": "Fridgeboard",
+  "short_name": "Fridgeboard",
+  "description": "Shared grocery lists, to-dos, and family calendar",
+  "start_url": "/list",
+  "display": "standalone",
+  "background_color": "#faf8f5",
+  "theme_color": "#3c2814",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

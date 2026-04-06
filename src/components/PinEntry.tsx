@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { clearSessionPin, setSessionPin } from "@/lib/auth";
+import { buildAppUrl } from "@/lib/site-url";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import { ensureUserProfile } from "@/lib/user-profile";
 
@@ -150,7 +151,7 @@ export function PinEntry() {
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: buildAppUrl("/auth/callback", window.location.origin),
       },
     });
 
@@ -266,7 +267,7 @@ export function PinEntry() {
                 boxShadow: "0 8px 32px rgba(60, 40, 20, 0.12)",
               }}
               whileTap={{ scale: 0.975 }}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-border bg-white/90 px-5 py-4 text-base font-bold text-foreground shadow-sm transition-colors hover:bg-white focus:outline-none focus:ring-4 focus:ring-amber/30 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-2xl border border-border bg-white/90 px-5 py-4 text-base font-bold text-foreground shadow-sm transition-all duration-200 hover:bg-white focus:outline-none focus:ring-4 focus:ring-amber/30 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={googleLoading}
               onClick={handleGoogleSignIn}
               type="button"

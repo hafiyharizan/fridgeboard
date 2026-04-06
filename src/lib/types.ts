@@ -93,6 +93,14 @@ export type UserProfile = {
   created_at: string;
 };
 
+export type NotificationLog = {
+  id: string;
+  event_id: string;
+  channel_type: string;
+  sent_at: string;
+  status: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -259,6 +267,24 @@ export type Database = {
           id?: string;
           name?: string;
           pin_code?: string;
+        };
+        Relationships: [];
+      };
+      notification_log: {
+        Row: NotificationLog;
+        Insert: {
+          id?: string;
+          event_id: string;
+          channel_type: string;
+          sent_at?: string;
+          status: string;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          channel_type?: string;
+          sent_at?: string;
+          status?: string;
         };
         Relationships: [];
       };

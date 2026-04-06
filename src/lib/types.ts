@@ -55,10 +55,16 @@ export type NotificationChannelConfig = {
   created_at: string;
 };
 
+export type Household = {
+  pin_code: string;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type UserProfile = {
   id: string;
   user_id: string;
-  pin_code: string;
+  pin_code: string | null;
   display_name: string | null;
   avatar_url: string | null;
   created_at: string;
@@ -151,6 +157,20 @@ export type Database = {
           },
         ];
       };
+      households: {
+        Row: Household;
+        Insert: {
+          pin_code: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          pin_code?: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       lists: {
         Row: FridgeList;
         Insert: {
@@ -172,7 +192,7 @@ export type Database = {
         Insert: {
           id?: string;
           user_id: string;
-          pin_code: string;
+          pin_code?: string | null;
           display_name?: string | null;
           avatar_url?: string | null;
           created_at?: string;
@@ -180,7 +200,7 @@ export type Database = {
         Update: {
           id?: string;
           user_id?: string;
-          pin_code?: string;
+          pin_code?: string | null;
           display_name?: string | null;
           avatar_url?: string | null;
           created_at?: string;
@@ -189,7 +209,27 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      create_household: {
+        Args: {
+          profile_display_name?: string | null;
+          profile_avatar_url?: string | null;
+        };
+        Returns: string;
+      };
+      current_user_pin: {
+        Args: Record<string, never>;
+        Returns: string | null;
+      };
+      join_household: {
+        Args: {
+          target_pin: string;
+          profile_display_name?: string | null;
+          profile_avatar_url?: string | null;
+        };
+        Returns: string;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

@@ -253,8 +253,8 @@ export function PinEntry() {
               Welcome home.
             </p>
             <p className="mt-1 max-w-md text-sm leading-6 text-muted sm:text-base">
-              Tap between grocery and to-do, and every change
-              shows up on both phones.
+              Grocery lists, to-dos, and everything in between.  
+              {"\n"}Always in sync across your household.
             </p>
           </motion.div>
 

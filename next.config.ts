@@ -15,6 +15,7 @@ if (
 
 const nextConfig: NextConfig = {
   images: {
+    qualities: [75],
     remotePatterns: [
       {
         protocol: "https",

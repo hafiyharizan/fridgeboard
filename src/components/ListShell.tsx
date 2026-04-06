@@ -7,9 +7,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { LogOut } from "lucide-react";
 import { CalendarTab } from "@/components/CalendarTab";
 import { ListTab } from "@/components/ListTab";
-import { getSessionPin, setSessionPin, clearSessionPin } from "@/lib/auth";
+import { clearSessionPin, setSessionPin } from "@/lib/auth";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import type { FridgeList } from "@/lib/types";
+import { ensureUserProfile, getUserDisplayName } from "@/lib/user-profile";
 
 const CALENDAR_TAB_ID = "__calendar__";
 
@@ -24,7 +25,7 @@ export function ListShell() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [lists, setLists] = useState<FridgeList[]>([]);
   const [activeListId, setActiveListId] = useState("");
-  const [pin, setPin] = useState(() => getSessionPin() ?? "");
+  const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [authUser, setAuthUser] = useState<{ name: string; avatar: string | null } | null>(null);
@@ -57,73 +58,47 @@ export function ListShell() {
     };
 
     const init = async () => {
-      let resolvedPin = pin;
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-      // Single getUser call — needed for both auth-resolution and UI enrichment
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!resolvedPin) {
         if (!user) {
+          clearSessionPin();
           router.replace("/");
           return;
         }
 
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("pin_code, display_name, avatar_url")
-          .eq("user_id", user.id)
-          .single();
+        const profile = await ensureUserProfile(supabase, user);
+        setAuthUser({
+          name: getUserDisplayName(user, profile),
+          avatar: profile.avatar_url,
+        });
 
-        if (profile?.pin_code) {
-          resolvedPin = profile.pin_code;
-          setPin(resolvedPin);
-          setSessionPin(resolvedPin);
-          setAuthUser({
-            name: profile.display_name ?? user.email ?? "User",
-            avatar: profile.avatar_url,
-          });
-        } else {
-          router.replace("/setup-pin");
+        if (!profile.pin_code) {
+          clearSessionPin();
+          router.replace("/setup-household");
           return;
         }
 
-        await loadLists(resolvedPin);
-      } else {
-        // PIN exists — fetch lists immediately, enrich auth UI in parallel
-        const listsPromise = loadLists(resolvedPin);
-
-        if (user) {
-          const { data: profile } = await supabase
-            .from("user_profiles")
-            .select("display_name, avatar_url")
-            .eq("user_id", user.id)
-            .single();
-
-          if (profile) {
-            setAuthUser({
-              name: profile.display_name ?? user.email ?? "User",
-              avatar: profile.avatar_url,
-            });
-          }
-        }
-
-        await listsPromise;
+        setPin(profile.pin_code);
+        setSessionPin(profile.pin_code);
+        await loadLists(profile.pin_code);
+      } catch (initError) {
+        setError(initError instanceof Error ? initError.message : "Could not load your account.");
+        setLoading(false);
       }
     };
 
     void init();
-  }, [pin, router, supabase]);
+  }, [router, supabase]);
 
   const isCalendarActive = activeListId === CALENDAR_TAB_ID;
   const activeList = isCalendarActive ? null : (lists.find((list) => list.id === activeListId) ?? lists[0]);
 
   const handleResetPin = async () => {
     clearSessionPin();
-    if (authUser) {
-      await supabase.auth.signOut();
-    }
+    await supabase.auth.signOut();
     router.replace("/");
   };
 
@@ -162,7 +137,7 @@ export function ListShell() {
             onClick={handleResetPin}
             type="button"
           >
-            Re-enter PIN
+            Back to sign in
           </button>
         </section>
       </main>
@@ -190,14 +165,10 @@ export function ListShell() {
                       />
                     ) : null}
                     <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted">
-                      {authUser.name} &middot; PIN {pin}
+                      {authUser.name} &middot; Household PIN {pin}
                     </p>
                   </div>
-                ) : (
-                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted">
-                    Shared with PIN {pin}
-                  </p>
-                )}
+                ) : null}
                 <div>
                   <h1 className="text-4xl text-foreground sm:text-[2.8rem]">Fridgeboard</h1>
                   <p className="mt-1 max-w-md text-sm leading-6 text-muted sm:text-base">
@@ -211,14 +182,8 @@ export function ListShell() {
                 onClick={handleResetPin}
                 type="button"
               >
-                {authUser ? (
-                  <>
-                    <LogOut className="h-3.5 w-3.5" />
-                    Sign out
-                  </>
-                ) : (
-                  "Change PIN"
-                )}
+                <LogOut className="h-3.5 w-3.5" />
+                Sign out
               </button>
             </div>
 

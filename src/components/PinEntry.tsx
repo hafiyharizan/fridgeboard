@@ -3,60 +3,78 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { getSessionPin, setSessionPin } from "@/lib/auth";
+import { clearSessionPin, setSessionPin } from "@/lib/auth";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
+import { ensureUserProfile } from "@/lib/user-profile";
 
 export function PinEntry() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const [pin, setPin] = useState("");
+  const [email, setEmail] = useState("");
   const authError = searchParams.get("error") === "auth";
   const [error, setError] = useState(authError ? "Sign-in failed. Please try again." : "");
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [statusMessage, setStatusMessage] = useState("Checking your account...");
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [magicLinkLoading, setMagicLinkLoading] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
 
   useEffect(() => {
-    if (getSessionPin()) {
-      router.replace("/list");
-      return;
-    }
-
     const checkSession = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (user) {
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("pin_code")
-          .eq("user_id", user.id)
-          .single();
+      if (!user) {
+        clearSessionPin();
+        setCheckingSession(false);
+        return;
+      }
 
-        if (profile?.pin_code) {
+      try {
+        const profile = await ensureUserProfile(supabase, user);
+
+        if (profile.pin_code) {
+          setStatusMessage("Opening your household...");
           setSessionPin(profile.pin_code);
           router.replace("/list");
-        } else {
-          router.replace("/setup-pin");
+          return;
         }
+
+        setStatusMessage("Taking you to household setup...");
+        clearSessionPin();
+        router.replace("/setup-household");
+      } catch (profileError) {
+        setError(profileError instanceof Error ? profileError.message : "Could not load your account.");
+        setCheckingSession(false);
       }
     };
 
     void checkSession();
   }, [router, supabase]);
 
-  const digits = useMemo(() => pin.split(""), [pin]);
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleMagicLink = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setMagicLinkLoading(true);
+    setMagicLinkSent(false);
+    setError("");
 
-    if (!/^\d{4}$/.test(pin)) {
-      setError("Use the same 4-digit PIN on both phones.");
+    const { error: signInError } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (signInError) {
+      setError(signInError.message);
+      setMagicLinkLoading(false);
       return;
     }
 
-    setSessionPin(pin);
-    router.push("/list");
+    setMagicLinkSent(true);
+    setMagicLinkLoading(false);
   };
 
   const handleGoogleSignIn = async () => {
@@ -75,6 +93,43 @@ export function PinEntry() {
       setGoogleLoading(false);
     }
   };
+
+  if (checkingSession) {
+    return (
+      <main className="fridge-wrap flex items-center justify-center">
+        <motion.section
+          className="fridge-card relative w-full max-w-md overflow-hidden px-6 py-7 text-center sm:px-8"
+          initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <motion.div
+            animate={{ y: [0, 20, 0], x: [0, -15, 0], scale: [1, 1.1, 1] }}
+            className="absolute -left-10 top-8 h-32 w-32 rounded-full bg-amber/30 blur-3xl"
+            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div
+            animate={{ y: [0, -20, 0], x: [0, 20, 0], scale: [1, 1.2, 1] }}
+            className="absolute -right-4 top-0 h-36 w-36 rounded-full bg-blue/25 blur-3xl"
+            transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          />
+
+          <div className="relative space-y-4">
+            <p className="inline-flex rounded-full bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-[0.24em] text-muted">
+              Fridgeboard
+            </p>
+            <motion.div
+              animate={{ scale: [1, 1.05, 1], opacity: [0.5, 1, 0.5] }}
+              className="text-sm font-medium text-muted"
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              {statusMessage}
+            </motion.div>
+          </div>
+        </motion.section>
+      </main>
+    );
+  }
 
   return (
     <main className="fridge-wrap flex items-center justify-center">
@@ -98,14 +153,14 @@ export function PinEntry() {
         <div className="relative flex flex-col gap-8">
           <div className="space-y-3 text-center">
             <p className="inline-flex rounded-full bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-[0.24em] text-muted">
-              Fridgeboard
+              Step 1 · Account sign-in
             </p>
             <div className="space-y-2">
               <h1 className="text-4xl text-balance text-foreground sm:text-5xl">
-                Shared lists that feel like home.
+                Sign in with your account first.
               </h1>
               <p className="mx-auto max-w-sm text-sm leading-6 text-muted sm:text-base">
-                Grocery and to-do notes, synced in real time, with one simple PIN you both already know.
+                Use Google or a magic link email. Once you&apos;re in, you can create a household or join one with a shared household PIN.
               </p>
             </div>
           </div>
@@ -143,38 +198,39 @@ export function PinEntry() {
             <div className="flex items-center gap-4">
               <div className="h-px flex-1 bg-border" />
               <span className="text-xs font-bold uppercase tracking-[0.18em] text-muted/60">
-                or enter household PIN
+                or sign in with email
               </span>
               <div className="h-px flex-1 bg-border" />
             </div>
           </div>
 
-          <form className="space-y-5" onSubmit={handleSubmit}>
+          <form className="space-y-5" onSubmit={handleMagicLink}>
             <label className="block space-y-3">
-              <span className="text-sm font-semibold text-foreground">Enter your shared PIN</span>
+              <span className="text-sm font-semibold text-foreground">Email address</span>
               <input
-                autoComplete="one-time-code"
-                className="w-full rounded-[1.4rem] border border-border bg-white/90 px-5 py-4 text-center text-3xl tracking-[0.45em] text-foreground outline-none transition placeholder:text-muted/50 focus:border-amber-deep focus:ring-4 focus:ring-amber/25"
-                inputMode="numeric"
-                maxLength={4}
+                autoComplete="email"
+                className="w-full rounded-[1.4rem] border border-border bg-white/90 px-5 py-4 text-base text-foreground outline-none transition placeholder:text-muted/50 focus:border-amber-deep focus:ring-4 focus:ring-amber/25"
                 onChange={(event) => {
-                  const nextValue = event.target.value.replace(/\D/g, "").slice(0, 4);
-                  setPin(nextValue);
+                  setEmail(event.target.value);
                   setError("");
+                  setMagicLinkSent(false);
                 }}
-                placeholder="0000"
-                value={pin}
+                placeholder="you@example.com"
+                required
+                type="email"
+                value={email}
               />
             </label>
 
-            <div className="flex items-center justify-center gap-2">
-              {[0, 1, 2, 3].map((index) => (
-                <span
-                  key={index}
-                  className={`pin-dot ${digits[index] ? "scale-110 bg-foreground" : "bg-foreground/18"}`}
-                />
-              ))}
-            </div>
+            {magicLinkSent ? (
+              <motion.p
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center text-sm font-medium text-[#4a6e3f]"
+              >
+                Check your email for a sign-in link.
+              </motion.p>
+            ) : null}
 
             {error ? (
               <motion.p
@@ -189,15 +245,16 @@ export function PinEntry() {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="w-full rounded-[1.4rem] bg-foreground px-5 py-4 text-base font-bold text-white shadow-lg transition-colors hover:bg-[#2f241b] focus:outline-none focus:ring-4 focus:ring-amber/25"
+              className="w-full rounded-[1.4rem] bg-foreground px-5 py-4 text-base font-bold text-white shadow-lg transition-colors hover:bg-[#2f241b] focus:outline-none focus:ring-4 focus:ring-amber/25 disabled:opacity-50"
+              disabled={magicLinkLoading}
               type="submit"
             >
-              Open the fridge
+              {magicLinkLoading ? "Sending link..." : "Send magic link"}
             </motion.button>
           </form>
 
           <p className="text-center text-xs uppercase tracking-[0.24em] text-muted/80">
-            Warm, simple, always in sync
+            Step 2 happens after sign-in
           </p>
         </div>
       </motion.section>

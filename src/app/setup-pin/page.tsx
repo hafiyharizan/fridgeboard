@@ -1,7 +1,5 @@
-"use client";
-
-import { PinSetup } from "@/components/PinSetup";
+import { redirect } from "next/navigation";
 
 export default function SetupPinPage() {
-  return <PinSetup />;
+  redirect("/setup-household");
 }

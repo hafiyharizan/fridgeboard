@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createSupabaseRouteClient } from "@/lib/supabase";
+import { ensureUserProfile } from "@/lib/user-profile";
 import { cookies } from "next/headers";
 
 export async function GET(request: NextRequest) {
@@ -13,19 +14,18 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && data.session?.user) {
-      const user = data.session.user;
+      try {
+        const user = data.session.user;
+        const profile = await ensureUserProfile(supabase, user);
 
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("pin_code")
-        .eq("user_id", user.id)
-        .single();
+        if (profile.pin_code) {
+          return NextResponse.redirect(`${origin}/list`);
+        }
 
-      if (profile?.pin_code) {
-        return NextResponse.redirect(`${origin}/list`);
+        return NextResponse.redirect(`${origin}/setup-household`);
+      } catch {
+        return NextResponse.redirect(`${origin}/?error=auth`);
       }
-
-      return NextResponse.redirect(`${origin}/setup-pin`);
     }
   }
 

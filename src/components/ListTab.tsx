@@ -40,7 +40,7 @@ export function ListTab({ list, pin }: ListTabProps) {
             </h2>
           </div>
           <div className="rounded-full bg-white/80 px-3 py-2 text-right text-xs uppercase tracking-[0.18em] text-muted">
-            PIN {pin}
+            Household PIN {pin}
           </div>
         </div>
 

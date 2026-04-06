@@ -106,7 +106,7 @@ export function AddItemInput({
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className="shrink-0 rounded-[1.2rem] bg-foreground px-4 py-3 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#2f241b] disabled:opacity-60"
+          className="shrink-0 cursor-pointer rounded-[1.2rem] bg-foreground px-4 py-3 text-sm font-bold text-white shadow-md transition-all duration-200 hover:bg-[#2f241b] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
           disabled={busy}
           type="submit"
         >
@@ -125,7 +125,7 @@ export function AddItemInput({
           >
           {matches.map((match, i) => (
             <button
-              className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition ${
+              className={`flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
                 i === selectedIndex
                   ? "bg-amber/15 text-foreground"
                   : "text-muted hover:bg-amber/8 hover:text-foreground"

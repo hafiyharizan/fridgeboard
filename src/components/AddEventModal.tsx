@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, Repeat, X } from "lucide-react";
+import { Bell, Clock, Repeat, X } from "lucide-react";
 import { NOTIFY_BEFORE_OPTIONS, RECURRENCE_LABELS } from "@/lib/calendar";
 import type { CalendarEventType, NotifyChannel, Recurrence, StickyColor } from "@/lib/types";
 
@@ -14,27 +14,21 @@ const COLOR_OPTIONS: { value: StickyColor; label: string; classes: string }[] = 
   { value: "purple", label: "Purple", classes: "bg-[#c4b5fd]/30 border-[#c4b5fd]/60" },
 ];
 
+// No "to-do" in calendar — use the list tab for to-dos
 const TYPE_OPTIONS: { value: CalendarEventType; label: string; icon: string }[] = [
   { value: "event", label: "Event", icon: "◆" },
   { value: "reminder", label: "Reminder", icon: "◎" },
-  { value: "todo", label: "To-do", icon: "☐" },
 ];
 
 const RECURRENCE_OPTIONS = Object.entries(RECURRENCE_LABELS) as [Recurrence, string][];
 
-const CHANNEL_OPTIONS: { value: NotifyChannel; label: string }[] = [
-  { value: "email", label: "Email" },
-  { value: "telegram", label: "Telegram" },
-  { value: "webhook", label: "Webhook" },
-];
-
 type AddEventModalProps = {
   dateKey: string;
   busy: boolean;
-  availableChannels: NotifyChannel[];
   onClose: () => void;
   onAdd: (data: {
     event_date: string;
+    event_time: string | null;
     title: string;
     note?: string;
     event_type: CalendarEventType;
@@ -46,18 +40,15 @@ type AddEventModalProps = {
   }) => Promise<void>;
 };
 
-export function AddEventModal({ dateKey, busy, availableChannels, onClose, onAdd }: AddEventModalProps) {
+export function AddEventModal({ dateKey, busy, onClose, onAdd }: AddEventModalProps) {
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
   const [eventType, setEventType] = useState<CalendarEventType>("event");
   const [color, setColor] = useState<StickyColor>("amber");
   const [recurrence, setRecurrence] = useState<Recurrence>("none");
   const [recurrenceEnd, setRecurrenceEnd] = useState("");
+  const [eventTime, setEventTime] = useState("");
   const [notifyBefore, setNotifyBefore] = useState(-1);
-  const [notifyChannels, setNotifyChannels] = useState<NotifyChannel[]>([]);
-
-  const showRecurrence = eventType === "event" || eventType === "reminder";
-  const showNotify = eventType === "event" || eventType === "reminder";
 
   const displayDate = new Date(dateKey + "T00:00:00").toLocaleDateString("en-US", {
     weekday: "short",
@@ -65,11 +56,8 @@ export function AddEventModal({ dateKey, busy, availableChannels, onClose, onAdd
     day: "numeric",
   });
 
-  const toggleChannel = (ch: NotifyChannel) => {
-    setNotifyChannels((prev) =>
-      prev.includes(ch) ? prev.filter((c) => c !== ch) : [...prev, ch],
-    );
-  };
+  // Reminder only makes sense when a specific time is set
+  const canSetReminder = eventTime !== "";
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -78,14 +66,15 @@ export function AddEventModal({ dateKey, busy, availableChannels, onClose, onAdd
 
     await onAdd({
       event_date: dateKey,
+      event_time: eventTime || null,
       title: trimmed,
       note: note.trim() || undefined,
       event_type: eventType,
       color,
       recurrence,
       recurrence_end: recurrence !== "none" && recurrenceEnd ? recurrenceEnd : undefined,
-      notify_before: showNotify ? notifyBefore : -1,
-      notify_channels: showNotify && notifyBefore >= 0 ? notifyChannels : [],
+      notify_before: canSetReminder ? notifyBefore : -1,
+      notify_channels: [],
     });
 
     onClose();
@@ -97,35 +86,36 @@ export function AddEventModal({ dateKey, busy, availableChannels, onClose, onAdd
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/20 backdrop-blur-sm sm:items-center sm:px-4"
+        className="fixed inset-0 z-50 overflow-y-auto bg-foreground/20 p-3 backdrop-blur-sm sm:p-4"
         onClick={onClose}
       >
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 40 }}
-          transition={{ type: "spring", stiffness: 400, damping: 32 }}
-          className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-[1.5rem] border border-white/60 bg-white/95 shadow-[0_-8px_40px_rgba(60,40,20,0.12)] backdrop-blur-xl sm:max-w-md sm:rounded-[1.5rem] sm:shadow-[0_24px_64px_rgba(60,40,20,0.15)]"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* ---- Sticky header ---- */}
-          <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-            <div className="flex items-baseline gap-2">
-              <p className="text-sm font-bold text-foreground">Pin a note</p>
-              <p className="text-xs text-muted">{displayDate}</p>
+        <div className="flex min-h-full items-start justify-center sm:items-center">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ type: "spring", stiffness: 400, damping: 32 }}
+            className="my-auto flex w-full max-w-lg flex-col overflow-hidden rounded-[1.5rem] border border-white/60 bg-white/95 shadow-[0_24px_64px_rgba(60,40,20,0.15)] backdrop-blur-xl max-h-[calc(100svh-1.5rem)] sm:max-h-[calc(100svh-2rem)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* ---- Sticky header ---- */}
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+              <div className="flex items-baseline gap-2">
+                <p className="text-sm font-bold text-foreground">Pin a note</p>
+                <p className="text-xs text-muted">{displayDate}</p>
+              </div>
+              <button
+                className="rounded-full p-1.5 text-muted transition hover:bg-foreground/5 hover:text-foreground"
+                onClick={onClose}
+                type="button"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <button
-              className="rounded-full p-1.5 text-muted transition hover:bg-foreground/5 hover:text-foreground"
-              onClick={onClose}
-              type="button"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
 
-          {/* ---- Scrollable form body ---- */}
-          <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
-            <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+            {/* ---- Scrollable form body ---- */}
+            <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
+              <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 overscroll-y-contain">
               {/* Title */}
               <input
                 autoFocus
@@ -144,144 +134,150 @@ export function AddEventModal({ dateKey, busy, availableChannels, onClose, onAdd
                 value={note}
               />
 
-              {/* Type + Color — combined row */}
-              <div className="flex items-start gap-4">
-                {/* Type */}
-                <div className="flex-1 space-y-1">
-                  <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-muted">Type</p>
-                  <div className="flex gap-1.5">
-                    {TYPE_OPTIONS.map((opt) => (
-                      <button
-                        className={`flex items-center gap-1 rounded-full border px-2 py-1 text-[0.65rem] font-bold transition ${
-                          eventType === opt.value
-                            ? "border-amber/50 bg-amber/15 text-foreground"
-                            : "border-border bg-white text-muted hover:border-amber/30"
-                        }`}
-                        key={opt.value}
-                        onClick={() => setEventType(opt.value)}
-                        type="button"
-                      >
-                        <span className="text-[0.6rem]">{opt.icon}</span>
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Color */}
-                <div className="space-y-1">
-                  <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-muted">Color</p>
-                  <div className="flex gap-1.5">
-                    {COLOR_OPTIONS.map((opt) => (
-                      <button
-                        className={`h-6 w-6 rounded-full border-2 transition ${opt.classes} ${
-                          color === opt.value ? "scale-110 ring-2 ring-foreground/20" : "hover:scale-105"
-                        }`}
-                        key={opt.value}
-                        onClick={() => setColor(opt.value)}
-                        title={opt.label}
-                        type="button"
-                      />
-                    ))}
-                  </div>
+              {/* Type — event / reminder only */}
+              <div className="space-y-2">
+                <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-muted">Type</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {TYPE_OPTIONS.map((opt) => (
+                    <button
+                      className={`flex min-h-[3rem] flex-col items-center justify-center gap-1 rounded-[1rem] border px-2 py-2 text-center text-[0.72rem] font-bold leading-tight transition ${
+                        eventType === opt.value
+                          ? "border-amber/55 bg-amber/14 text-foreground"
+                          : "border-border bg-white text-muted hover:border-amber/35"
+                      }`}
+                      key={opt.value}
+                      onClick={() => setEventType(opt.value)}
+                      type="button"
+                    >
+                      <span className="text-[0.7rem] leading-none">{opt.icon}</span>
+                      <span>{opt.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Recurrence — compact select instead of pill cloud */}
-              {showRecurrence ? (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1">
-                    <Repeat className="h-3 w-3 text-muted" />
-                    <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-muted">Repeat</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <select
-                      className="flex-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
-                      onChange={(e) => setRecurrence(e.target.value as Recurrence)}
-                      value={recurrence}
+              {/* Color */}
+              <div className="space-y-2">
+                <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-muted">Color</p>
+                <div className="flex flex-wrap gap-2">
+                  {COLOR_OPTIONS.map((opt) => (
+                    <button
+                      aria-label={opt.label}
+                      className={`relative h-8 w-8 rounded-full border-2 transition ${opt.classes} ${
+                        color === opt.value
+                          ? "scale-105 shadow-[0_6px_14px_rgba(45,36,28,0.12)] ring-2 ring-foreground/12"
+                          : "hover:scale-105"
+                      }`}
+                      key={opt.value}
+                      onClick={() => setColor(opt.value)}
+                      title={opt.label}
+                      type="button"
                     >
-                      {RECURRENCE_OPTIONS.map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
-
-                    {recurrence !== "none" ? (
-                      <label className="flex items-center gap-1.5 text-xs text-muted">
-                        <span className="shrink-0 text-[0.6rem] uppercase tracking-wider">until</span>
-                        <input
-                          className="rounded-lg border border-border bg-white px-2 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
-                          min={dateKey}
-                          onChange={(e) => setRecurrenceEnd(e.target.value)}
-                          type="date"
-                          value={recurrenceEnd}
-                        />
-                      </label>
-                    ) : null}
-                  </div>
+                      <span className="absolute inset-[3px] rounded-full border border-white/65" />
+                    </button>
+                  ))}
                 </div>
-              ) : null}
+              </div>
 
-              {/* Notification — compact row */}
-              {showNotify ? (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1">
-                    <Bell className="h-3 w-3 text-muted" />
-                    <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-muted">Notify</p>
-                  </div>
+              {/* Time — required to enable reminders */}
+              <div className="space-y-1">
+                <div className="flex items-center gap-1">
+                  <Clock className="h-3 w-3 text-muted" />
+                  <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-muted">
+                    Time <span className="normal-case font-normal">(optional)</span>
+                  </p>
+                </div>
+                <input
+                  className="w-full rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
+                  onChange={(e) => {
+                    setEventTime(e.target.value);
+                    // Clear reminder if time is removed
+                    if (!e.target.value) setNotifyBefore(-1);
+                  }}
+                  type="time"
+                  value={eventTime}
+                />
+              </div>
+
+              {/* Recurrence */}
+              <div className="space-y-1">
+                <div className="flex items-center gap-1">
+                  <Repeat className="h-3 w-3 text-muted" />
+                  <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-muted">Repeat</p>
+                </div>
+                <div className="flex items-center gap-2">
                   <select
-                    className="w-full rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
-                    onChange={(e) => setNotifyBefore(Number(e.target.value))}
-                    value={notifyBefore}
+                    className="flex-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
+                    onChange={(e) => setRecurrence(e.target.value as Recurrence)}
+                    value={recurrence}
                   >
-                    {NOTIFY_BEFORE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
+                    {RECURRENCE_OPTIONS.map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
                     ))}
                   </select>
 
-                  {notifyBefore >= 0 && availableChannels.length > 0 ? (
-                    <div className="flex items-center gap-1.5 pt-0.5">
-                      <span className="text-[0.55rem] font-bold uppercase tracking-wider text-muted">via</span>
-                      {CHANNEL_OPTIONS.filter((ch) => availableChannels.includes(ch.value)).map((ch) => (
-                        <button
-                          className={`rounded-full border px-2 py-0.5 text-[0.6rem] font-bold transition ${
-                            notifyChannels.includes(ch.value)
-                              ? "border-blue/50 bg-blue/15 text-blue-deep"
-                              : "border-border bg-white text-muted hover:border-blue/30"
-                          }`}
-                          key={ch.value}
-                          onClick={() => toggleChannel(ch.value)}
-                          type="button"
-                        >
-                          {ch.label}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {notifyBefore >= 0 && availableChannels.length === 0 ? (
-                    <p className="text-[0.6rem] text-danger">
-                      Configure channels in notification settings first.
-                    </p>
+                  {recurrence !== "none" ? (
+                    <label className="flex items-center gap-1.5 text-xs text-muted">
+                      <span className="shrink-0 text-[0.6rem] uppercase tracking-wider">until</span>
+                      <input
+                        className="rounded-lg border border-border bg-white px-2 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
+                        min={dateKey}
+                        onChange={(e) => setRecurrenceEnd(e.target.value)}
+                        type="date"
+                        value={recurrenceEnd}
+                      />
+                    </label>
                   ) : null}
                 </div>
-              ) : null}
+              </div>
+
+              {/* Remind me — only available when time is set */}
+              <div className="space-y-1">
+                <div className="flex items-center gap-1">
+                  <Bell className={`h-3 w-3 ${canSetReminder ? "text-muted" : "text-muted/40"}`} />
+                  <p className={`text-[0.6rem] font-bold uppercase tracking-[0.18em] ${canSetReminder ? "text-muted" : "text-muted/40"}`}>
+                    Remind me
+                  </p>
+                  {!canSetReminder ? (
+                    <span className="text-[0.55rem] text-muted/50">— set a time first</span>
+                  ) : null}
+                </div>
+                <select
+                  className={`w-full rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition ${
+                    canSetReminder
+                      ? "focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
+                      : "cursor-not-allowed opacity-40"
+                  }`}
+                  disabled={!canSetReminder}
+                  onChange={(e) => setNotifyBefore(Number(e.target.value))}
+                  value={notifyBefore}
+                >
+                  {NOTIFY_BEFORE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                {canSetReminder && notifyBefore >= 0 ? (
+                  <p className="text-[0.6rem] text-muted">Push to all subscribed devices</p>
+                ) : null}
+              </div>
             </div>
 
-            {/* ---- Sticky footer / submit ---- */}
-            <div className="shrink-0 border-t border-border/60 px-4 py-3">
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                className="w-full rounded-xl bg-foreground px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#2f241b] disabled:opacity-60"
-                disabled={busy || !title.trim()}
-                type="submit"
-              >
-                Pin to calendar
-              </motion.button>
-            </div>
-          </form>
-        </motion.div>
+              {/* ---- Sticky footer / submit ---- */}
+              <div className="shrink-0 border-t border-border/60 px-4 py-3">
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full rounded-xl bg-foreground px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#2f241b] disabled:opacity-60"
+                  disabled={busy || !title.trim()}
+                  type="submit"
+                >
+                  Pin to calendar
+                </motion.button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
       </motion.div>
     </AnimatePresence>
   );

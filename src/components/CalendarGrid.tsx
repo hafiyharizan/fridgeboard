@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { getDaysInMonth, getFirstDayOfWeek, formatDateKey, isToday, WEEKDAYS } from "@/lib/calendar";
+import { getDaysInMonth, getFirstDayOfWeek, formatDateKey, isToday, WEEKDAYS, EVENT_TYPE_ICONS } from "@/lib/calendar";
 import type { ExpandedCalendarEvent, StickyColor } from "@/lib/types";
 
 const STICKY_COLORS: Record<StickyColor, string> = {
@@ -13,11 +13,6 @@ const STICKY_COLORS: Record<StickyColor, string> = {
   purple: "bg-[#c4b5fd]/25 border-[#c4b5fd]/50 text-[#6d28d9]",
 };
 
-const TYPE_ICON: Record<string, string> = {
-  event: "◆",
-  reminder: "◎",
-  todo: "☐",
-};
 
 type CalendarGridProps = {
   year: number;
@@ -109,7 +104,7 @@ export function CalendarGrid({ year, month, events, onDayClick, onEventClick }: 
                     }}
                     title={event.title}
                   >
-                    <span className="mr-0.5">{TYPE_ICON[event.event_type]}</span>
+                    <span className="mr-0.5">{EVENT_TYPE_ICONS[event.event_type]}</span>
                     {event.is_recurrence ? "↻ " : ""}
                     {event.title}
                   </motion.div>

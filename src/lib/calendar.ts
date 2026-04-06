@@ -44,13 +44,28 @@ export const RECURRENCE_LABELS: Record<Recurrence, string> = {
   yearly: "Every year",
 };
 
+export const EVENT_TYPE_ICONS: Record<string, string> = {
+  event: "◆",
+  reminder: "◎",
+  todo: "☐",
+};
+
+/** Format an HH:MM (24-hour) string to a localised 12-hour time, e.g. "3:00 PM". */
+export function formatEventTime(hhmm: string): string {
+  return new Date(`1970-01-01T${hhmm}`).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 export const NOTIFY_BEFORE_OPTIONS: { value: number; label: string }[] = [
-  { value: -1, label: "No notification" },
-  { value: 0, label: "At time of event" },
-  { value: 15, label: "15 minutes before" },
-  { value: 30, label: "30 minutes before" },
+  { value: -1, label: "No reminder" },
+  { value: 0, label: "At event time" },
+  { value: 15, label: "15 min before" },
+  { value: 30, label: "30 min before" },
   { value: 60, label: "1 hour before" },
-  { value: 1440, label: "1 day before" },
+  { value: 120, label: "2 hours before" },
 ];
 
 // ---------------------------------------------------------------------------

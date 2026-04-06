@@ -1,24 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
 import type { NotifyChannel } from "@/lib/types";
-
-// ---------------------------------------------------------------------------
-// Cron-callable notification sender
-// Call via: POST /api/notifications with Authorization: Bearer <CRON_SECRET>
-//
-// Checks calendar_events where notify_before >= 0, matches against current
-// time, and dispatches to configured channels. Idempotent via notification_log.
-//
-// Set up a cron (Vercel Cron, GitHub Actions, etc.) to call this every minute.
-// ---------------------------------------------------------------------------
+import { sendPushToPin } from "@/lib/push";
+import { createSupabaseServiceClient } from "@/lib/supabase";
 
 const CRON_SECRET = process.env.CRON_SECRET || "";
-
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY || "",
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Channel dispatchers
@@ -97,14 +81,14 @@ export async function POST(request: Request) {
     }
   }
 
-  const supabase = getSupabase();
+  const supabase = createSupabaseServiceClient();
   const now = new Date();
   const todayKey = now.toISOString().slice(0, 10);
 
   // Find events happening today that have notifications enabled
   const { data: events, error: eventsError } = await supabase
     .from("calendar_events")
-    .select("id, pin_code, event_date, title, note, event_type, notify_channels")
+    .select("id, pin_code, event_date, event_time, title, note, event_type, notify_channels, notify_before")
     .eq("event_date", todayKey)
     .gte("notify_before", 0);
 
@@ -112,73 +96,101 @@ export async function POST(request: Request) {
     return Response.json({ sent: 0, message: eventsError?.message || "No events to notify" });
   }
 
-  let sent = 0;
+  // Current time in local minutes (server timezone — set TZ env if needed)
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-  for (const event of events) {
-    const channels = (event.notify_channels as NotifyChannel[]) ?? [];
-    if (channels.length === 0) continue;
+  // Filter to events in the trigger window (skip events with no time)
+  const triggeredEvents = events.filter((event) => {
+    if (!event.event_time) return false;
+    const [h, m] = (event.event_time as string).split(":").map(Number);
+    const triggerMinutes = h * 60 + m - (event.notify_before as number);
+    // Allow a 1-minute window to account for cron timing jitter
+    return nowMinutes >= triggerMinutes && nowMinutes <= triggerMinutes + 1;
+  });
 
-    // Only skip if a prior run succeeded — failed attempts are retried each minute.
-    const { data: existingLog } = await supabase
-      .from("notification_log")
-      .select("id")
-      .eq("event_id", event.id)
-      .eq("status", "sent")
-      .limit(1);
+  const counts = await Promise.all(
+    triggeredEvents.map(async (event) => {
+      const channels = (event.notify_channels as NotifyChannel[]) ?? [];
+      if (channels.length === 0) return 0;
 
-    if (existingLog && existingLog.length > 0) continue;
+      // Only skip if a prior run succeeded — failed attempts are retried each minute.
+      const { data: existingLog } = await supabase
+        .from("notification_log")
+        .select("id")
+        .eq("event_id", event.id)
+        .eq("status", "sent")
+        .limit(1);
 
-    // Fetch channel configs for this PIN
-    const { data: channelConfigs } = await supabase
-      .from("notification_channels")
-      .select("*")
-      .eq("pin_code", event.pin_code)
-      .eq("is_enabled", true);
+      if (existingLog && existingLog.length > 0) return 0;
 
-    if (!channelConfigs?.length) continue;
+      // Fetch channel configs for this PIN
+      const { data: channelConfigs } = await supabase
+        .from("notification_channels")
+        .select("*")
+        .eq("pin_code", event.pin_code)
+        .eq("is_enabled", true);
 
-    const message = `📌 *Fridgeboard Reminder*\n\n*${event.title}*${event.note ? `\n${event.note}` : ""}\n\n📅 ${todayKey}`;
-    const subject = `Fridgeboard: ${event.title}`;
+      if (!channelConfigs?.length) return 0;
 
-    const logs: { event_id: string; channel_type: NotifyChannel; status: "sent" | "failed" }[] = [];
+      const message = `📌 *Fridgeboard Reminder*\n\n*${event.title}*${event.note ? `\n${event.note}` : ""}\n\n📅 ${todayKey}`;
+      const subject = `Fridgeboard: ${event.title}`;
 
-    for (const channelType of channels) {
-      const configs = channelConfigs.filter((c) => c.channel_type === channelType);
+      const logs: { event_id: string; channel_type: NotifyChannel; status: "sent" | "failed" }[] = [];
+      let eventSent = 0;
 
-      for (const config of configs) {
-        let success = false;
+      for (const channelType of channels) {
+        const configs = channelConfigs.filter((c) => c.channel_type === channelType);
 
-        switch (channelType) {
-          case "email":
-            success = await sendEmail(config.channel_value, subject, message);
-            break;
-          case "telegram":
-            success = await sendTelegram(config.channel_value, message);
-            break;
-          case "webhook":
-            success = await sendWebhook(config.channel_value, {
-              event_id: event.id,
-              title: event.title,
-              note: event.note,
-              event_date: event.event_date,
-              event_type: event.event_type,
-            });
-            break;
-          default: {
-            const _exhaustive: never = channelType;
-            void _exhaustive;
+        for (const config of configs) {
+          let success = false;
+
+          switch (channelType) {
+            case "email":
+              success = await sendEmail(config.channel_value, subject, message);
+              break;
+            case "telegram":
+              success = await sendTelegram(config.channel_value, message);
+              break;
+            case "webhook":
+              success = await sendWebhook(config.channel_value, {
+                event_id: event.id,
+                title: event.title,
+                note: event.note,
+                event_date: event.event_date,
+                event_type: event.event_type,
+              });
+              break;
+            default: {
+              const _exhaustive: never = channelType;
+              void _exhaustive;
+            }
           }
+
+          logs.push({ event_id: event.id, channel_type: channelType, status: success ? "sent" : "failed" });
+          if (success) eventSent++;
         }
-
-        logs.push({ event_id: event.id, channel_type: channelType, status: success ? "sent" : "failed" });
-        if (success) sent++;
       }
-    }
 
-    if (logs.length > 0) {
-      await supabase.from("notification_log").insert(logs);
-    }
-  }
+      if (logs.length > 0) {
+        await supabase.from("notification_log").insert(logs);
+      }
 
+      // Push notification — sent to all subscribed devices for this PIN regardless of channel config
+      const pushSent = await sendPushToPin(
+        event.pin_code,
+        {
+          title: event.title,
+          body: event.note ? event.note : `Reminder · ${todayKey}`,
+          tag: `calendar-${event.id}`,
+          url: "/list",
+        },
+        supabase,
+      );
+
+      return eventSent + pushSent;
+    }),
+  );
+
+  const sent = counts.reduce((sum, n) => sum + n, 0);
   return Response.json({ sent, checked: events.length });
 }

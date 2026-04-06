@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Nunito } from "next/font/google";
+import { SwRegistration } from "@/components/SwRegistration";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -18,6 +19,7 @@ export const metadata: Metadata = {
   title: "Fridgeboard",
   description: "A warm shared grocery and to-do list for two phones and one home.",
   applicationName: "Fridgeboard",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -27,7 +29,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${fraunces.variable} ${nunito.variable}`}>{children}</body>
+      <body className={`${fraunces.variable} ${nunito.variable}`}>
+        <SwRegistration />
+        {children}
+      </body>
     </html>
   );
 }

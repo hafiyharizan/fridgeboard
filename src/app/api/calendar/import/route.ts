@@ -83,8 +83,11 @@ export async function POST(request: Request) {
   const sourceEvents = getCalendarSourceEvents(sourceKey, year);
   const rows: Database["public"]["Tables"]["calendar_events"]["Insert"][] = sourceEvents
     .filter((event) => {
+      // Skip events already imported with the same source_event_id
+      if (existingSourceIds.has(event.source_event_id)) return false;
+      // Skip events that already exist by title+date (even if from a different import)
       const dedupeKey = `${event.event_date}|${normalizeCalendarTitle(event.title)}`;
-      return existingSourceIds.has(event.source_event_id) || !existingTitleDates.has(dedupeKey);
+      return !existingTitleDates.has(dedupeKey);
     })
     .map((event) => ({
       pin_code: pinCode,
@@ -103,12 +106,10 @@ export async function POST(request: Request) {
     }));
 
   if (rows.length > 0) {
-    const { error: upsertError } = await supabase.from("calendar_events").upsert(rows, {
-      onConflict: "pin_code,source_type,source_event_id",
-    });
+    const { error: insertError } = await supabase.from("calendar_events").insert(rows);
 
-    if (upsertError) {
-      return NextResponse.json({ error: upsertError.message }, { status: 500 });
+    if (insertError) {
+      return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
   }
 

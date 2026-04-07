@@ -89,14 +89,14 @@ export function CalendarSettings({ busy, year, onImport, onCreateSyncLink }: Cal
         {isOpen ? (
           <motion.div
             animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 px-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/20 px-0 backdrop-blur-sm sm:items-center sm:px-4"
             exit={{ opacity: 0 }}
             initial={{ opacity: 0 }}
             onClick={() => setIsOpen(false)}
           >
             <motion.div
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="w-full max-w-lg overflow-hidden rounded-[1.5rem] border border-white/60 bg-white/95 shadow-[0_24px_64px_rgba(60,40,20,0.15)] backdrop-blur-xl"
+              className="w-full max-w-lg overflow-hidden rounded-t-[1.5rem] border border-white/60 bg-white/95 shadow-[0_24px_64px_rgba(60,40,20,0.15)] backdrop-blur-xl sm:rounded-[1.5rem]"
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               onClick={(event) => event.stopPropagation()}
@@ -119,7 +119,7 @@ export function CalendarSettings({ busy, year, onImport, onCreateSyncLink }: Cal
                 </button>
               </div>
 
-              <div className="max-h-[75vh] space-y-5 overflow-y-auto px-5 py-4">
+              <div className="max-h-[70vh] space-y-5 overflow-y-auto px-5 py-4">
                 <section className="space-y-3">
                   <div className="flex items-center gap-2">
                     <CalendarPlus2 className="h-4 w-4 text-muted" />

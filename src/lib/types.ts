@@ -20,7 +20,13 @@ export type CalendarEventType = "event" | "reminder" | "todo";
 export type StickyColor = "amber" | "blue" | "rose" | "green" | "purple";
 export type Recurrence = "none" | "daily" | "weekly" | "biweekly" | "monthly" | "yearly";
 export type NotifyChannel = "email" | "telegram" | "webhook";
-export type CalendarSourceType = "manual" | "islamic" | "wa_public_holiday" | "malaysia_public_holiday";
+export type CalendarSourceType =
+  | "manual"
+  | "islamic"
+  | "wa_public_holiday"
+  | "malaysia_public_holiday"
+  | "google_calendar"
+  | "caldav";
 export type CalendarImportSource = Exclude<CalendarSourceType, "manual">;
 
 export type CalendarEvent = {
@@ -42,6 +48,22 @@ export type CalendarEvent = {
   source_type: CalendarSourceType;
   source_label: string | null;
   source_event_id: string | null;
+  google_event_id: string | null;
+  updated_at: string;
+};
+
+export type GoogleCalendarToken = {
+  pin_code: string;
+  access_token: string;
+  refresh_token: string;
+  expires_at: string;
+  google_calendar_id: string;
+  sync_token: string | null;
+  watch_channel_id: string | null;
+  watch_resource_id: string | null;
+  watch_expiration: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 /** A virtual occurrence of a recurring event expanded onto a specific date. */
@@ -124,6 +146,7 @@ export type Database = {
           source_type?: CalendarSourceType;
           source_label?: string | null;
           source_event_id?: string | null;
+          google_event_id?: string | null;
         };
         Update: {
           id?: string;
@@ -140,9 +163,40 @@ export type Database = {
           notify_before?: number;
           notify_channels?: NotifyChannel[];
           created_at?: string;
+          updated_at?: string;
           source_type?: CalendarSourceType;
           source_label?: string | null;
           source_event_id?: string | null;
+          google_event_id?: string | null;
+        };
+        Relationships: [];
+      };
+      google_calendar_tokens: {
+        Row: GoogleCalendarToken;
+        Insert: {
+          pin_code: string;
+          access_token: string;
+          refresh_token: string;
+          expires_at: string;
+          google_calendar_id?: string;
+          sync_token?: string | null;
+          watch_channel_id?: string | null;
+          watch_resource_id?: string | null;
+          watch_expiration?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          pin_code?: string;
+          access_token?: string;
+          refresh_token?: string;
+          expires_at?: string;
+          google_calendar_id?: string;
+          sync_token?: string | null;
+          watch_channel_id?: string | null;
+          watch_resource_id?: string | null;
+          watch_expiration?: string | null;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -345,6 +399,10 @@ export type Database = {
           feed_token: string;
         };
         Returns: boolean;
+      };
+      pin_for_sync_token: {
+        Args: { feed_token: string };
+        Returns: string | null;
       };
     };
     Enums: Record<string, never>;

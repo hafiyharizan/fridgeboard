@@ -22,7 +22,7 @@ export function ListTab({ list, pin }: ListTabProps) {
     loading,
     removeItem,
     toggleItem,
-  } = useRealtimeItems(list.id);
+  } = useRealtimeItems(list.id, pin, list.name);
 
   const existingItemTexts = useMemo(
     () => items.filter((i) => !i.is_checked).map((i) => i.text),

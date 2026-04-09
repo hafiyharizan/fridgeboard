@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { LogOut } from "lucide-react";
 import { CalendarTab } from "@/components/CalendarTab";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { ListTab } from "@/components/ListTab";
 import { clearSessionPin, setSessionPin } from "@/lib/auth";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
@@ -265,6 +266,7 @@ export function ListShell() {
           </AnimatePresence>
         </div>
       </section>
+      <InstallPrompt />
     </main>
   );
 }

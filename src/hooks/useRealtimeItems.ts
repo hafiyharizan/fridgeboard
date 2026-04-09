@@ -16,7 +16,7 @@ const sortItems = (items: Item[]) =>
     return new Date(rightDate).getTime() - new Date(leftDate).getTime();
   });
 
-export function useRealtimeItems(listId: string) {
+export function useRealtimeItems(listId: string, pinCode?: string, listName?: string) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,6 +109,17 @@ export function useRealtimeItems(listId: string) {
     }
 
     setError("");
+
+    // Fire-and-forget push to notify other household members
+    if (pinCode && listName) {
+      void fetch("/api/push/new-item", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pinCode, listName, itemText: text }),
+      }).catch((err: unknown) => {
+        console.error("[Push] new-item notification failed:", err);
+      });
+    }
   };
 
   const toggleItem = async (item: Item) => {

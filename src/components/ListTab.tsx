@@ -14,6 +14,7 @@ type ListTabProps = {
 };
 
 export function ListTab({ list, pin }: ListTabProps) {
+  const isGrocery = list.name === "Grocery";
   const {
     addItem,
     error,
@@ -85,6 +86,7 @@ export function ListTab({ list, pin }: ListTabProps) {
             {items.map((item) => (
               <ItemRow
                 busy={isWorking}
+                isGrocery={isGrocery}
                 item={item}
                 key={item.id}
                 onDelete={removeItem}

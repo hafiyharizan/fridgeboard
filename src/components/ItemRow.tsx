@@ -1,15 +1,17 @@
 import { motion } from "framer-motion";
 import { Check, Trash2 } from "lucide-react";
+import { PriceTag } from "@/components/PriceTag";
 import type { Item } from "@/lib/types";
 
 type ItemRowProps = {
   busy: boolean;
+  isGrocery?: boolean;
   item: Item;
   onDelete: (itemId: string) => Promise<void>;
   onToggle: (item: Item) => Promise<void>;
 };
 
-export function ItemRow({ busy, item, onDelete, onToggle }: ItemRowProps) {
+export function ItemRow({ busy, isGrocery = false, item, onDelete, onToggle }: ItemRowProps) {
   return (
     <motion.div
       layout
@@ -42,6 +44,9 @@ export function ItemRow({ busy, item, onDelete, onToggle }: ItemRowProps) {
         >
           {item.text}
         </p>
+        {isGrocery ? (
+          <PriceTag isChecked={item.is_checked} itemText={item.text} />
+        ) : null}
       </div>
 
       <button

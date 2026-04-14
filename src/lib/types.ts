@@ -93,6 +93,22 @@ export type UserProfile = {
   created_at: string;
 };
 
+/** A single price listing returned by the price search API. */
+export type PriceResult = {
+  /** Product/listing title. */
+  title: string;
+  /** Formatted price string (e.g. "RM 3.49"). */
+  price: string;
+  /** Numeric price value for sorting. */
+  priceValue: number;
+  /** Store or source name. */
+  source: string;
+  /** URL the user can click to view the listing. */
+  url: string;
+  /** Optional thumbnail image URL. */
+  thumbnail?: string;
+};
+
 export type NotificationLog = {
   id: string;
   event_id: string;

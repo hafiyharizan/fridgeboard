@@ -86,11 +86,11 @@ export function PriceTag({ itemText, isChecked }: PriceTagProps) {
             transition={{ duration: 0.2 }}
             className="mt-1.5 overflow-hidden rounded-xl border border-border/50 bg-white/60"
           >
-            {results.slice(1).map((result, i) => (
+            {results.slice(1).map((result) => (
               <a
                 className="flex items-center gap-2 border-b border-border/30 px-3 py-2 text-xs transition last:border-b-0 hover:bg-amber/5"
                 href={result.url}
-                key={`${result.url}-${i}`}
+                key={`${result.source}-${result.price}-${result.url}`}
                 rel="noopener noreferrer"
                 target="_blank"
               >

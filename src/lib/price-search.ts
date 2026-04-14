@@ -1,19 +1,32 @@
 import type { PriceResult } from "@/lib/types";
 
 /**
+ * Regex that matches common price formats: optional currency symbol/code
+ * followed by digits with an optional decimal portion.
+ * Examples: "$3.49", "RM 12.90", "€5,99", "3.49"
+ */
+const PRICE_PATTERN =
+  /(?:[$€£¥₹]|RM|MYR|USD|EUR|GBP)?\s*(\d+[.,]\d+)/i;
+
+/** Simpler pattern for integer-only prices. */
+const INTEGER_PRICE_PATTERN =
+  /(?:[$€£¥₹]|RM|MYR|USD|EUR|GBP)?\s*(\d+)/i;
+
+/** Pattern for extracting the full price string (with currency). */
+const PRICE_STRING_PATTERN =
+  /(?:[$€£¥₹]|RM|MYR|USD|EUR|GBP)?\s*\d+[.,]\d+/i;
+
+/**
  * Parse a price string and return the numeric value, or null if not found.
  * Handles formats like "$3.49", "RM 12.90", "€5,99", "3.49", etc.
  */
 export function extractPrice(text: string): number | null {
-  // Match common price patterns: optional currency symbol/code, digits with optional decimals
-  const match = text.match(
-    /(?:[$€£¥₹]|RM|MYR|USD|EUR|GBP)?\s*(\d{1,}[.,]\d{1,2})/i,
-  );
+  const match = text.match(PRICE_PATTERN);
   if (match?.[1]) {
     return parseFloat(match[1].replace(",", "."));
   }
   // Try plain integer
-  const intMatch = text.match(/(?:[$€£¥₹]|RM|MYR|USD|EUR|GBP)?\s*(\d+)/i);
+  const intMatch = text.match(INTEGER_PRICE_PATTERN);
   if (intMatch?.[1]) {
     return parseFloat(intMatch[1]);
   }
@@ -113,9 +126,7 @@ export async function searchPrices(
     if (priceValue === null && item.snippet) {
       priceValue = extractPrice(item.snippet);
       if (priceValue !== null) {
-        const priceMatch = item.snippet.match(
-          /(?:[$€£¥₹]|RM|MYR|USD|EUR|GBP)?\s*\d{1,}[.,]\d{1,2}/i,
-        );
+        const priceMatch = item.snippet.match(PRICE_STRING_PATTERN);
         priceStr = priceMatch?.[0]?.trim() ?? String(priceValue);
       }
     }
@@ -124,9 +135,7 @@ export async function searchPrices(
     if (priceValue === null && item.title) {
       priceValue = extractPrice(item.title);
       if (priceValue !== null) {
-        const priceMatch = item.title.match(
-          /(?:[$€£¥₹]|RM|MYR|USD|EUR|GBP)?\s*\d{1,}[.,]\d{1,2}/i,
-        );
+        const priceMatch = item.title.match(PRICE_STRING_PATTERN);
         priceStr = priceMatch?.[0]?.trim() ?? String(priceValue);
       }
     }

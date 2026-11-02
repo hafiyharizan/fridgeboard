@@ -290,21 +290,16 @@ export type Database = {
       };
       user_profiles: {
         Row: UserProfile;
+        // pin_code is set only by create_household / join_household_with_invite.
         Insert: {
-          id?: string;
           user_id: string;
-          pin_code?: string | null;
           display_name?: string | null;
           avatar_url?: string | null;
-          created_at?: string;
         };
+        // pin_code is set only by create_household / join_household_with_invite.
         Update: {
-          id?: string;
-          user_id?: string;
-          pin_code?: string | null;
           display_name?: string | null;
           avatar_url?: string | null;
-          created_at?: string;
         };
         Relationships: [];
       };
@@ -332,13 +327,17 @@ export type Database = {
         };
         Returns: CalendarEvent[];
       };
-      join_household: {
+      join_household_with_invite: {
         Args: {
-          target_pin: string;
+          invite_code: string;
           profile_display_name?: string | null;
           profile_avatar_url?: string | null;
         };
         Returns: string;
+      };
+      create_household_invite: {
+        Args: Record<string, never>;
+        Returns: { code: string; expires_at: string }[];
       };
       validate_calendar_sync_token: {
         Args: {

@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import type { User } from "@supabase/supabase-js";
 import { clearSessionPin, setSessionPin } from "@/lib/auth";
-import { createHousehold, joinHousehold } from "@/lib/household";
+import { InvitePanel } from "@/components/InvitePanel";
+import { createHousehold, joinHouseholdWithInvite } from "@/lib/household";
+import { formatInviteCode, isValidInviteCode } from "@/lib/invite-code";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import { ensureUserProfile, getUserDisplayName } from "@/lib/user-profile";
 
@@ -15,7 +17,7 @@ export function HouseholdSetup() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [mode, setMode] = useState<SetupMode>("choice");
-  const [pin, setPin] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [createdPin, setCreatedPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -54,7 +56,6 @@ export function HouseholdSetup() {
     void checkAuth();
   }, [router, supabase]);
 
-  const digits = useMemo(() => pin.split(""), [pin]);
   const welcomeName = user ? getUserDisplayName(user) : "there";
 
   const handleCreateHousehold = async () => {
@@ -79,8 +80,8 @@ export function HouseholdSetup() {
 
     if (!user) return;
 
-    if (!/^\d{4}$/.test(pin)) {
-      setError("Enter a valid 4-digit household PIN.");
+    if (!isValidInviteCode(inviteCode)) {
+      setError("Enter the 8-character invite code.");
       return;
     }
 
@@ -88,7 +89,7 @@ export function HouseholdSetup() {
     setError("");
 
     try {
-      const joinedPin = await joinHousehold(supabase, user, pin);
+      const joinedPin = await joinHouseholdWithInvite(supabase, user, inviteCode);
       setSessionPin(joinedPin);
       router.push("/list");
     } catch (joinError) {
@@ -152,7 +153,7 @@ export function HouseholdSetup() {
                 Set up your household
               </h1>
               <p className="mx-auto max-w-sm text-sm leading-6 text-muted sm:text-base">
-                You&apos;re signed in, {welcomeName}. Now create a household or join one with a shared household PIN.
+                You&apos;re signed in, {welcomeName}. Now create a household, or join one with an invite code from a family member.
               </p>
             </div>
           </div>
@@ -193,7 +194,7 @@ export function HouseholdSetup() {
               <div className="space-y-2">
                 <h2 className="text-2xl text-foreground">Create a new household</h2>
                 <p className="text-sm leading-6 text-muted">
-                  We&apos;ll generate a household PIN, seed Grocery and To-Do for you, and you can keep that PIN as a quick household shortcut.
+                  We&apos;ll set up Grocery and To-Do for you. Then you can invite the rest of the family.
                 </p>
               </div>
 
@@ -221,14 +222,13 @@ export function HouseholdSetup() {
           {mode === "created" ? (
             <div className="space-y-5 text-center">
               <div className="space-y-3">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">Your household PIN</p>
-                <div className="rounded-[1.8rem] border border-border bg-white/90 px-5 py-6 shadow-sm">
-                  <p className="text-5xl font-bold tracking-[0.4em] text-foreground">{createdPin}</p>
-                </div>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">Household ready</p>
                 <p className="text-sm leading-6 text-muted">
-                  Share this PIN with your household members so they can join from their own account. You can also keep using it here as a quick unlock shortcut.
+                  Share this invite code with a family member. They sign in with Google and enter it to join. Each code works once, so make a new one for each person.
                 </p>
               </div>
+
+              <InvitePanel />
 
               <motion.button
                 whileHover={{ scale: 1.02 }}
@@ -248,30 +248,23 @@ export function HouseholdSetup() {
           {mode === "join" ? (
             <form className="space-y-5" onSubmit={handleJoinHousehold}>
               <label className="block space-y-3">
-                <span className="text-sm font-semibold text-foreground">Household PIN</span>
+                <span className="text-sm font-semibold text-foreground">Invite code</span>
                 <input
-                  autoComplete="one-time-code"
-                  className="w-full rounded-[1.4rem] border border-border bg-white/90 px-5 py-4 text-center text-3xl tracking-[0.45em] text-foreground outline-none transition placeholder:text-muted/50 focus:border-amber-deep focus:ring-4 focus:ring-amber/25"
-                  inputMode="numeric"
-                  maxLength={4}
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  className="w-full rounded-[1.4rem] border border-border bg-white/90 px-5 py-4 text-center font-mono text-2xl tracking-[0.2em] text-foreground outline-none transition placeholder:text-muted/50 focus:border-amber-deep focus:ring-4 focus:ring-amber/25"
+                  maxLength={9}
                   onChange={(event) => {
-                    const nextValue = event.target.value.replace(/\D/g, "").slice(0, 4);
-                    setPin(nextValue);
+                    setInviteCode(formatInviteCode(event.target.value));
                     setError("");
                   }}
-                  placeholder="0000"
-                  value={pin}
+                  placeholder="ABCD-EFGH"
+                  spellCheck={false}
+                  value={inviteCode}
                 />
+                <span className="block text-xs text-muted">Ask someone already in the household to tap Invite.</span>
               </label>
-
-              <div className="flex items-center justify-center gap-2">
-                {[0, 1, 2, 3].map((index) => (
-                  <span
-                    key={index}
-                    className={`pin-dot ${digits[index] ? "scale-110 bg-foreground" : "bg-foreground/18"}`}
-                  />
-                ))}
-              </div>
 
               <motion.button
                 whileHover={{ scale: 1.02 }}
@@ -286,7 +279,7 @@ export function HouseholdSetup() {
               <button
                 className="w-full rounded-[1.4rem] border border-border bg-white/90 px-5 py-4 text-sm font-bold text-muted transition-colors hover:bg-white"
                 onClick={() => {
-                  setPin("");
+                  setInviteCode("");
                   setError("");
                   setMode("choice");
                 }}
@@ -316,7 +309,7 @@ export function HouseholdSetup() {
               Sign out
             </button>
             <p className="text-xs uppercase tracking-[0.24em] text-muted/80">
-              Keep the PIN handy as a quick household shortcut
+              Invite codes work once and expire after 7 days
             </p>
           </div>
         </div>

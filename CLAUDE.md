@@ -4,7 +4,7 @@
 
 ## What This App Is
 
-Fridgeboard is a shared household management app: grocery lists, to-do lists, and a family calendar. Access is PIN-based (no user accounts). Multiple devices share data in real time via Supabase.
+Fridgeboard is a shared household management app: grocery lists, to-do lists, and a family calendar. Members sign in with Google and belong to a household. Multiple devices share data in real time via Supabase.
 
 ---
 
@@ -73,7 +73,10 @@ Use `@/*` for all imports from `src/`. Example: `import { createSupabaseBrowserC
 
 ## Authentication
 
-PIN-based only — no user accounts, no NextAuth, no cookies. The PIN is entered on the home page and stored in `sessionStorage`. All Supabase queries filter by `pin_code`. RLS is open at the database level; access control is entirely in application code.
+Google sign-in via Supabase Auth. Each user has a `user_profiles` row whose `pin_code` links them to a household (the 4-digit PIN is the internal household ID, not a secret). RLS scopes household data with `public.current_user_pin()`.
+
+- Clients may write only `display_name` / `avatar_url` on `user_profiles`; `pin_code` is set only by the security definer functions `create_household` and `join_household_with_invite`.
+- New members join with a single-use invite code (8 chars, expires after 7 days) made by an existing member via `create_household_invite`. Joining by PIN was removed. Helpers live in `lib/invite-code.ts` and `lib/household.ts`.
 
 ---
 

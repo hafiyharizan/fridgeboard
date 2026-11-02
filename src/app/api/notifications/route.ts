@@ -1,8 +1,8 @@
 import type { NotifyChannel } from "@/lib/types";
 import { sendPushToPin } from "@/lib/push";
+import { isAuthorizedCronRequest } from "@/lib/cron-auth";
 import { createSupabaseServiceClient } from "@/lib/supabase";
-
-const CRON_SECRET = process.env.CRON_SECRET || "";
+import { isAllowedWebhookUrl } from "@/lib/webhook-url";
 
 // ---------------------------------------------------------------------------
 // Channel dispatchers
@@ -56,11 +56,18 @@ async function sendTelegram(chatId: string, message: string): Promise<boolean> {
 }
 
 async function sendWebhook(url: string, payload: Record<string, unknown>): Promise<boolean> {
+  if (!isAllowedWebhookUrl(url)) {
+    console.warn("[Notifications] Skipped webhook with a non-public or non-https URL");
+    return false;
+  }
+
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      redirect: "manual",
+      signal: AbortSignal.timeout(10_000),
     });
     return res.ok;
   } catch {
@@ -74,11 +81,8 @@ async function sendWebhook(url: string, payload: Record<string, unknown>): Promi
 
 export async function POST(request: Request) {
   // Auth check
-  if (CRON_SECRET) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!isAuthorizedCronRequest(request.headers.get("authorization"))) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = createSupabaseServiceClient();

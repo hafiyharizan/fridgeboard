@@ -76,6 +76,8 @@ Use `@/*` for all imports from `src/`. Example: `import { createSupabaseBrowserC
 Google sign-in via Supabase Auth. Each user has a `user_profiles` row whose `pin_code` links them to a household (the 4-digit PIN is the internal household ID, not a secret). RLS scopes household data with `public.current_user_pin()`.
 
 - Clients may write only `display_name` / `avatar_url` on `user_profiles`; `pin_code` is set only by the security definer functions `create_household` and `join_household_with_invite`.
+- `push_subscriptions`, `notification_log` and `suggestion_feedback` have RLS on with no policies: service role only, via API routes.
+- Webhook notification URLs must be public HTTPS (`lib/webhook-url.ts`).
 - New members join with a single-use invite code (8 chars, expires after 7 days) made by an existing member via `create_household_invite`. Joining by PIN was removed. Helpers live in `lib/invite-code.ts` and `lib/household.ts`.
 
 ---
@@ -151,7 +153,7 @@ const supabase = createClient(
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key (public) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes (API routes) | Supabase service role key (server-side only) |
-| `CRON_SECRET` | Recommended | Bearer token to protect `/api/notifications` |
+| `CRON_SECRET` | Yes (cron routes) | Bearer token for `/api/notifications` and `/api/push/remind`. If unset, those routes reject every request (fail closed). |
 | `TELEGRAM_BOT_TOKEN` | Optional | For Telegram notification channel |
 
 ---
@@ -162,7 +164,7 @@ const supabase = createClient(
 
 Cron-triggered notification dispatcher. Call every minute via Vercel Cron, GitHub Actions, etc.
 
-- Auth: `Authorization: Bearer <CRON_SECRET>` header (skipped if `CRON_SECRET` is unset)
+- Auth: `Authorization: Bearer <CRON_SECRET>` header (required; checked by `lib/cron-auth.ts`)
 - Finds `calendar_events` for today with `notify_before >= 0`
 - Checks `notification_log` for idempotency
 - Dispatches to enabled `notification_channels` matching `pin_code`
@@ -258,6 +260,5 @@ The cron job for `/api/notifications` must be scheduled externally (GitHub Actio
 
 ## What Does NOT Exist
 
-- No authentication middleware (PIN is app-level only)
 - No admin panel
 - No server actions (all mutations go through Supabase client directly)

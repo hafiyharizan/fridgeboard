@@ -18,9 +18,8 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   return view;
 }
 
-type Props = { pin: string };
-
-export function PushNotificationButton({ pin }: Props) {
+// The household is resolved server-side from the signed-in session.
+export function PushNotificationButton() {
   const [state, setState] = useState<PushState>("checking");
 
   useEffect(() => {
@@ -69,7 +68,7 @@ export function PushNotificationButton({ pin }: Props) {
       const res = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin, subscription: sub }),
+        body: JSON.stringify({ subscription: sub }),
       });
 
       if (!res.ok) throw new Error("Subscribe API failed");

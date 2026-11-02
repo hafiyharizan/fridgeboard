@@ -9,16 +9,12 @@
 // Auth: Authorization: Bearer <CRON_SECRET>
 
 import { sendPushToPin } from "@/lib/push";
+import { isAuthorizedCronRequest } from "@/lib/cron-auth";
 import { createSupabaseServiceClient } from "@/lib/supabase";
 
-const CRON_SECRET = process.env.CRON_SECRET || "";
-
 export async function POST(request: Request) {
-  if (CRON_SECRET) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!isAuthorizedCronRequest(request.headers.get("authorization"))) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const url = new URL(request.url);

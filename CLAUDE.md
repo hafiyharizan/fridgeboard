@@ -163,7 +163,7 @@ const supabase = createClient(
 
 ### `POST /api/notifications`
 
-Cron-triggered notification dispatcher, called every 5 minutes by GitHub Actions.
+Cron-triggered notification dispatcher, called every minute by the `event-reminders` Netlify scheduled function.
 
 - Auth: `Authorization: Bearer <CRON_SECRET>` header (required; checked by `lib/cron-auth.ts`)
 - Finds `calendar_events` for today with `notify_before >= 0`
@@ -255,7 +255,7 @@ Netlify is the target host. Configuration is in `netlify.toml`.
 - Node version: 20
 - Set env vars in Netlify UI → Site configuration → Environment variables
 
-Cron routes are called by GitHub Actions (`.github/workflows/scheduled-jobs.yml`): `/api/notifications` every 5 minutes, the morning summary at 07:03 Perth and the grocery reminder at 08:03 Perth. It needs the `CRON_SECRET` repo secret (same value as Netlify) and optionally an `APP_URL` repo variable. Because Actions runs late, reminders are sent if due within the last 30 minutes (`lib/local-time.ts`); `notification_log` prevents duplicates. Run any job by hand from the Actions tab.
+Cron routes are called by Netlify Scheduled Functions in `netlify/functions/` (shared helper `netlify/lib/call-cron-route.ts`, which uses Netlify's `URL` and `CRON_SECRET` env vars): `event-reminders` every minute → `/api/notifications`, `morning-summary` 07:00 Perth (`0 23 * * *` UTC) and `grocery-reminder` 08:00 Perth (`0 0 * * *` UTC) → `/api/push/remind`. They only run on the published production deploy; use **Run now** in Netlify → Functions to test. Reminders stay due for 30 minutes after their trigger time (`lib/local-time.ts`); `notification_log` prevents duplicates.
 
 ---
 

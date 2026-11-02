@@ -27,9 +27,10 @@ export function getLocalDateTime(now: Date, timeZone: string = getAppTimezone())
 }
 
 /**
- * Scheduled runners (GitHub Actions) fire every 5 minutes at best and are often
- * late, so a reminder is due from its trigger time until this many minutes
- * after. notification_log stops it being sent twice.
+ * The scheduler checks every minute, but a reminder stays due from its trigger
+ * time until this many minutes after, so a missed or failed run (or an event
+ * added just after its trigger time) still gets sent. notification_log stops
+ * it being sent twice.
  */
 export const REMINDER_CATCH_UP_MINUTES = 30;
 

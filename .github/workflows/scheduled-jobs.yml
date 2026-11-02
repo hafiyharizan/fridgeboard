@@ -1,0 +1,81 @@
+# Calls Fridgeboard's cron routes on a schedule.
+#
+# Setup (once): Repo → Settings → Secrets and variables → Actions
+#   - Secret   CRON_SECRET  same value as CRON_SECRET in Netlify
+#   - Variable APP_URL      optional, defaults to https://fridgeboard.netlify.app
+#
+# Notes:
+#   - Schedules are in UTC. Perth is UTC+8 with no daylight saving.
+#   - GitHub runs schedules every 5 minutes at most and can start them late, so
+#     /api/notifications sends any reminder due in the last 30 minutes (once).
+#   - GitHub pauses scheduled workflows after 60 days with no repo activity;
+#     re-enable from the Actions tab if that happens.
+
+name: Scheduled jobs
+
+on:
+  schedule:
+    - cron: "*/5 * * * *" # event reminders
+    - cron: "3 23 * * *" # 07:03 Perth: morning summary push
+    - cron: "3 0 * * *" # 08:03 Perth: grocery reminder push
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Job to run
+        type: choice
+        options: [notifications, summary, grocery]
+        default: notifications
+
+concurrency:
+  group: scheduled-jobs-${{ github.event.schedule || inputs.job }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  call:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Pick route
+        id: route
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          JOB: ${{ inputs.job }}
+        run: |
+          case "${SCHEDULE:-manual}" in
+            "3 23 * * *") job=summary ;;
+            "3 0 * * *")  job=grocery ;;
+            "*/5 * * * *") job=notifications ;;
+            *) job="${JOB:-notifications}" ;;
+          esac
+          case "$job" in
+            notifications) path="/api/notifications" ;;
+            summary)       path="/api/push/remind?mode=summary" ;;
+            grocery)       path="/api/push/remind?mode=grocery" ;;
+            *) echo "Unknown job: $job"; exit 1 ;;
+          esac
+          echo "job=$job" >> "$GITHUB_OUTPUT"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+
+      - name: Call ${{ steps.route.outputs.job }}
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.APP_URL || 'https://fridgeboard.netlify.app' }}
+          ROUTE_PATH: ${{ steps.route.outputs.path }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repository secret is not set"
+            exit 1
+          fi
+          status=$(curl -sS -o response.json -w '%{http_code}' --max-time 60 \
+            --retry 2 --retry-delay 5 --retry-all-errors \
+            -X POST -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${APP_URL%/}${ROUTE_PATH}")
+          echo "HTTP $status"
+          cat response.json; echo
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            echo "::error::${ROUTE_PATH} returned HTTP $status"
+            exit 1
+          fi

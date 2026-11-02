@@ -155,6 +155,7 @@ const supabase = createClient(
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes (API routes) | Supabase service role key (server-side only) |
 | `CRON_SECRET` | Yes (cron routes) | Bearer token for `/api/notifications` and `/api/push/remind`. If unset, those routes reject every request (fail closed). |
 | `TELEGRAM_BOT_TOKEN` | Optional | For Telegram notification channel |
+| `APP_TIMEZONE` | Optional | IANA zone for event dates/times in cron routes (default `Australia/Perth`; Netlify functions run in UTC) |
 
 ---
 
@@ -162,7 +163,7 @@ const supabase = createClient(
 
 ### `POST /api/notifications`
 
-Cron-triggered notification dispatcher. Call every minute via Vercel Cron, GitHub Actions, etc.
+Cron-triggered notification dispatcher, called every 5 minutes by GitHub Actions.
 
 - Auth: `Authorization: Bearer <CRON_SECRET>` header (required; checked by `lib/cron-auth.ts`)
 - Finds `calendar_events` for today with `notify_before >= 0`
@@ -254,7 +255,7 @@ Netlify is the target host. Configuration is in `netlify.toml`.
 - Node version: 20
 - Set env vars in Netlify UI → Site configuration → Environment variables
 
-The cron job for `/api/notifications` must be scheduled externally (GitHub Actions, Netlify Scheduled Functions, etc.) since Netlify does not auto-run crons.
+Cron routes are called by GitHub Actions (`.github/workflows/scheduled-jobs.yml`): `/api/notifications` every 5 minutes, the morning summary at 07:03 Perth and the grocery reminder at 08:03 Perth. It needs the `CRON_SECRET` repo secret (same value as Netlify) and optionally an `APP_URL` repo variable. Because Actions runs late, reminders are sent if due within the last 30 minutes (`lib/local-time.ts`); `notification_log` prevents duplicates. Run any job by hand from the Actions tab.
 
 ---
 

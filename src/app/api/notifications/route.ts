@@ -1,6 +1,7 @@
 import type { NotifyChannel } from "@/lib/types";
 import { sendPushToPin } from "@/lib/push";
 import { isAuthorizedCronRequest } from "@/lib/cron-auth";
+import { getLocalDateTime, isReminderDue } from "@/lib/local-time";
 import { createSupabaseServiceClient } from "@/lib/supabase";
 import { isAllowedWebhookUrl } from "@/lib/webhook-url";
 
@@ -86,8 +87,8 @@ export async function POST(request: Request) {
   }
 
   const supabase = createSupabaseServiceClient();
-  const now = new Date();
-  const todayKey = now.toISOString().slice(0, 10);
+  // Event dates/times are household-local; the server runs in UTC.
+  const { dateKey: todayKey, minutes: nowMinutes } = getLocalDateTime(new Date());
 
   // Find events happening today that have notifications enabled
   const { data: events, error: eventsError } = await supabase
@@ -100,16 +101,10 @@ export async function POST(request: Request) {
     return Response.json({ sent: 0, message: eventsError?.message || "No events to notify" });
   }
 
-  // Current time in local minutes (server timezone — set TZ env if needed)
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-
   // Filter to events in the trigger window (skip events with no time)
   const triggeredEvents = events.filter((event) => {
     if (!event.event_time) return false;
-    const [h, m] = (event.event_time as string).split(":").map(Number);
-    const triggerMinutes = h * 60 + m - (event.notify_before as number);
-    // Allow a 1-minute window to account for cron timing jitter
-    return nowMinutes >= triggerMinutes && nowMinutes <= triggerMinutes + 1;
+    return isReminderDue(event.event_time as string, event.notify_before as number, nowMinutes);
   });
 
   const counts = await Promise.all(

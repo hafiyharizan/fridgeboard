@@ -87,7 +87,7 @@ export function CalendarTab({ pin }: CalendarTabProps) {
           </div>
           <div className="flex items-center gap-2">
             <CalendarSettings busy={isWorking} onCreateSyncLink={createSyncLink} onImport={handleImport} year={year} />
-            <PushNotificationButton pin={pin} />
+            <PushNotificationButton />
           </div>
         </div>
 

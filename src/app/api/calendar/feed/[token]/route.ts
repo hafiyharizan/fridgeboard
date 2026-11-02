@@ -21,7 +21,8 @@ export async function GET(request: Request, context: RouteContext<"/api/calendar
   const { data, error } = await supabase.rpc("get_calendar_feed", { feed_token: token });
 
   if (error) {
-    return new Response(error.message, { status: 500 });
+    console.error("[Calendar feed] Could not load feed:", error.message);
+    return new Response("Could not load calendar", { status: 500 });
   }
 
   const feedUrl = new URL(request.url).toString();

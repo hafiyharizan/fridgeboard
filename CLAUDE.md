@@ -4,7 +4,7 @@
 
 ## What This App Is
 
-Fridgeboard is a shared household management app: grocery lists, to-do lists, and a family calendar. Access is PIN-based (no user accounts). Multiple devices share data in real time via Supabase.
+Fridgeboard is a shared household management app: grocery lists, to-do lists, and a family calendar. Members sign in with Google and belong to a household. Multiple devices share data in real time via Supabase.
 
 ---
 
@@ -73,7 +73,12 @@ Use `@/*` for all imports from `src/`. Example: `import { createSupabaseBrowserC
 
 ## Authentication
 
-PIN-based only — no user accounts, no NextAuth, no cookies. The PIN is entered on the home page and stored in `sessionStorage`. All Supabase queries filter by `pin_code`. RLS is open at the database level; access control is entirely in application code.
+Google sign-in via Supabase Auth. Each user has a `user_profiles` row whose `pin_code` links them to a household (the 4-digit PIN is the internal household ID, not a secret). RLS scopes household data with `public.current_user_pin()`.
+
+- Clients may write only `display_name` / `avatar_url` on `user_profiles`; `pin_code` is set only by the security definer functions `create_household` and `join_household_with_invite`.
+- `push_subscriptions`, `notification_log` and `suggestion_feedback` have RLS on with no policies: service role only, via API routes.
+- Webhook notification URLs must be public HTTPS (`lib/webhook-url.ts`).
+- New members join with a single-use invite code (8 chars, expires after 7 days) made by an existing member via `create_household_invite`. Joining by PIN was removed. Helpers live in `lib/invite-code.ts` and `lib/household.ts`.
 
 ---
 
@@ -148,8 +153,9 @@ const supabase = createClient(
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key (public) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes (API routes) | Supabase service role key (server-side only) |
-| `CRON_SECRET` | Recommended | Bearer token to protect `/api/notifications` |
+| `CRON_SECRET` | Yes (cron routes) | Bearer token for `/api/notifications` and `/api/push/remind`. If unset, those routes reject every request (fail closed). |
 | `TELEGRAM_BOT_TOKEN` | Optional | For Telegram notification channel |
+| `APP_TIMEZONE` | Optional | IANA zone for event dates/times in cron routes (default `Australia/Perth`; Netlify functions run in UTC) |
 
 ---
 
@@ -157,9 +163,9 @@ const supabase = createClient(
 
 ### `POST /api/notifications`
 
-Cron-triggered notification dispatcher. Call every minute via Vercel Cron, GitHub Actions, etc.
+Cron-triggered notification dispatcher, called every minute by the `event-reminders` Netlify scheduled function.
 
-- Auth: `Authorization: Bearer <CRON_SECRET>` header (skipped if `CRON_SECRET` is unset)
+- Auth: `Authorization: Bearer <CRON_SECRET>` header (required; checked by `lib/cron-auth.ts`)
 - Finds `calendar_events` for today with `notify_before >= 0`
 - Checks `notification_log` for idempotency
 - Dispatches to enabled `notification_channels` matching `pin_code`
@@ -249,12 +255,11 @@ Netlify is the target host. Configuration is in `netlify.toml`.
 - Node version: 20
 - Set env vars in Netlify UI → Site configuration → Environment variables
 
-The cron job for `/api/notifications` must be scheduled externally (GitHub Actions, Netlify Scheduled Functions, etc.) since Netlify does not auto-run crons.
+Cron routes are called by Netlify Scheduled Functions in `netlify/functions/` (shared helper `netlify/lib/call-cron-route.ts`, which uses Netlify's `URL` and `CRON_SECRET` env vars): `event-reminders` every minute → `/api/notifications`, `morning-summary` 07:00 Perth (`0 23 * * *` UTC) and `grocery-reminder` 08:00 Perth (`0 0 * * *` UTC) → `/api/push/remind`. They only run on the published production deploy; use **Run now** in Netlify → Functions to test. Reminders stay due for 30 minutes after their trigger time (`lib/local-time.ts`); `notification_log` prevents duplicates.
 
 ---
 
 ## What Does NOT Exist
 
-- No authentication middleware (PIN is app-level only)
 - No admin panel
 - No server actions (all mutations go through Supabase client directly)

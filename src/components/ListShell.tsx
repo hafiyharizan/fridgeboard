@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { LogOut } from "lucide-react";
 import { CalendarTab } from "@/components/CalendarTab";
+import { InviteMemberButton } from "@/components/InviteMemberButton";
 import { ListTab } from "@/components/ListTab";
 import { clearSessionPin, setSessionPin } from "@/lib/auth";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
@@ -152,7 +153,7 @@ export function ListShell() {
         <header className="relative overflow-hidden border-b border-border px-5 pb-5 pt-6 sm:px-7">
           <div className="absolute inset-x-0 top-0 h-28 bg-[linear-gradient(180deg,rgba(255,255,255,0.32),transparent)]" />
           <div className="relative space-y-5">
-            <div className="flex flex-col gap-4 pr-14 sm:flex-row sm:items-start sm:justify-between sm:pr-0">
+            <div className="flex flex-col gap-4 pr-24 sm:flex-row sm:items-start sm:justify-between sm:pr-0">
               <div className="min-w-0 flex-1 space-y-2">
                 {authUser ? (
                   <div className="flex min-w-0 items-center gap-2">
@@ -179,19 +180,22 @@ export function ListShell() {
                 </div>
               </div>
 
-              <motion.button
-                whileHover={{ y: -1, boxShadow: "0 8px 20px rgba(95, 65, 36, 0.08)" }}
-                whileTap={{ scale: 0.98 }}
-                className="absolute right-0 top-0 inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full border border-border bg-white/70 p-2.5 text-muted transition-all duration-200 hover:bg-white hover:text-foreground sm:static sm:w-fit sm:justify-start sm:px-3 sm:py-2"
-                onClick={handleResetPin}
-                title="Sign out"
-                type="button"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                <span className="hidden whitespace-nowrap text-xs font-bold uppercase tracking-[0.18em] sm:inline">
-                  Sign out
-                </span>
-              </motion.button>
+              <div className="absolute right-0 top-0 flex shrink-0 gap-2 sm:static">
+                <InviteMemberButton />
+                <motion.button
+                  whileHover={{ y: -1, boxShadow: "0 8px 20px rgba(95, 65, 36, 0.08)" }}
+                  whileTap={{ scale: 0.98 }}
+                  className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full border border-border bg-white/70 p-2.5 text-muted transition-all duration-200 hover:bg-white hover:text-foreground sm:w-fit sm:justify-start sm:px-3 sm:py-2"
+                  onClick={handleResetPin}
+                  title="Sign out"
+                  type="button"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span className="hidden whitespace-nowrap text-xs font-bold uppercase tracking-[0.18em] sm:inline">
+                    Sign out
+                  </span>
+                </motion.button>
+              </div>
             </div>
 
             <div className="flex gap-2 rounded-full border border-border/50 bg-white/40 p-1.5 backdrop-blur-md">

@@ -50,7 +50,6 @@ export async function ensureUserProfile(
       .from("user_profiles")
       .insert({
         user_id: user.id,
-        pin_code: null,
         ...identity,
       })
       .select("*")

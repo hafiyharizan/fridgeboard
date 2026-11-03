@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid subscription." }, { status: 400 });
   const input = body as { pin?: unknown; subscription?: unknown };
   // Preserve the request contract, but never trust its household scope.
-  if (input.pin !== pin)
+  if (input.pin !== undefined && input.pin !== pin)
     return Response.json(
       { error: "Household does not match your account." },
       { status: 403 },

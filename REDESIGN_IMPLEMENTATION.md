@@ -1,3 +1,5 @@
+> Deployment integration update: merged existing upstream changes through b550830, preserving single-use invite codes, scheduled functions, timezone fixes and database hardening migrations already in the remote repository. The earlier findings below describe the pre-merge checkout: the remote now includes a service-only push policy migration and webhook literal-host checks. Deployed migration status is not verified; webhook DNS/redirect validation remains a follow-up. The household menu now uses invite codes instead of PIN sharing. Post-merge tests: 229 passed.
+
 # Warm & Homely implementation
 
 Implemented 3 November 2026. The workspace remains at `/list`; existing sign-in, setup routes, database tables, migrations, RPCs and API request formats are retained.

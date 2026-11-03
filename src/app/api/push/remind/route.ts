@@ -9,13 +9,12 @@
 // Auth: Authorization: Bearer <CRON_SECRET>
 
 import { sendPushToPin } from "@/lib/push";
+import { isAuthorizedCronRequest } from "@/lib/cron-auth";
+import { getLocalDateTime } from "@/lib/local-time";
 import { createSupabaseServiceClient } from "@/lib/supabase-admin";
 
-const CRON_SECRET = process.env.CRON_SECRET || "";
-
 export async function POST(request: Request) {
-  // Never expose privileged notification jobs when configuration is missing.
-  if (!CRON_SECRET || request.headers.get("authorization") !== `Bearer ${CRON_SECRET}`) {
+  if (!isAuthorizedCronRequest(request.headers.get("authorization"))) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -27,7 +26,8 @@ export async function POST(request: Request) {
   const mode = rawMode;
 
   const supabase = createSupabaseServiceClient();
-  const today = new Date().toISOString().slice(0, 10);
+  // Household-local date; the server runs in UTC.
+  const today = getLocalDateTime(new Date()).dateKey;
 
   // Collect all distinct PINs that have push subscriptions
   const { data: allSubs } = await supabase.from("push_subscriptions").select("pin_code");

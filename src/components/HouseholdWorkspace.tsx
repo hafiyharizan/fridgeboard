@@ -15,6 +15,7 @@ import {
 import { CalendarTab } from "@/components/CalendarTab";
 import { ListTab } from "@/components/ListTab";
 import { HomeDashboard } from "@/components/HomeDashboard";
+import { InvitePanel } from "@/components/InvitePanel";
 import { Dialog } from "@/components/Dialog";
 import { CalendarDialogs } from "@/components/CalendarDialogs";
 import { dateKey } from "@/lib/dashboard";
@@ -61,19 +62,16 @@ function Clock({ onDay }: { onDay: (date: string) => void }) {
 
 export function HouseholdWorkspace({
   lists,
-  pin,
   name,
   onSignOut,
 }: {
   lists: FridgeList[];
-  pin: string;
   name: string;
   onSignOut: () => Promise<void>;
 }) {
   const [active, setActive] = useState("home");
   const [today, setToday] = useState(() => dateKey(new Date()));
   const [menu, setMenu] = useState<"household" | "quick" | null>(null);
-  const [showPin, setShowPin] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [accountError, setAccountError] = useState("");
   const [day, setDay] = useState<string | null>(null);
@@ -90,7 +88,6 @@ export function HouseholdWorkspace({
   ];
   const closeMenu = () => {
     setMenu(null);
-    setShowPin(false);
   };
   const addToList = (id: string) => {
     closeMenu();
@@ -161,7 +158,7 @@ export function HouseholdWorkspace({
             />
           )}
           <div hidden={active !== "calendar"}>
-            <CalendarTab pin={pin} onDay={setDay} onEvent={setSelected} />
+            <CalendarTab onDay={setDay} onEvent={setSelected} />
           </div>
           {lists.map((list) => (
             <div key={list.id} hidden={active !== list.id}>
@@ -216,21 +213,8 @@ export function HouseholdWorkspace({
             <p className="dialog-copy">
               Signed in as <strong>{name}</strong>
             </p>
-            <section className="household-sharing">
-              <h3>Bring everyone together</h3>
-              <p>
-                Members sign in with their own Google account and join using
-                your household PIN. Share it only with people you trust.
-              </p>
-              <button
-                className="secondary-button"
-                onClick={() => setShowPin(!showPin)}
-              >
-                {showPin ? "Hide household PIN" : "Show household PIN"}
-              </button>
-              {showPin && <p className="household-pin">{pin}</p>}
-            </section>
-            {accountError && (
+            <section className="household-sharing"><h3>Invite your household</h3><p>Each invite code works once and expires after seven days.</p><InvitePanel /></section>
+          {accountError && (
               <p className="data-status error" role="alert">
                 {accountError}
               </p>

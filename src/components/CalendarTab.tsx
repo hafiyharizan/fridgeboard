@@ -12,12 +12,11 @@ import { getMonthName } from "@/lib/calendar";
 import type { CalendarImportSource, ExpandedCalendarEvent } from "@/lib/types";
 
 type CalendarTabProps = {
-  pin: string;
   onDay: (date: string) => void;
   onEvent: (event: ExpandedCalendarEvent) => void;
 };
 
-export function CalendarTab({ pin, onDay, onEvent }: CalendarTabProps) {
+export function CalendarTab({ onDay, onEvent }: CalendarTabProps) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
@@ -85,7 +84,7 @@ export function CalendarTab({ pin, onDay, onEvent }: CalendarTabProps) {
               onImport={handleImport}
               year={year}
             />
-            <PushNotificationButton pin={pin} />
+            <PushNotificationButton />
           </div>
         </div>
 

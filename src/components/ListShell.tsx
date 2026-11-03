@@ -163,7 +163,6 @@ export function ListShell() {
     <WorkspaceData key={pin} pin={pin} lists={lists}>
       <HouseholdWorkspace
         lists={lists}
-        pin={pin}
         name={authUser?.name ?? "Household member"}
         onSignOut={handleResetPin}
       />

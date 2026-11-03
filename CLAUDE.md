@@ -12,7 +12,7 @@ Fridgeboard is a shared household management app: grocery lists, to-do lists, an
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 16.2.1 (App Router) |
+| Framework | Next.js 16.4 (App Router) |
 | UI | React 19.2.4 |
 | Styling | Tailwind CSS v4 |
 | Animation | Framer Motion 12 |
@@ -231,6 +231,9 @@ npm run test:coverage # Run tests with coverage report
 - Tailwind CSS v4 only. No CSS modules, no inline `style` props except for dynamic values.
 - PostCSS config is in `postcss.config.mjs` using `@tailwindcss/postcss`.
 - Global styles in `src/app/globals.css`.
+- Design system "Warm & Homely" (kitchen ambient hub): warm cream canvas `#F7F5F0`, white cards, heritage sage `#6C8273` / deep laurel `#4C6153`, soft amber `#D99B65`, ink `#2B332E`. One font: Plus Jakarta Sans (`--font-body`; `--font-heading` points to it).
+- The signed-in workspace is styled in `src/app/workspace.css`, scoped to `.household-workspace` with tokens (`--sage`, `--amber-tint`, `--radius-card`, `--shadow-1`…) defined at the top. Shared pieces: `.card`, `.pill`, `.icon-tile`, `.check-control` + `.check-ring`, `.list-row`, `event-<color>` (sets `--event` / `--event-tint`).
+- Home (`HomeDashboard`) is a three-column landscape layout (clock + glance + quick add | Family Schedule | To-Do + Groceries) that fits 1280×800 without scrolling; two columns below 1180px, one column below 760px. Touch targets are at least 48px.
 
 ### Animations
 - Use Framer Motion (`framer-motion`) for all animations. Do not use CSS transitions for interactive UI elements — Framer Motion is already a dependency and is used throughout.

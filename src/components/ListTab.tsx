@@ -95,7 +95,7 @@ export function ListTab({ list }: ListTabProps) {
           </div>
         ) : null}
 
-        <div className="space-y-3">
+        <div className="flex flex-col gap-2.5">
           <AnimatePresence initial={false}>
             {items.map((item) => (
               <ItemRow

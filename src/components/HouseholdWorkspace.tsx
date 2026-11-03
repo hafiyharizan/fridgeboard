@@ -27,7 +27,8 @@ import { HomeDashboard } from "@/components/HomeDashboard";
 import { InvitePanel } from "@/components/InvitePanel";
 import { Dialog } from "@/components/Dialog";
 import { CalendarDialogs } from "@/components/CalendarDialogs";
-import { dateKey } from "@/lib/dashboard";
+import { dateKey, greeting } from "@/lib/dashboard";
+import { shortName } from "@/lib/new-item-push";
 import type { ExpandedCalendarEvent, FridgeList } from "@/lib/types";
 
 function Clock({ onDay }: { onDay: (date: string) => void }) {
@@ -66,6 +67,20 @@ function Clock({ onDay }: { onDay: (date: string) => void }) {
           : "Your household, together"}
       </span>
     </div>
+  );
+}
+
+/** "Good evening, Alex" — refreshed each minute so it rolls over on its own. */
+function Greeting({ name }: { name: string }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return (
+    <span className="brand-title" suppressHydrationWarning>
+      {greeting(now)}, {shortName(name)}
+    </span>
   );
 }
 
@@ -123,7 +138,11 @@ export function HouseholdWorkspace({
   };
   return (
     <MotionConfig reducedMotion="user">
-      <main className={`household-workspace${kitchen.enabled ? " is-kitchen" : ""}`}>
+      <main
+        className={`household-workspace${kitchen.enabled ? " is-kitchen" : ""}${
+          active === "home" ? " is-home" : ""
+        }`}
+      >
         <a className="skip-link" href="#workspace-content">
           Skip to content
         </a>
@@ -134,9 +153,15 @@ export function HouseholdWorkspace({
             aria-label="Fridgeboard home"
           >
             <span className="brand-mark">
-              <House size={21} />
+              <House size={22} />
             </span>
-            Fridgeboard<span className="brand-dot">.</span>
+            <span className="brand-text">
+              <span className="eyebrow">
+                Fridgeboard<span className="brand-dot" aria-hidden />
+                Household hub
+              </span>
+              <Greeting name={name} />
+            </span>
           </button>
           <nav className="workspace-nav" aria-label="Household tools">
             {tabs.map(({ id, label, Icon }) => (
@@ -145,14 +170,14 @@ export function HouseholdWorkspace({
                 aria-current={active === id ? "page" : undefined}
                 onClick={() => setActive(id)}
               >
-                <Icon size={18} />
+                <Icon size={19} />
                 <span>{label}</span>
               </button>
             ))}
           </nav>
-          <div className="clock-stack">
+          <div className="header-status">
             <Clock onDay={setToday} />
-            {kitchen.enabled && <SyncBadge />}
+            <SyncBadge />
           </div>
           <HoldToOpenButton
             locked={kitchen.enabled}
@@ -171,9 +196,7 @@ export function HouseholdWorkspace({
           <h1 className="sr-only">Household dashboard</h1>
           <div className="workspace-toolbar">
             <p className="eyebrow">
-              {active === "home"
-                ? "The everyday, together"
-                : tabs.find((tab) => tab.id === active)?.label}
+              {tabs.find((tab) => tab.id === active)?.label}
             </p>
             <button className="primary-button" onClick={() => setMenu("quick")}>
               <Plus size={19} /> Quick Add
@@ -186,6 +209,8 @@ export function HouseholdWorkspace({
               onNavigate={setActive}
               onDay={setDay}
               onEvent={setSelected}
+              onAddEvent={setAdding}
+              onAddToList={addToList}
             />
           )}
           <div hidden={active !== "calendar"}>

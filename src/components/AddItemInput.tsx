@@ -105,7 +105,7 @@ export function AddItemInput({
           id={inputId}
           aria-label={buttonLabel}
           disabled={busy}
-          className="min-w-0 flex-1 rounded-[1.2rem] border border-border bg-white px-4 py-3 text-base text-foreground outline-none transition placeholder:text-muted/55 focus:border-amber-deep focus:ring-4 focus:ring-amber/20"
+          className="min-w-0 flex-1 rounded-2xl border border-border bg-[#f7f5f0] px-4 py-3 text-base text-foreground outline-none placeholder:text-muted/70 focus:border-success focus:bg-white focus:ring-4 focus:ring-success/20"
           onChange={(event) => {
             setValue(event.target.value);
             setOpen(true);
@@ -121,7 +121,7 @@ export function AddItemInput({
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className="shrink-0 cursor-pointer rounded-[1.2rem] bg-foreground px-4 py-3 text-sm font-bold text-white shadow-md transition-all duration-200 hover:bg-[#2f241b] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+          className="min-h-[52px] shrink-0 cursor-pointer rounded-2xl bg-[#4c6153] px-5 py-3 text-[15px] font-bold text-white hover:bg-[#374b3e] disabled:cursor-not-allowed disabled:opacity-60"
           disabled={busy}
           type="submit"
         >
@@ -136,7 +136,7 @@ export function AddItemInput({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="absolute left-0 right-16 z-10 mt-2 overflow-hidden rounded-[1.2rem] border border-border bg-white/95 backdrop-blur-md shadow-[0_12px_32px_rgba(95,65,36,0.15)]"
+            className="absolute left-0 right-16 z-10 mt-2 overflow-hidden rounded-2xl border border-border bg-white shadow-[0_10px_28px_-4px_rgba(43,51,46,0.12)]"
           >
             {matches.map((match, i) => (
               <button

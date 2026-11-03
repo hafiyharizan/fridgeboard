@@ -2,20 +2,22 @@
 @import "./workspace.css";
 
 :root {
-  --background: #faf8f5;
-  --background-strong: #f0eadd;
-  --surface: rgba(255, 255, 255, 0.5);
-  --surface-strong: rgba(255, 255, 255, 0.8);
-  --foreground: #2d241c;
-  --muted: #857564;
-  --border: rgba(140, 115, 90, 0.15);
-  --shadow: 0 24px 64px rgba(60, 40, 20, 0.08);
-  --amber: #f0b458;
-  --amber-deep: #c8871a;
+  /* Warm & Homely: warm cream canvas, linen cards, heritage sage, soft amber. */
+  --background: #f7f5f0;
+  --background-strong: #ede9e1;
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-strong: #ffffff;
+  --foreground: #2b332e;
+  --muted: #5b655e;
+  --border: rgba(43, 51, 46, 0.08);
+  --shadow: 0 4px 16px -2px rgba(43, 51, 46, 0.05);
+  --amber: #d99b65;
+  --amber-deep: #855324;
   --blue: #7aa8d8;
-  --blue-deep: #4077b7;
-  --success: #7da76f;
-  --danger: #c96c58;
+  --blue-deep: #3f6f9f;
+  --success: #6c8273;
+  --danger: #b3473a;
+  --font-heading: var(--font-body);
 }
 
 * {
@@ -32,12 +34,6 @@ body {
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
   background-color: var(--background);
-  background-image:
-    radial-gradient(circle at 15% 20%, rgba(240, 180, 88, 0.18) 0%, transparent 45%),
-    radial-gradient(circle at 85% 30%, rgba(122, 168, 216, 0.15) 0%, transparent 45%),
-    radial-gradient(circle at 50% 85%, rgba(201, 108, 88, 0.1) 0%, transparent 50%),
-    linear-gradient(180deg, #fffdfa 0%, rgba(250, 248, 245, 0.6) 100%);
-  background-attachment: fixed;
 }
 
 a {
@@ -52,7 +48,7 @@ textarea {
 }
 
 ::selection {
-  background: rgba(240, 180, 88, 0.35);
+  background: rgba(217, 155, 101, 0.3);
 }
 
 @theme inline {
@@ -81,8 +77,9 @@ textarea {
   h2,
   h3,
   h4 {
-    font-family: var(--font-heading), serif;
-    letter-spacing: -0.03em;
+    font-family: var(--font-heading), sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 }
 
@@ -92,21 +89,17 @@ textarea {
   }
 
   .fridge-card {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.45));
-    border: 1px solid rgba(255, 255, 255, 0.7);
-    box-shadow: 
-      var(--shadow),
-      inset 0 1px 1px rgba(255, 255, 255, 0.9);
-    @apply rounded-[2rem] backdrop-blur-2xl;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    box-shadow: 0 10px 28px -4px rgba(43, 51, 46, 0.08);
+    @apply rounded-[1.5rem];
   }
 
   .note-panel {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.75));
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 
-      inset 0 1px 0 rgba(255, 255, 255, 0.9),
-      0 4px 16px rgba(0, 0, 0, 0.03);
-    @apply rounded-[1.75rem] backdrop-blur-md;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    @apply rounded-[1.5rem];
   }
 
   .pin-dot {

@@ -1,16 +1,35 @@
 "use client";
 
+import { useEffect, useState, type ReactNode } from "react";
+import { motion } from "framer-motion";
 import {
   ArrowUpRight,
-  Check,
+  Bell,
   CalendarDays,
-  ShoppingBasket,
+  CalendarPlus,
+  Check,
+  Clock3,
   ListChecks,
+  ListPlus,
+  ShoppingBasket,
+  Sun,
+  Sunrise,
 } from "lucide-react";
+import { SyncBadge } from "@/components/KitchenDisplay";
 import { useCalendarData, useListData } from "@/components/WorkspaceData";
-import { pendingItems, upcomingEvents, weekDates } from "@/lib/dashboard";
+import {
+  nextDateKey,
+  nextUpEvent,
+  pendingItems,
+  upcomingEvents,
+  weekDates,
+} from "@/lib/dashboard";
 import { formatEventTime } from "@/lib/calendar";
-import type { ExpandedCalendarEvent, FridgeList } from "@/lib/types";
+import type {
+  CalendarEventType,
+  ExpandedCalendarEvent,
+  FridgeList,
+} from "@/lib/types";
 
 export function DataStatus({
   loading,
@@ -49,37 +68,392 @@ export function DataStatus({
   return null;
 }
 
-function ListSummary({
+const TYPE_LABEL: Record<CalendarEventType, string> = {
+  event: "Event",
+  reminder: "Reminder",
+  todo: "To-do",
+};
+const TYPE_ICON: Record<CalendarEventType, typeof CalendarDays> = {
+  event: CalendarDays,
+  reminder: Bell,
+  todo: ListChecks,
+};
+
+/** "16:00" → { time: "4:00", period: "PM" }; no time → all day. */
+function timeParts(hhmm: string | null) {
+  if (!hhmm) return { time: "All", period: "day" };
+  const [time, period = ""] = formatEventTime(hhmm).split(" ");
+  return { time, period };
+}
+
+function dayLabel(day: string, options: Intl.DateTimeFormatOptions) {
+  return new Date(`${day}T12:00:00`).toLocaleDateString(undefined, options);
+}
+
+function useNow(intervalMs: number) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), intervalMs);
+    return () => window.clearInterval(timer);
+  }, [intervalMs]);
+  return now;
+}
+
+/* ---------- Left column ---------- */
+
+function HeroClock({
+  nextUp,
+  today,
+  onEvent,
+}: {
+  nextUp: ExpandedCalendarEvent | null;
+  today: string;
+  onEvent: (event: ExpandedCalendarEvent) => void;
+}) {
+  const now = useNow(15_000);
+  const parts = new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).formatToParts(now);
+  const time = parts
+    .filter((part) => part.type !== "dayPeriod")
+    .map((part) => part.value)
+    .join("")
+    .trim();
+  const period = parts.find((part) => part.type === "dayPeriod")?.value;
+  const when = nextUp
+    ? `${nextUp.occurrence_date === today ? "" : `${dayLabel(nextUp.occurrence_date, { weekday: "short" })} `}${
+        nextUp.event_time ? formatEventTime(nextUp.event_time) : "all day"
+      }`
+    : "";
+  return (
+    <section className="card hero-card" aria-label="Time and next up">
+      <div className="hero-top">
+        <p className="eyebrow">
+          <Sun size={16} aria-hidden /> Today at home
+        </p>
+        <SyncBadge />
+      </div>
+      <p className="hero-time">
+        <time dateTime={now.toISOString()} suppressHydrationWarning>
+          {time}
+        </time>
+        {period && <small>{period}</small>}
+      </p>
+      <p className="hero-date" suppressHydrationWarning>
+        {now.toLocaleDateString(undefined, {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        })}
+      </p>
+      {nextUp ? (
+        <button className="hero-next" onClick={() => onEvent(nextUp)}>
+          <Clock3 size={18} aria-hidden />
+          <span>
+            Next up: <strong>{nextUp.title}</strong> · {when}
+          </span>
+        </button>
+      ) : (
+        <p className="hero-next">
+          <Clock3 size={18} aria-hidden />
+          <span>Nothing else planned this week.</span>
+        </p>
+      )}
+    </section>
+  );
+}
+
+function GlanceTile({
+  icon,
+  value,
+  label,
+  amber,
+  onClick,
+}: {
+  icon: ReactNode;
+  value: number | string;
+  label: string;
+  amber?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.97 }}
+      className={`glance-tile${amber ? " is-amber" : ""}`}
+      onClick={onClick}
+      aria-label={`${value} ${label}`}
+    >
+      {icon}
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </motion.button>
+  );
+}
+
+function QuickTile({
+  className,
+  icon,
+  label,
+  onClick,
+}: {
+  className: string;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.97 }}
+      className={`quick-tile ${className}`}
+      onClick={onClick}
+    >
+      {icon}
+      {label}
+    </motion.button>
+  );
+}
+
+/* ---------- Middle column ---------- */
+
+type ScheduleView = "today" | "tomorrow" | "week";
+
+function AgendaRow({
+  event,
+  onEvent,
+}: {
+  event: ExpandedCalendarEvent;
+  onEvent: (event: ExpandedCalendarEvent) => void;
+}) {
+  const { time, period } = timeParts(event.event_time);
+  const Icon = TYPE_ICON[event.event_type];
+  const meta =
+    event.note?.trim() ||
+    (event.recurrence !== "none" ? `Repeats ${event.recurrence}` : "");
+  return (
+    <li>
+      <motion.button
+        layout
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileTap={{ scale: 0.99 }}
+        className={`agenda-row event-${event.color}${event.is_done ? " is-done" : ""}`}
+        onClick={() => onEvent(event)}
+      >
+        <span className="agenda-time">
+          {time}
+          <small>{period}</small>
+        </span>
+        <span className="agenda-bar" aria-hidden />
+        <span className="agenda-main">
+          <span className="agenda-title">
+            {event.event_type !== "event" && (
+              <span className="pill">{TYPE_LABEL[event.event_type]}</span>
+            )}
+            <strong>{event.title}</strong>
+          </span>
+          {meta && <span className="agenda-meta">{meta}</span>}
+        </span>
+        <Icon className="agenda-icon" size={20} aria-hidden />
+      </motion.button>
+    </li>
+  );
+}
+
+function FamilySchedule({
+  today,
+  events,
+  loading,
+  onDay,
+  onEvent,
+  onAddEvent,
+  calendarStatus,
+}: {
+  today: string;
+  events: ExpandedCalendarEvent[];
+  loading: boolean;
+  onDay: (date: string) => void;
+  onEvent: (event: ExpandedCalendarEvent) => void;
+  onAddEvent: (date: string) => void;
+  calendarStatus: ReactNode;
+}) {
+  const [view, setView] = useState<ScheduleView>("today");
+  const tomorrow = nextDateKey(today);
+  const days = weekDates(today);
+  const shownDay = view === "tomorrow" ? tomorrow : today;
+  const dayEvents = events.filter((event) => event.occurrence_date === shownDay);
+  const tomorrowEvents = events.filter(
+    (event) => event.occurrence_date === tomorrow,
+  );
+  const tabs: { id: ScheduleView; label: string; sub: string }[] = [
+    { id: "today", label: "Today", sub: dayLabel(today, { weekday: "short", day: "numeric" }) },
+    { id: "tomorrow", label: "Tomorrow", sub: dayLabel(tomorrow, { weekday: "short", day: "numeric" }) },
+    { id: "week", label: "Week", sub: "7 days" },
+  ];
+
+  return (
+    <section className="card schedule-card" aria-label="Family schedule">
+      <div className="schedule-head">
+        <div className="card-heading">
+          <span className="icon-tile">
+            <CalendarDays size={22} />
+          </span>
+          <div className="heading-text">
+            <h2>Family Schedule</h2>
+            <p>Shared with everyone at home</p>
+          </div>
+        </div>
+        <div className="segmented" role="group" aria-label="Schedule range">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              aria-pressed={view === tab.id}
+              onClick={() => setView(tab.id)}
+            >
+              {tab.label}
+              <small>{tab.sub}</small>
+            </button>
+          ))}
+        </div>
+      </div>
+      {calendarStatus}
+
+      {view === "week" ? (
+        <ul className="agenda">
+          {days.map((day, index) => {
+            const daily = events.filter((event) => event.occurrence_date === day);
+            return (
+              <li key={day}>
+                <button
+                  className={`week-row${index === 0 ? " is-today" : ""}`}
+                  onClick={() => onDay(day)}
+                  aria-label={`Open ${dayLabel(day, { weekday: "long", month: "long", day: "numeric" })}, ${daily.length} plans`}
+                >
+                  <span className="week-row-day">
+                    {index === 0 ? "Today" : dayLabel(day, { weekday: "short" })}
+                    <strong>{new Date(`${day}T12:00:00`).getDate()}</strong>
+                  </span>
+                  <span className="week-row-events">
+                    {daily.length ? (
+                      daily.slice(0, 2).map((event) => (
+                        <span key={`${event.id}-${day}`}>
+                          {event.event_time
+                            ? formatEventTime(event.event_time)
+                            : "All day"}{" "}
+                          · {event.title}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="quiet">No plans yet</span>
+                    )}
+                  </span>
+                  {daily.length > 2 ? (
+                    <span className="pill pill-quiet">+{daily.length - 2}</span>
+                  ) : (
+                    <ArrowUpRight size={18} className="agenda-icon" aria-hidden />
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : dayEvents.length ? (
+        <ul className="agenda">
+          {dayEvents.map((event) => (
+            <AgendaRow
+              key={`${event.id}-${event.occurrence_date}`}
+              event={event}
+              onEvent={onEvent}
+            />
+          ))}
+        </ul>
+      ) : (
+        <div className="agenda-empty">
+          <span className="icon-tile">
+            <CalendarPlus size={26} />
+          </span>
+          <h3>{loading ? "Loading plans…" : "Nothing planned"}</h3>
+          {!loading && (
+            <>
+              <p>
+                {view === "today"
+                  ? "A calm day at home."
+                  : "Tomorrow is wide open."}
+              </p>
+              <button
+                className="secondary-button"
+                onClick={() => onAddEvent(shownDay)}
+              >
+                <CalendarPlus size={18} /> Add a plan
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {view === "today" && (
+        <div className="agenda-footer">
+          <span className="icon-tile">
+            <Sunrise size={20} />
+          </span>
+          <div>
+            <p className="eyebrow">
+              Tomorrow · {dayLabel(tomorrow, { weekday: "short", day: "numeric", month: "short" })}
+            </p>
+            <p>
+              {tomorrowEvents.length
+                ? `${tomorrowEvents[0].event_time ? `${formatEventTime(tomorrowEvents[0].event_time)} ` : ""}${tomorrowEvents[0].title}${
+                    tomorrowEvents.length > 1
+                      ? ` · +${tomorrowEvents.length - 1} more`
+                      : ""
+                  }`
+                : "Nothing planned yet"}
+            </p>
+          </div>
+          <button className="footer-button" onClick={() => onDay(tomorrow)}>
+            View day
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ---------- Right column ---------- */
+
+function ListCard({
   list,
+  kind,
   onOpen,
 }: {
   list: FridgeList;
+  kind: "grocery" | "todo";
   onOpen: () => void;
 }) {
   const data = useListData(list.id);
   const items = pendingItems(data.items);
-  const grocery = list.name === "Grocery";
+  const grocery = kind === "grocery";
   const Icon = grocery ? ShoppingBasket : ListChecks;
+  const title = grocery ? "Groceries" : "To-Do";
+  const visible = items.slice(0, 8);
   return (
-    <section
-      className="dashboard-panel list-summary"
-      aria-label={grocery ? "Groceries summary" : "To-Do summary"}
-    >
-      <div className="panel-heading">
-        <div className="panel-title">
-          <Icon size={20} />
-          <h2>{grocery ? "Groceries" : "To-Do"}</h2>
-          {!data.loading && (
-            <span
-              className="count-badge"
-              aria-label={`${items.length} pending`}
-            >
-              {items.length}
-            </span>
-          )}
-        </div>
-        <button className="text-button" onClick={onOpen}>
-          View all <ArrowUpRight size={16} />
+    <section className="card list-card" aria-label={`${title} summary`}>
+      <div className="card-heading">
+        <span className="icon-tile">
+          <Icon size={22} />
+        </span>
+        <h2>{title}</h2>
+        {!data.loading && (
+          <span className={`pill${grocery && items.length ? " pill-amber" : ""}`}>
+            {items.length} {grocery ? "needed" : "remaining"}
+          </span>
+        )}
+        <button
+          className="icon-button card-open"
+          onClick={onOpen}
+          aria-label={`Open ${grocery ? "groceries" : "to-do"}`}
+        >
+          <ArrowUpRight size={20} />
         </button>
       </div>
       <DataStatus {...data} />
@@ -90,26 +464,39 @@ function ListSummary({
             : "A little breathing room. Nothing left to do."}
         </p>
       )}
-      <ul className="summary-items">
-        {items.slice(0, 5).map((item, index) => (
-          <li key={item.id} className={index >= 3 ? "extra-summary-row" : ""}>
+      <ul className="list-rows">
+        {visible.map((item) => (
+          <motion.li
+            layout
+            key={item.id}
+            className={`list-row${grocery ? " is-tinted" : ""}`}
+          >
             <button
               className="check-control"
               disabled={data.isWorking}
               aria-label={`Check ${item.text}`}
               onClick={() => void data.toggleItem(item)}
             >
-              <span>
-                <Check size={14} />
+              <span className="check-ring">
+                <Check size={15} strokeWidth={3} />
               </span>
             </button>
             <span className="item-label">{item.text}</span>
-          </li>
+          </motion.li>
         ))}
       </ul>
+      {items.length > visible.length && (
+        <div className="list-footer">
+          <button className="text-button" onClick={onOpen}>
+            +{items.length - visible.length} more <ArrowUpRight size={16} />
+          </button>
+        </div>
+      )}
     </section>
   );
 }
+
+/* ---------- Page ---------- */
 
 export function HomeDashboard({
   today,
@@ -117,148 +504,118 @@ export function HomeDashboard({
   onNavigate,
   onDay,
   onEvent,
+  onAddEvent,
+  onAddToList,
 }: {
   today: string;
   lists: FridgeList[];
   onNavigate: (id: string) => void;
   onDay: (date: string) => void;
   onEvent: (event: ExpandedCalendarEvent) => void;
+  onAddEvent: (date: string) => void;
+  onAddToList: (id: string) => void;
 }) {
   const calendar = useCalendarData();
   const days = weekDates(today);
   const events = upcomingEvents(calendar.rawEvents, today, days[6]);
   const grocery = lists.find((list) => list.name === "Grocery");
   const todo = lists.find((list) => list.name === "To-Do");
+  const groceryData = useListData(grocery?.id ?? lists[0].id);
+  const todoData = useListData(todo?.id ?? lists[0].id);
+  const now = useNow(60_000);
+  const nextUp = nextUpEvent(events, now);
+  const todayCount = events.filter((event) => event.occurrence_date === today).length;
+
   return (
-    <div className="home-dashboard">
-      <section className="dashboard-panel week-panel" aria-label="This week">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">A little more in sync</p>
-            <h2 className="week-title">Your week at home.</h2>
+    <div className="home-grid">
+      <div className="home-side">
+        <HeroClock nextUp={nextUp} today={today} onEvent={onEvent} />
+        <section className="card glance-card" aria-label="At a glance">
+          <p className="eyebrow">At a glance</p>
+          <div className="glance-tiles">
+            <GlanceTile
+              icon={<CalendarDays size={20} />}
+              value={todayCount}
+              label={todayCount === 1 ? "Plan today" : "Plans today"}
+              onClick={() => onNavigate("calendar")}
+            />
+            {grocery && (
+              <GlanceTile
+                amber
+                icon={<ShoppingBasket size={20} />}
+                value={pendingItems(groceryData.items).length}
+                label="To buy"
+                onClick={() => onNavigate(grocery.id)}
+              />
+            )}
+            {todo && (
+              <GlanceTile
+                icon={<ListChecks size={20} />}
+                value={pendingItems(todoData.items).length}
+                label="Tasks"
+                onClick={() => onNavigate(todo.id)}
+              />
+            )}
           </div>
-          <button
-            className="text-button"
-            onClick={() => onNavigate("calendar")}
-          >
-            Calendar <ArrowUpRight size={16} />
-          </button>
-        </div>
-        <DataStatus {...calendar} />
-        <div className="week-days">
-          {days.map((day, index) => {
-            const date = new Date(`${day}T12:00:00`);
-            const daily = events.filter(
-              (event) => event.occurrence_date === day,
-            );
-            return (
-              <div
-                key={day}
-                className={`week-day ${index === 0 ? "is-today" : ""}`}
-              >
-                <button
-                  className="day-label"
-                  onClick={() => onDay(day)}
-                  aria-label={`Open ${date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}`}
-                >
-                  <span>
-                    {index === 0
-                      ? "Today"
-                      : date.toLocaleDateString(undefined, {
-                          weekday: "short",
-                        })}
-                  </span>
-                  <strong>{date.getDate()}</strong>
-                </button>
-                <div className="day-events">
-                  {daily.slice(0, 2).map((event) => (
-                    <button
-                      className={`week-event event-${event.color}`}
-                      key={`${event.id}-${day}`}
-                      onClick={() => onEvent(event)}
-                    >
-                      <span>
-                        {event.event_time
-                          ? formatEventTime(event.event_time)
-                          : "All day"}
-                      </span>
-                      <strong>{event.title}</strong>
-                    </button>
-                  ))}
-                  {!daily.length && !calendar.loading && !calendar.error && (
-                    <span className="quiet-day">No plans yet</span>
-                  )}
-                  {daily.length > 2 && (
-                    <button className="more-events" onClick={() => onDay(day)}>
-                      +{daily.length - 2} more
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="week-footer">
-          <span>
-            {new Date(`${today}T12:00:00`).toLocaleDateString(undefined, {
-              month: "long",
-              year: "numeric",
-            })}
-          </span>
-          <span>One home. Everyone together.</span>
-        </div>
-      </section>
-      <div className="dashboard-summaries">
-        <section className="dashboard-panel upcoming-panel">
-          <div className="panel-heading">
-            <div className="panel-title">
-              <CalendarDays size={20} />
-              <h2>Today & coming up</h2>
-            </div>
-          </div>
-          <DataStatus {...calendar} />
-          {!calendar.loading && !calendar.error && !events.length && (
-            <p className="empty-copy">
-              A clear week ahead. Tap a day to make a plan.
-            </p>
-          )}
-          <ul className="upcoming-list">
-            {events.slice(0, 3).map((event) => (
-              <li key={`${event.id}-${event.occurrence_date}`}>
-                <button onClick={() => onEvent(event)}>
-                  <span className="upcoming-time">
-                    {event.occurrence_date === today
-                      ? "Today"
-                      : new Date(
-                          `${event.occurrence_date}T12:00:00`,
-                        ).toLocaleDateString(undefined, { weekday: "short" })}
-                    <small>
-                      {event.event_time
-                        ? formatEventTime(event.event_time)
-                        : "All day"}
-                    </small>
-                  </span>
-                  <span className="upcoming-title">{event.title}</span>
-                  <ArrowUpRight size={16} />
-                </button>
-              </li>
-            ))}
-          </ul>
         </section>
-        {grocery ? (
-          <ListSummary list={grocery} onOpen={() => onNavigate(grocery.id)} />
-        ) : (
-          <section className="dashboard-panel">
-            <h2>Groceries</h2>
-            <p className="empty-copy">No grocery list in this household.</p>
-          </section>
-        )}
+        <section className="card quick-card" aria-label="Quick add">
+          <p className="eyebrow">Quick add</p>
+          <div className="quick-tiles">
+            <QuickTile
+              className="is-sage"
+              icon={<CalendarPlus size={22} />}
+              label="Event"
+              onClick={() => onAddEvent(today)}
+            />
+            {todo && (
+              <QuickTile
+                className="is-oat"
+                icon={<ListPlus size={22} />}
+                label="Task"
+                onClick={() => onAddToList(todo.id)}
+              />
+            )}
+            {grocery && (
+              <QuickTile
+                className="is-amber"
+                icon={<ShoppingBasket size={22} />}
+                label="Grocery"
+                onClick={() => onAddToList(grocery.id)}
+              />
+            )}
+          </div>
+        </section>
+      </div>
+
+      <FamilySchedule
+        today={today}
+        events={events}
+        loading={calendar.loading}
+        onDay={onDay}
+        onEvent={onEvent}
+        onAddEvent={onAddEvent}
+        calendarStatus={<DataStatus {...calendar} loading={false} />}
+      />
+
+      <div className="home-lists">
         {todo ? (
-          <ListSummary list={todo} onOpen={() => onNavigate(todo.id)} />
+          <ListCard list={todo} kind="todo" onOpen={() => onNavigate(todo.id)} />
         ) : (
-          <section className="dashboard-panel">
+          <section className="card list-card">
             <h2>To-Do</h2>
             <p className="empty-copy">No task list in this household.</p>
+          </section>
+        )}
+        {grocery ? (
+          <ListCard
+            list={grocery}
+            kind="grocery"
+            onOpen={() => onNavigate(grocery.id)}
+          />
+        ) : (
+          <section className="card list-card">
+            <h2>Groceries</h2>
+            <p className="empty-copy">No grocery list in this household.</p>
           </section>
         )}
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MotionConfig } from "framer-motion";
 import {
   CalendarDays,
@@ -14,6 +14,14 @@ import {
 } from "lucide-react";
 import { CalendarTab } from "@/components/CalendarTab";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import {
+  HoldToOpenButton,
+  KitchenModeSetting,
+  NightDimmer,
+  SyncBadge,
+} from "@/components/KitchenDisplay";
+import { useKitchenDisplay } from "@/hooks/useKitchenDisplay";
+import { DISMISS_OVERLAYS_EVENT } from "@/lib/kitchen";
 import { ListTab } from "@/components/ListTab";
 import { HomeDashboard } from "@/components/HomeDashboard";
 import { InvitePanel } from "@/components/InvitePanel";
@@ -87,6 +95,20 @@ export function HouseholdWorkspace({
       Icon: list.name === "Grocery" ? ShoppingBasket : ListChecks,
     })),
   ];
+  // Kitchen idle reset: close everything and show Home. Drafts in the list
+  // panels survive because those panels stay mounted.
+  const resetToHome = useCallback(() => {
+    setActive("home");
+    setMenu(null);
+    setDay(null);
+    setAdding(null);
+    setSelected(null);
+    window.dispatchEvent(new Event(DISMISS_OVERLAYS_EVENT));
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    window.scrollTo({ top: 0 });
+  }, []);
+  const kitchen = useKitchenDisplay(resetToHome);
+  const shift = { translate: `${kitchen.offset.x}px ${kitchen.offset.y}px` };
   const closeMenu = () => {
     setMenu(null);
   };
@@ -101,11 +123,11 @@ export function HouseholdWorkspace({
   };
   return (
     <MotionConfig reducedMotion="user">
-      <main className="household-workspace">
+      <main className={`household-workspace${kitchen.enabled ? " is-kitchen" : ""}`}>
         <a className="skip-link" href="#workspace-content">
           Skip to content
         </a>
-        <header className="dashboard-header">
+        <header className="dashboard-header" style={shift}>
           <button
             className="wordmark"
             onClick={() => setActive("home")}
@@ -128,16 +150,24 @@ export function HouseholdWorkspace({
               </button>
             ))}
           </nav>
-          <Clock onDay={setToday} />
-          <button
-            className="icon-button settings-trigger"
-            aria-label="Household and account"
-            onClick={() => setMenu("household")}
+          <div className="clock-stack">
+            <Clock onDay={setToday} />
+            {kitchen.enabled && <SyncBadge />}
+          </div>
+          <HoldToOpenButton
+            locked={kitchen.enabled}
+            label="Household and account"
+            onOpen={() => setMenu("household")}
           >
             <Settings size={21} />
-          </button>
+          </HoldToOpenButton>
         </header>
-        <div id="workspace-content" className="workspace-content" tabIndex={-1}>
+        <div
+          id="workspace-content"
+          className="workspace-content"
+          tabIndex={-1}
+          style={shift}
+        >
           <h1 className="sr-only">Household dashboard</h1>
           <div className="workspace-toolbar">
             <p className="eyebrow">
@@ -221,6 +251,10 @@ export function HouseholdWorkspace({
                 {accountError}
               </p>
             )}
+            <KitchenModeSetting
+              enabled={kitchen.enabled}
+              onChange={kitchen.setEnabled}
+            />
             <button
               className="secondary-button sign-out-button"
               disabled={signingOut}
@@ -239,6 +273,7 @@ export function HouseholdWorkspace({
             </button>
           </Dialog>
         )}
+        <NightDimmer visible={kitchen.dimmed} />
       </main>
     </MotionConfig>
   );

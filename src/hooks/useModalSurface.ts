@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { DISMISS_OVERLAYS_EVENT } from "@/lib/kitchen";
 
 /** Keyboard containment for the existing animated calendar dialogs. */
 export function useModalSurface(onClose: () => void, enabled = true) {
@@ -47,8 +48,11 @@ export function useModalSurface(onClose: () => void, enabled = true) {
       }
     };
     root.addEventListener("keydown", handleKey);
+    const dismiss = () => close.current();
+    window.addEventListener(DISMISS_OVERLAYS_EVENT, dismiss);
     return () => {
       root.removeEventListener("keydown", handleKey);
+      window.removeEventListener(DISMISS_OVERLAYS_EVENT, dismiss);
       document.body.style.overflow = previousOverflow;
       if (workspace) workspace.inert = false;
       previous?.focus();

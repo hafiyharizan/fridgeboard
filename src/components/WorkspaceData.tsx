@@ -60,3 +60,18 @@ export function useCalendarData() {
   if (!calendar) throw new Error("Calendar controller is unavailable.");
   return calendar;
 }
+
+/** Household-wide freshness: live only if every feed is, synced as of the oldest. */
+export function useSyncStatus(): { connected: boolean; syncedAt: number | null } {
+  const lists = useContext(ListsContext);
+  const calendar = useContext(CalendarContext);
+  const feeds = [...Object.values(lists), ...(calendar ? [calendar] : [])];
+  const times = feeds
+    .map((feed) => feed.syncedAt)
+    .filter((time): time is number => time !== null);
+  return {
+    connected: feeds.length > 0 && feeds.every((feed) => feed.connected),
+    syncedAt:
+      times.length > 0 && times.length === feeds.length ? Math.min(...times) : null,
+  };
+}

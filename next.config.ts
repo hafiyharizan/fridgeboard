@@ -15,8 +15,13 @@ if (
   );
 }
 
+// Stamped into both server and browser code, so a long-running kitchen tablet
+// can tell when a newer deploy is live. Netlify sets DEPLOY_ID at build time.
+const appVersion = process.env.DEPLOY_ID || process.env.COMMIT_REF || "dev";
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  env: { APP_VERSION: appVersion },
   async headers() {
     return [
       {

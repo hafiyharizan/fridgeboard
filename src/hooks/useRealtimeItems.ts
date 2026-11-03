@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase";
+import { watchWake } from "@/hooks/watchWake";
 
 import type { Item } from "@/lib/types";
 
@@ -48,6 +49,8 @@ export function useRealtimeItems(listId: string) {
 
   const working = useRef(false);
   const [revision, setRevision] = useState(0);
+  // When data last matched the server (fetch or live update), for "Synced 3 min ago".
+  const [syncedAt, setSyncedAt] = useState<number | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -73,6 +76,8 @@ export function useRealtimeItems(listId: string) {
         setItems(sortItems((data ?? []) as Item[]));
 
         setError("");
+
+        setSyncedAt(Date.now());
       }
 
       setLoading(false);
@@ -81,6 +86,8 @@ export function useRealtimeItems(listId: string) {
     void fetchItems();
 
     const syncFromPayload = (payload: RealtimePostgresChangesPayload<Item>) => {
+      setSyncedAt(Date.now());
+
       setItems((currentItems) => {
         if (payload.eventType === "INSERT") {
           return sortItems([
@@ -149,10 +156,17 @@ export function useRealtimeItems(listId: string) {
 
     window.addEventListener("offline", onOffline);
 
+    const stopWatchingWake = watchWake(
+      () => void fetchItems(),
+      () => setRevision((value) => value + 1),
+    );
+
     return () => {
       window.removeEventListener("online", onOnline);
 
       window.removeEventListener("offline", onOffline);
+
+      stopWatchingWake();
 
       isMounted = false;
 
@@ -297,6 +311,8 @@ export function useRealtimeItems(listId: string) {
     loading,
 
     connected,
+
+    syncedAt,
     retry: () => setRevision((value) => value + 1),
 
     removeItem,

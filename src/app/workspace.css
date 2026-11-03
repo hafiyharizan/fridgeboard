@@ -652,7 +652,7 @@ textarea:focus-visible {
     flex-basis: 100%;
     justify-content: flex-start;
   }
-  .dashboard-clock {
+  .clock-stack {
     margin-left: auto;
   }
   .home-dashboard {
@@ -864,4 +864,117 @@ textarea:focus-visible {
   .install-actions {
     margin-left: auto;
   }
+}
+
+/* ---- Kitchen display mode ---- */
+.clock-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #8a5a2b;
+  white-space: nowrap;
+}
+.sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d39a4a;
+}
+.sync-badge.is-live {
+  color: var(--muted);
+}
+.sync-badge.is-live .sync-dot {
+  background: #5f9a6b;
+}
+.hold-wrap {
+  position: relative;
+}
+.settings-trigger {
+  position: relative;
+  overflow: hidden;
+}
+.settings-trigger > svg {
+  position: relative;
+}
+.hold-progress {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--sage);
+}
+.hold-hint {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--foreground);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.night-dimmer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-bottom: calc(40px + env(safe-area-inset-bottom));
+  background: rgb(10 14 12 / 0.78);
+  color: rgb(255 255 255 / 0.45);
+  font-size: 14px;
+  font-weight: 700;
+}
+.kitchen-setting {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid var(--border, #e1e5dd);
+  border-radius: 14px;
+  background: #f7f5f0;
+}
+.kitchen-setting h3 {
+  font-size: 17px;
+}
+.kitchen-setting p {
+  margin-top: 4px;
+  color: #59675e;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.switch {
+  flex: none;
+  display: flex;
+  align-items: center;
+  width: 52px;
+  height: 32px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #cfd6cc;
+}
+.switch[aria-checked="true"] {
+  justify-content: flex-end;
+  background: #34523e;
+}
+.switch-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px #0000002e;
 }

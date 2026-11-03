@@ -184,6 +184,23 @@ Called by `useRealtimeItems` right after a member adds a list item. Body: `{ ite
 
 `InstallPrompt` (mounted in `HouseholdWorkspace`) suggests installing the app: a native install button on Chromium, Share → Add to Home Screen steps on iPhone/iPad (the only way iOS allows web push). "Not now" snoozes it for 30 days.
 
+### `GET /api/version`
+
+Returns `{ version }`, the build stamp `APP_VERSION` (Netlify `DEPLOY_ID`, else `COMMIT_REF`, else `"dev"`; set in `next.config.ts`). Kitchen displays poll it and reload while idle when it changes. `"dev"` never triggers a reload.
+
+### Kitchen display mode
+
+A per-device switch in the household menu (localStorage `fridgeboard.kitchen-mode`) for a wall tablet. Logic in `hooks/useKitchenDisplay.ts`, pure rules and timings in `lib/kitchen.ts`, UI in `components/KitchenDisplay.tsx`.
+
+- Screen Wake Lock, re-acquired after the tablet wakes.
+- After 2 minutes untouched: back to Home, dialogs closed. Overlays built on `useModalSurface` close via the `DISMISS_OVERLAYS_EVENT` window event.
+- 22:00–06:00 while idle: dim overlay that swallows the first tap.
+- Header and content shift ±3px every 10 minutes (burn-in).
+- Settings button needs a press-and-hold (keyboard still opens it directly).
+- "Live" / "Synced N min ago" badge from `useSyncStatus()` in `WorkspaceData`.
+
+On every device, `useRealtimeItems` and `useRealtimeCalendar` refetch when the page becomes visible again, and resubscribe if it was hidden for over 5 minutes (`hooks/watchWake.ts`).
+
 ---
 
 ## Development Commands

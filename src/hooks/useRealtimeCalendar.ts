@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase";
+import { watchWake } from "@/hooks/watchWake";
 
 import { expandRecurrences, getMonthRange } from "@/lib/calendar";
 
@@ -33,6 +34,8 @@ export function useRealtimeCalendar(pinCode: string) {
 
   const working = useRef(false);
   const [revision, setRevision] = useState(0);
+  // When data last matched the server (fetch or live update), for "Synced 3 min ago".
+  const [syncedAt, setSyncedAt] = useState<number | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -56,6 +59,8 @@ export function useRealtimeCalendar(pinCode: string) {
         setRawEvents((data ?? []) as CalendarEvent[]);
 
         setError("");
+
+        setSyncedAt(Date.now());
       }
 
       setLoading(false);
@@ -66,6 +71,8 @@ export function useRealtimeCalendar(pinCode: string) {
     const syncFromPayload = (
       payload: RealtimePostgresChangesPayload<CalendarEvent>,
     ) => {
+      setSyncedAt(Date.now());
+
       setRawEvents((current) => {
         if (payload.eventType === "INSERT") {
           const newEvent = payload.new as CalendarEvent;
@@ -135,10 +142,17 @@ export function useRealtimeCalendar(pinCode: string) {
 
     window.addEventListener("offline", onOffline);
 
+    const stopWatchingWake = watchWake(
+      () => void fetchEvents(),
+      () => setRevision((value) => value + 1),
+    );
+
     return () => {
       window.removeEventListener("online", onOnline);
 
       window.removeEventListener("offline", onOffline);
+
+      stopWatchingWake();
 
       isMounted = false;
 
@@ -426,6 +440,8 @@ export function useRealtimeCalendar(pinCode: string) {
     loading,
 
     connected,
+
+    syncedAt,
     retry: () => setRevision((value) => value + 1),
 
     isWorking,

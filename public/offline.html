@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f7f5f0">
+<title>Fridgeboard · offline</title>
+<style>
+  :root { --canvas:#f7f5f0; --card:#fff; --ink:#2b332e; --muted:#5b655e; --sage:#4c6153; --tint:#eef3ef; --amber:#fdeedf; --amber-ink:#6b3d10; --line:rgba(43,51,46,.08); }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background:var(--canvas); color:var(--ink);
+    font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width:1180px; margin:0 auto; padding:24px 16px 40px; }
+  header { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:14px 18px; background:var(--card);
+    border:1px solid var(--line); border-radius:24px; }
+  header img { width:44px; height:44px; }
+  header h1 { margin:0; font-size:20px; }
+  header p { margin:2px 0 0; color:var(--muted); font-size:14px; }
+  header .grow { flex:1; min-width:200px; }
+  button { min-height:48px; padding:0 20px; border:0; border-radius:16px; background:var(--sage); color:#fff;
+    font:inherit; font-weight:700; font-size:15px; cursor:pointer; }
+  .status { margin:16px 0; padding:12px 16px; border-radius:16px; background:var(--amber); color:var(--amber-ink); font-weight:600; }
+  .grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); }
+  section { background:var(--card); border:1px solid var(--line); border-radius:20px; padding:18px 20px; }
+  h2 { margin:0 0 10px; font-size:19px; display:flex; justify-content:space-between; align-items:center; }
+  h2 span { font-size:12px; font-weight:700; padding:3px 10px; border-radius:999px; background:var(--tint); color:var(--sage); }
+  ul { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
+  li { min-height:48px; display:flex; align-items:center; gap:12px; padding:8px 14px; border-radius:14px; background:var(--tint); font-size:16px; font-weight:600; }
+  li small { color:var(--muted); font-weight:600; min-width:84px; font-size:13px; }
+  .empty { color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="/icon-192.png" alt="">
+    <div class="grow">
+      <h1>Fridgeboard is offline</h1>
+      <p id="saved">Showing the last copy saved on this device.</p>
+    </div>
+    <button type="button" id="retry">Try again</button>
+  </header>
+  <p class="status">Read-only until the connection is back. It will reconnect on its own.</p>
+  <div class="grid" id="board"></div>
+</main>
+<script>
+(function () {
+  var board = document.getElementById("board");
+  var saved = document.getElementById("saved");
+  function el(tag, text, cls) {
+    var node = document.createElement(tag);
+    if (text != null) node.textContent = text;
+    if (cls) node.className = cls;
+    return node;
+  }
+  function section(title, rows, count) {
+    var box = el("section");
+    var h = el("h2", title);
+    if (count != null) h.appendChild(el("span", String(count)));
+    box.appendChild(h);
+    if (!rows.length) { box.appendChild(el("p", "Nothing here.", "empty")); return box; }
+    var list = el("ul");
+    rows.forEach(function (row) { list.appendChild(row); });
+    box.appendChild(list);
+    return box;
+  }
+  var snapshot = null;
+  try { snapshot = JSON.parse(localStorage.getItem("fridgeboard.snapshot") || "null"); } catch (e) {}
+  if (!snapshot) {
+    saved.textContent = "Nothing has been saved on this device yet.";
+  } else {
+    var when = new Date(snapshot.savedAt);
+    if (!isNaN(when)) saved.textContent = "Last updated " + when.toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" }) + ".";
+    var events = (snapshot.events || []).map(function (event) {
+      var row = el("li");
+      var day = new Date(event.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric" });
+      var time = event.time ? new Date("1970-01-01T" + event.time).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "All day";
+      row.appendChild(el("small", day + " · " + time));
+      row.appendChild(document.createTextNode(event.title));
+      return row;
+    });
+    board.appendChild(section("This week", events, events.length));
+    (snapshot.lists || []).forEach(function (list) {
+      var rows = (list.items || []).map(function (text) { return el("li", text); });
+      board.appendChild(section(list.name === "Grocery" ? "Groceries" : list.name, rows, rows.length));
+    });
+  }
+  function retry() { location.href = "/list"; }
+  document.getElementById("retry").addEventListener("click", retry);
+  window.addEventListener("online", retry);
+  setInterval(function () { if (navigator.onLine) fetch("/api/version", { cache: "no-store" }).then(retry, function () {}); }, 60000);
+})();
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowUpRight,
@@ -16,6 +16,9 @@ import {
   Sunrise,
 } from "lucide-react";
 import { SyncBadge } from "@/components/KitchenDisplay";
+import { AmbientScreen, OutsideCard } from "@/components/Ambient";
+import { useNow, type PrayerDay } from "@/hooks/useAmbient";
+import type { Forecast } from "@/lib/weather";
 import { useCalendarData, useListData } from "@/components/WorkspaceData";
 import {
   nextDateKey,
@@ -29,6 +32,7 @@ import type {
   CalendarEventType,
   ExpandedCalendarEvent,
   FridgeList,
+  HouseholdSettings,
 } from "@/lib/types";
 
 export function DataStatus({
@@ -88,15 +92,6 @@ function timeParts(hhmm: string | null) {
 
 function dayLabel(day: string, options: Intl.DateTimeFormatOptions) {
   return new Date(`${day}T12:00:00`).toLocaleDateString(undefined, options);
-}
-
-function useNow(intervalMs: number) {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), intervalMs);
-    return () => window.clearInterval(timer);
-  }, [intervalMs]);
-  return now;
 }
 
 /* ---------- Left column ---------- */
@@ -161,33 +156,6 @@ function HeroClock({
         </p>
       )}
     </section>
-  );
-}
-
-function GlanceTile({
-  icon,
-  value,
-  label,
-  amber,
-  onClick,
-}: {
-  icon: ReactNode;
-  value: number | string;
-  label: string;
-  amber?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <motion.button
-      whileTap={{ scale: 0.97 }}
-      className={`glance-tile${amber ? " is-amber" : ""}`}
-      onClick={onClick}
-      aria-label={`${value} ${label}`}
-    >
-      {icon}
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </motion.button>
   );
 }
 
@@ -506,6 +474,10 @@ export function HomeDashboard({
   onEvent,
   onAddEvent,
   onAddToList,
+  settings,
+  forecast,
+  prayer,
+  onSetup,
 }: {
   today: string;
   lists: FridgeList[];
@@ -514,50 +486,30 @@ export function HomeDashboard({
   onEvent: (event: ExpandedCalendarEvent) => void;
   onAddEvent: (date: string) => void;
   onAddToList: (id: string) => void;
+  settings: HouseholdSettings | null;
+  forecast: Forecast | null;
+  prayer: PrayerDay | null;
+  onSetup: () => void;
 }) {
   const calendar = useCalendarData();
   const days = weekDates(today);
   const events = upcomingEvents(calendar.rawEvents, today, days[6]);
   const grocery = lists.find((list) => list.name === "Grocery");
   const todo = lists.find((list) => list.name === "To-Do");
-  const groceryData = useListData(grocery?.id ?? lists[0].id);
-  const todoData = useListData(todo?.id ?? lists[0].id);
-  const now = useNow(60_000);
+  const now = useNow(30_000);
   const nextUp = nextUpEvent(events, now);
-  const todayCount = events.filter((event) => event.occurrence_date === today).length;
 
   return (
     <div className="home-grid">
       <div className="home-side">
         <HeroClock nextUp={nextUp} today={today} onEvent={onEvent} />
-        <section className="card glance-card" aria-label="At a glance">
-          <p className="eyebrow">At a glance</p>
-          <div className="glance-tiles">
-            <GlanceTile
-              icon={<CalendarDays size={20} />}
-              value={todayCount}
-              label={todayCount === 1 ? "Plan today" : "Plans today"}
-              onClick={() => onNavigate("calendar")}
-            />
-            {grocery && (
-              <GlanceTile
-                amber
-                icon={<ShoppingBasket size={20} />}
-                value={pendingItems(groceryData.items).length}
-                label="To buy"
-                onClick={() => onNavigate(grocery.id)}
-              />
-            )}
-            {todo && (
-              <GlanceTile
-                icon={<ListChecks size={20} />}
-                value={pendingItems(todoData.items).length}
-                label="Tasks"
-                onClick={() => onNavigate(todo.id)}
-              />
-            )}
-          </div>
-        </section>
+        <OutsideCard
+          settings={settings}
+          forecast={forecast}
+          prayer={prayer}
+          now={now}
+          onSetup={onSetup}
+        />
         <section className="card quick-card" aria-label="Quick add">
           <p className="eyebrow">Quick add</p>
           <div className="quick-tiles">
@@ -620,5 +572,48 @@ export function HomeDashboard({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Kitchen display idle view: big time, next event, list counts, weather and
+ * next prayer. Lives here because it reads the same household data as Home.
+ */
+export function AmbientLayer({
+  visible,
+  night,
+  offset,
+  lists,
+  today,
+  forecast,
+  prayer,
+}: {
+  visible: boolean;
+  night: boolean;
+  offset: { x: number; y: number };
+  lists: FridgeList[];
+  today: string;
+  forecast: Forecast | null;
+  prayer: PrayerDay | null;
+}) {
+  const calendar = useCalendarData();
+  const grocery = lists.find((list) => list.name === "Grocery");
+  const todo = lists.find((list) => list.name === "To-Do");
+  const groceryData = useListData(grocery?.id ?? lists[0].id);
+  const todoData = useListData(todo?.id ?? lists[0].id);
+  const now = useNow(15_000);
+  const events = upcomingEvents(calendar.rawEvents, today, weekDates(today)[6]);
+  return (
+    <AmbientScreen
+      visible={visible}
+      night={night}
+      now={now}
+      offset={offset}
+      forecast={forecast}
+      prayer={prayer}
+      nextUp={nextUpEvent(events, now)}
+      groceries={grocery ? pendingItems(groceryData.items).length : 0}
+      tasks={todo ? pendingItems(todoData.items).length : 0}
+    />
   );
 }

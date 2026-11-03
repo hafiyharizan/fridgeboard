@@ -30,37 +30,49 @@ Fridgeboard is a shared household management app: grocery lists, to-do lists, an
 ```
 src/
   app/
-    page.tsx                    # Home — renders PinEntry
-    layout.tsx                  # Root layout (Fraunces + Nunito fonts)
-    globals.css                 # Tailwind base styles
-    list/
-      page.tsx                  # Main app — renders ListShell (client component)
+    page.tsx                    # Sign-in (renders PinEntry: Google sign-in)
+    setup-household/, setup-pin/, auth/   # Onboarding and OAuth callback
+    list/page.tsx               # Signed-in app — renders ListShell (client)
+    layout.tsx                  # Root layout (Plus Jakarta Sans, manifest, viewport)
+    globals.css                 # Tailwind + global tokens
+    workspace.css               # Signed-in workspace design system (Warm & Homely)
     api/
-      notifications/
-        route.ts                # POST /api/notifications — cron-triggered notification sender
+      notifications/            # Cron: calendar reminders (email/Telegram/webhook)
+      push/subscribe/           # Register a device for Web Push
+      push/new-item/            # Alert the household about a new list item
+      push/remind/              # Cron: grocery reminder / morning summary
+      push/prayer/              # Cron: athan push at prayer times
+      calendar/{feed,import,sync}/  # iCal feed, holiday imports, sync links
+      version/                  # Live deploy id (kitchen display self-update)
   components/
-    PinEntry.tsx                # PIN authentication screen
-    ListShell.tsx               # App shell — tab state, loads lists from Supabase
-    ListTab.tsx                 # Grocery/to-do list view
-    ItemRow.tsx                 # Single list item (check, delete)
-    AddItemInput.tsx            # Input + suggestion dropdown for new items
-    SuggestionPanel.tsx         # Smart suggestions panel
-    CalendarTab.tsx             # Month calendar view
-    CalendarGrid.tsx            # Calendar grid rendering
-    AddEventModal.tsx           # Create/edit calendar events
-    EventDetail.tsx             # View/edit a calendar event
-    NotificationSettings.tsx    # Manage notification channels
+    ListShell.tsx               # Auth check, loads household lists
+    WorkspaceData.tsx           # Realtime controllers + household context (members, settings, adder)
+    HouseholdWorkspace.tsx      # Header, tabs, dialogs, kitchen mode wiring
+    HomeDashboard.tsx           # Home grid + AmbientLayer (idle "today" view data)
+    Ambient.tsx                 # Outside card (weather/prayer), athan banner, idle view, place settings
+    KitchenDisplay.tsx          # Settings hold button, sync badge, kitchen switch
+    WhoIsAdding.tsx             # Kitchen display member picker
+    ListTab.tsx, ItemRow.tsx, AddItemInput.tsx, SuggestionPanel.tsx
+    CalendarTab.tsx, CalendarGrid.tsx, CalendarDialogs.tsx, AddEventModal.tsx,
+    DayDetailSheet.tsx, EventDetail.tsx, CalendarSettings.tsx
+    InstallPrompt.tsx, PushNotificationButton.tsx, InvitePanel.tsx, Dialog.tsx
   hooks/
-    useRealtimeItems.ts         # Supabase Realtime subscription for list items
-    useRealtimeCalendar.ts      # Supabase Realtime subscription for calendar events
+    useRealtimeItems.ts, useRealtimeCalendar.ts   # Live data, refresh on wake
+    useHouseholdInfo.ts         # Members + household_settings
+    useKitchenDisplay.ts        # Wake lock, idle, night, self-update
+    useAmbient.ts               # useNow, useWeather, usePrayerDay, useAthan
+    useModalSurface.ts, watchWake.ts
   lib/
-    types.ts                    # All TypeScript types + Database schema type
-    supabase.ts                 # Browser Supabase client (singleton via createBrowserClient)
-    calendar.ts                 # Recurrence expansion, date formatting, month logic
-    suggestions.ts              # Static suggestion library (no API calls)
-supabase/
-  migrations/                   # SQL migration files (apply in filename order)
-public/                         # Static assets (SVGs)
+    types.ts                    # All types + Database schema type
+    supabase.ts / supabase-admin.ts   # Browser/route clients / service client (server only)
+    calendar.ts, dashboard.ts   # Recurrence expansion, Home helpers
+    kitchen.ts                  # Kitchen display rules and timings
+    weather.ts, prayer.ts       # Open-Meteo parsing, prayer times (adhan)
+    push.ts, new-item-push.ts   # Web Push sending and wording
+    offline-snapshot.ts         # Last-known board for public/offline.html
+supabase/migrations/            # SQL migrations (apply in filename order)
+netlify/functions/              # Scheduled functions calling the cron routes
+public/                         # sw.js, offline.html, manifest.json, icons
 ```
 
 ---
@@ -112,6 +124,14 @@ Managed via SQL migrations in `supabase/migrations/`. Apply in filename timestam
 
 **`suggestion_feedback`** — tracks accepted/dismissed suggestions
 - `id` uuid PK, `list_id` uuid, `suggestion_text` text, `action` text, `created_at` timestamptz
+
+**`household_settings`** — one row per household (members read/write their own)
+- `pin_code` PK, `location_name`, `latitude`, `longitude`, `timezone`
+- `prayer_enabled`, `prayer_method` (adhan method name), `prayer_madhab` (`shafi`/`hanafi`), `athan_enabled`
+
+**`items.added_by`** — member credited when an item is typed on a shared kitchen tablet ("who's adding?"); a trigger clears it unless that member is in the list's household. **`household_members()`** RPC returns name/avatar of the caller's household members.
+
+**`prayer_push_log`**, **`item_push_log`** — single-use logs for athan and new-item pushes (service role only).
 
 ### Key Types (src/lib/types.ts)
 
@@ -184,6 +204,18 @@ Called by `useRealtimeItems` right after a member adds a list item. Body: `{ ite
 
 `InstallPrompt` (mounted in `HouseholdWorkspace`) suggests installing the app: a native install button on Chromium, Share → Add to Home Screen steps on iPhone/iPad (the only way iOS allows web push). "Not now" snoozes it for 30 days.
 
+### `POST /api/push/prayer`
+
+Cron, every minute (same `event-reminders` scheduled function). For households with prayer times and athan alerts on, sends a push when a prayer time arrives (10-minute catch-up window), once per prayer per day via `prayer_push_log`. Times are calculated locally with `adhan` in the household's `timezone` (default `APP_TIMEZONE`).
+
+### Weather and prayer times
+
+Weather comes from Open-Meteo (no key) in the browser (`useWeather`), refreshed every 30 minutes and cached on the device. The household location is set in the household dialog (Open-Meteo geocoding search). Prayer times are computed on the device (`usePrayerDay`). On a kitchen display with athan alerts on, `useAthan` shows a banner and plays `public/athan.mp3` if present, otherwise a soft chime.
+
+### Offline fallback
+
+`public/sw.js` serves `public/offline.html` when a page navigation fails. That page renders the last-known board that `OfflineSnapshotWriter` saves in localStorage (`fridgeboard.snapshot`, cleared on sign-out), read-only, and returns to `/list` when the connection is back.
+
 ### `GET /api/version`
 
 Returns `{ version }`, the build stamp `APP_VERSION` (Netlify `DEPLOY_ID`, else `COMMIT_REF`, else `"dev"`; set in `next.config.ts`). Kitchen displays poll it and reload while idle when it changes. `"dev"` never triggers a reload.
@@ -194,7 +226,8 @@ A per-device switch in the household menu (localStorage `fridgeboard.kitchen-mod
 
 - Screen Wake Lock, re-acquired after the tablet wakes.
 - After 2 minutes untouched: back to Home, dialogs closed. Overlays built on `useModalSurface` close via the `DISMISS_OVERLAYS_EVENT` window event.
-- 22:00–06:00 while idle: dim overlay that swallows the first tap.
+- When idle: a full-screen "today" view (big time, next event, list counts, weather, next prayer) that swallows the first tap; dark and low-glare 22:00–06:00. An unsaved event form is parked and restored.
+- "Who's adding?" member picker on list tabs; resets on idle.
 - Header and content shift ±3px every 10 minutes (burn-in).
 - Settings button needs a press-and-hold (keyboard still opens it directly).
 - "Live" / "Synced N min ago" badge from `useSyncStatus()` in `WorkspaceData`.

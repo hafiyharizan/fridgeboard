@@ -1,5 +1,57 @@
 // Fridgeboard service worker
-// Handles Web Push notifications and notification click routing.
+// - Web Push notifications and notification click routing.
+// - Offline fallback: if a page can't load (no network), show offline.html,
+//   which renders the last-known board saved on this device. Everything else
+//   goes straight to the network; nothing else is cached.
+
+const CACHE = "fridgeboard-offline-v2";
+const OFFLINE_ASSETS = ["/offline.html", "/icon-192.png"];
+
+self.addEventListener("install", function (event) {
+  event.waitUntil(
+    caches.open(CACHE).then(function (cache) {
+      return cache.addAll(OFFLINE_ASSETS);
+    }).then(function () {
+      return self.skipWaiting();
+    })
+  );
+});
+
+self.addEventListener("activate", function (event) {
+  event.waitUntil(
+    caches.keys().then(function (keys) {
+      return Promise.all(
+        keys.filter(function (key) { return key !== CACHE; }).map(function (key) {
+          return caches.delete(key);
+        })
+      );
+    }).then(function () {
+      return self.clients.claim();
+    })
+  );
+});
+
+self.addEventListener("fetch", function (event) {
+  const request = event.request;
+  if (request.method !== "GET") return;
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request).catch(function () {
+        return caches.match("/offline.html");
+      })
+    );
+    return;
+  }
+  // The offline page's own assets (its icon): network first, cache if offline.
+  const path = new URL(request.url).pathname;
+  if (OFFLINE_ASSETS.indexOf(path) !== -1) {
+    event.respondWith(
+      fetch(request).catch(function () {
+        return caches.match(path);
+      })
+    );
+  }
+});
 
 self.addEventListener("push", function (event) {
   if (!event.data) return;
@@ -13,8 +65,8 @@ self.addEventListener("push", function (event) {
 
   const options = {
     body: payload.body || "",
-    icon: "/logo.png",
-    badge: "/logo.png",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
     tag: payload.tag || "fridgeboard",
     renotify: true,
     data: { url: payload.url || "/list" },

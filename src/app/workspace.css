@@ -537,52 +537,128 @@ textarea:focus-visible {
   background: var(--sage);
 }
 
-/* At a glance */
-.glance-card {
+/* Outside: weather + prayer */
+.outside-card {
   padding: 20px 22px;
 }
-.glance-tiles {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 14px;
-}
-.glance-tile {
+.outside-setup {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  min-height: 88px;
-  padding: 12px 14px;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
   border-radius: 16px;
   background: var(--sage-tint);
   text-align: left;
 }
-.glance-tile:hover {
-  background: var(--sage-tint-strong);
+.outside-setup strong {
+  display: block;
+  font-size: 16px;
 }
-.glance-tile svg {
-  color: var(--sage-deep);
+.outside-setup span span {
+  color: var(--muted);
+  font-size: 14px;
 }
-.glance-tile strong {
-  font-size: 30px;
+.weather-now {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+}
+.weather-icon {
+  flex: none;
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: var(--amber-tint);
+  color: var(--amber-ink);
+}
+.weather-temp {
+  font-size: 44px;
   font-weight: 700;
-  line-height: 34px;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
+  line-height: 48px;
+  letter-spacing: -0.03em;
 }
-.glance-tile span {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.weather-words {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 14px;
   color: var(--muted);
 }
-.glance-tile.is-amber {
-  background: var(--amber-tint);
+.weather-words b {
+  font-size: 16px;
+  color: var(--ink);
 }
-.glance-tile.is-amber svg {
-  color: var(--amber-ink);
+.weather-words svg {
+  display: inline;
+  vertical-align: -2px;
+}
+.weather-tomorrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.weather-tomorrow svg {
+  flex: none;
+  color: var(--sage-deep);
+}
+.prayer-strip {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.prayer-next {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.prayer-next svg {
+  flex: none;
+  color: var(--sage-deep);
+}
+.prayer-next strong {
+  color: var(--ink);
+}
+.prayer-times {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.prayer-times li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 2px;
+  border-radius: 12px;
+  background: var(--oat-soft);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+.prayer-times li strong {
+  font-size: 15px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.prayer-times li.is-next {
+  background: var(--sage-deep);
+  color: rgba(255, 255, 255, 0.8);
+}
+.prayer-times li.is-next strong {
+  color: #fff;
 }
 
 /* Quick input */
@@ -1203,21 +1279,6 @@ textarea:focus-visible {
   white-space: nowrap;
   box-shadow: var(--shadow-2);
 }
-.night-dimmer {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding-bottom: calc(40px + env(safe-area-inset-bottom));
-  background: rgb(12 16 14 / 0.8);
-  color: rgb(255 255 255 / 0.45);
-  font-size: 14px;
-  font-weight: 700;
-}
 .kitchen-setting {
   display: flex;
   align-items: flex-start;
@@ -1258,6 +1319,328 @@ textarea:focus-visible {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
+
+/* ---------- Who's adding (kitchen display) ---------- */
+
+.who-adding {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 14px;
+}
+.who-adding-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 16px 6px 6px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  font-size: 15px;
+  font-weight: 700;
+}
+.member-chip[aria-checked="true"] {
+  border-color: var(--sage);
+  background: var(--sage-tint);
+  color: var(--sage-ink);
+}
+.member-avatar {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+/* ---------- Athan banner ---------- */
+
+.athan-banner {
+  position: fixed;
+  z-index: 70;
+  top: calc(20px + env(safe-area-inset-top));
+  left: 16px;
+  right: 16px;
+  margin-inline: auto;
+  max-width: 520px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 16px 16px 18px;
+  border-radius: var(--radius-hero);
+  background: var(--card);
+  border: 1px solid var(--amber-strong);
+  box-shadow: var(--shadow-3);
+}
+.athan-banner > span:nth-child(2) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.athan-banner strong {
+  font-size: 22px;
+  line-height: 28px;
+}
+.athan-icon {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: var(--amber-tint);
+  color: var(--amber-ink);
+}
+
+/* ---------- Idle "today" view (kitchen display) ---------- */
+
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 40px;
+  background: var(--canvas);
+  color: var(--ink);
+  cursor: pointer;
+}
+.ambient-inner {
+  width: min(1100px, 100%);
+}
+.ambient-time {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  font-size: clamp(96px, 16vw, 200px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+}
+.ambient-time small {
+  font-size: 0.24em;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+.ambient-date {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  margin-top: 12px;
+  font-size: clamp(22px, 2.6vw, 34px);
+  font-weight: 500;
+}
+.ambient-weather {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: var(--amber-ink);
+}
+.ambient-weather small {
+  font-size: 0.7em;
+  font-weight: 500;
+  color: var(--muted);
+}
+.ambient-tiles {
+  display: grid;
+  grid-template-columns: 2fr repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 40px;
+}
+.ambient-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 22px 24px;
+  border-radius: var(--radius-hero);
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+.ambient-tile .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ambient-tile strong {
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(28px, 3.4vw, 44px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+.ambient-tile strong small {
+  margin-top: 6px;
+  font-size: clamp(15px, 1.5vw, 19px);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+.ambient-hint {
+  margin-top: 36px;
+  font-size: 15px;
+  color: var(--muted);
+}
+/* Night: dark, low-glare, dimmed text — easy on eyes and on the screen. */
+.ambient.is-night {
+  background: #0c100e;
+  color: #a7b2aa;
+}
+.ambient.is-night .ambient-tile {
+  background: #141a17;
+  border-color: #1d2520;
+}
+.ambient.is-night .eyebrow,
+.ambient.is-night small,
+.ambient.is-night .ambient-hint {
+  color: #6c7770;
+}
+.ambient.is-night .ambient-weather {
+  color: #b58a62;
+}
+@media (max-width: 900px) {
+  .ambient-tiles {
+    grid-template-columns: 1fr 1fr;
+  }
+  .ambient-tile.is-wide {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------- Settings: place + prayer ---------- */
+
+.place-settings {
+  margin-top: 16px;
+  padding: 20px;
+  border-radius: 18px;
+  background: var(--oat-soft);
+}
+.place-settings h3 {
+  font-size: 18px;
+}
+.place-settings > p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.place-current {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 10px;
+  font-weight: 700;
+}
+.place-search {
+  display: flex;
+  gap: 8px;
+}
+.place-search input {
+  flex: 1;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  font-size: 16px;
+}
+.place-results {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.place-results button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  background: var(--card);
+  text-align: left;
+  font-size: 15px;
+}
+.place-results button:hover {
+  background: var(--sage-tint);
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.setting-row > span {
+  display: flex;
+  flex-direction: column;
+}
+.setting-row > span > span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.setting-row.is-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.setting-row select {
+  min-height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  font-size: 15px;
+}
+.setting-row .segmented button {
+  min-height: 44px;
+}
+.toggle {
+  flex: none;
+  appearance: none;
+  position: relative;
+  width: 56px;
+  height: 34px;
+  border-radius: 999px;
+  background: #cfd6cc;
+  cursor: pointer;
+}
+.toggle::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+.toggle:checked {
+  background: var(--sage-deep);
+}
+.toggle:checked::after {
+  left: 25px;
+}
+
 /* ---------- Responsive ---------- */
 
 /* Landscape tablet and up: everything fits on one screen, no page scroll. */
@@ -1293,13 +1676,9 @@ textarea:focus-visible {
     margin-top: 10px;
     padding-top: 10px;
   }
-  .glance-card,
+  .outside-card,
   .quick-card {
     padding: 16px 18px;
-  }
-  .glance-tile {
-    min-height: 76px;
-    padding: 10px 12px;
   }
   .quick-tile {
     min-height: 64px;

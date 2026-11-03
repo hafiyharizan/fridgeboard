@@ -16,6 +16,41 @@ export type Item = {
   text: string;
   /** Member who added the item; null for items added before tracking began. */
   created_by?: string | null;
+  /** Member credited on a shared device ("who's adding?"); null = created_by. */
+  added_by?: string | null;
+};
+
+export type PrayerMethod =
+  | "MuslimWorldLeague"
+  | "Egyptian"
+  | "Karachi"
+  | "UmmAlQura"
+  | "Dubai"
+  | "MoonsightingCommittee"
+  | "NorthAmerica"
+  | "Kuwait"
+  | "Qatar"
+  | "Singapore"
+  | "Tehran"
+  | "Turkey";
+
+export type HouseholdSettings = {
+  pin_code: string;
+  location_name: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  timezone: string | null;
+  prayer_enabled: boolean;
+  prayer_method: PrayerMethod;
+  prayer_madhab: "shafi" | "hanafi";
+  athan_enabled: boolean;
+  updated_at: string;
+};
+
+export type HouseholdMember = {
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
 };
 
 export type CalendarEventType = "event" | "reminder" | "todo";
@@ -228,6 +263,7 @@ export type Database = {
           list_id: string;
           text: string;
           created_by?: string | null;
+          added_by?: string | null;
         };
         Update: {
           checked_at?: string | null;
@@ -246,6 +282,18 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      household_settings: {
+        Row: HouseholdSettings;
+        Insert: Partial<Omit<HouseholdSettings, "pin_code">> & { pin_code: string };
+        Update: Partial<HouseholdSettings>;
+        Relationships: [];
+      };
+      prayer_push_log: {
+        Row: { pin_code: string; prayer: string; prayer_date: string; sent_at: string };
+        Insert: { pin_code: string; prayer: string; prayer_date: string; sent_at?: string };
+        Update: { pin_code?: string; prayer?: string; prayer_date?: string; sent_at?: string };
+        Relationships: [];
       };
       item_push_log: {
         Row: { item_id: string; sent_at: string };
@@ -333,6 +381,10 @@ export type Database = {
       current_user_pin: {
         Args: Record<string, never>;
         Returns: string | null;
+      };
+      household_members: {
+        Args: Record<string, never>;
+        Returns: HouseholdMember[];
       };
       get_calendar_feed: {
         Args: {

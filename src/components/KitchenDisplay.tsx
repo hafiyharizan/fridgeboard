@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Moon } from "lucide-react";
 import { useSyncStatus } from "@/components/WorkspaceData";
 import { describeSync, SETTINGS_HOLD_MS } from "@/lib/kitchen";
 
@@ -112,30 +111,6 @@ export function SyncBadge() {
   );
 }
 
-/**
- * Night dimmer. Catches the first tap so waking the screen in the dark
- * never ticks off an item by accident.
- */
-export function NightDimmer({ visible }: { visible: boolean }) {
-  return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          className="night-dimmer"
-          aria-hidden
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0, transition: { duration: 0.25 } }}
-          transition={{ duration: 2 }}
-        >
-          <Moon size={22} />
-          <span>Tap to wake</span>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
 /** Per-device switch in the household menu. */
 export function KitchenModeSetting({
   enabled,
@@ -149,9 +124,10 @@ export function KitchenModeSetting({
       <div>
         <h3 id="kitchen-mode-label">Kitchen display</h3>
         <p>
-          For a tablet that stays on the wall: keeps the screen on, returns to
-          Home after 2 minutes, dims at night, updates itself, and needs a
-          press-and-hold to open settings. Only affects this device.
+          For a tablet that stays on the wall: keeps the screen on, shows a
+          big today view after 2 minutes (dark at night), asks who&apos;s
+          adding, updates itself, and needs a press-and-hold to open
+          settings. Only affects this device.
         </p>
       </div>
       <button

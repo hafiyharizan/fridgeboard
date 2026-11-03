@@ -1,0 +1,58 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { useHousehold } from "@/components/WorkspaceData";
+import { shortName } from "@/lib/new-item-push";
+
+const TINTS = ["#dfe8e1", "#fbe3cc", "#e3e9f4", "#f6e0dc", "#ebe4f3"];
+
+function initials(name: string) {
+  return name
+    .split(/[\s@]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+/**
+ * Kitchen display only: pick who is typing, so items (and the alerts other
+ * members get) are credited to the right person rather than to whoever the
+ * tablet is signed in as. Resets to the account on the idle reset.
+ */
+export function WhoIsAdding() {
+  const { members, userId, adderId, setAdderId } = useHousehold();
+  if (members.length < 2) return null;
+  const current = adderId ?? userId;
+  return (
+    <div className="who-adding" role="radiogroup" aria-label="Who's adding?">
+      <span className="eyebrow">Who&apos;s adding?</span>
+      <div className="who-adding-row">
+        {members.map((member, index) => {
+          const name = member.display_name || "Member";
+          const selected = member.user_id === current;
+          return (
+            <motion.button
+              key={member.user_id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              whileTap={{ scale: 0.96 }}
+              className="member-chip"
+              onClick={() => setAdderId(member.user_id === userId ? null : member.user_id)}
+            >
+              <span
+                className="member-avatar"
+                aria-hidden
+                style={{ background: TINTS[index % TINTS.length] }}
+              >
+                {initials(name)}
+              </span>
+              {shortName(name)}
+            </motion.button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

@@ -17,13 +17,15 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import {
   HoldToOpenButton,
   KitchenModeSetting,
-  NightDimmer,
   SyncBadge,
 } from "@/components/KitchenDisplay";
 import { useKitchenDisplay } from "@/hooks/useKitchenDisplay";
 import { DISMISS_OVERLAYS_EVENT } from "@/lib/kitchen";
 import { ListTab } from "@/components/ListTab";
-import { HomeDashboard } from "@/components/HomeDashboard";
+import { AmbientLayer, HomeDashboard } from "@/components/HomeDashboard";
+import { AthanBanner, PlaceSettings } from "@/components/Ambient";
+import { OfflineSnapshotWriter, useHousehold } from "@/components/WorkspaceData";
+import { useAthan, useNow, usePrayerDay, useWeather } from "@/hooks/useAmbient";
 import { InvitePanel } from "@/components/InvitePanel";
 import { Dialog } from "@/components/Dialog";
 import { CalendarDialogs } from "@/components/CalendarDialogs";
@@ -112,8 +114,10 @@ export function HouseholdWorkspace({
   ];
   // Kitchen idle reset: close everything and show Home. Drafts in the list
   // panels survive because those panels stay mounted.
+  const { settings, saveSettings, setAdderId } = useHousehold();
   const resetToHome = useCallback(() => {
     setActive("home");
+    setAdderId(null);
     setMenu(null);
     setDay(null);
     setAdding(null);
@@ -121,8 +125,16 @@ export function HouseholdWorkspace({
     window.dispatchEvent(new Event(DISMISS_OVERLAYS_EVENT));
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     window.scrollTo({ top: 0 });
-  }, []);
+  }, [setAdderId]);
   const kitchen = useKitchenDisplay(resetToHome);
+  const now = useNow(20_000);
+  const weather = useWeather(settings);
+  const prayer = usePrayerDay(settings, now);
+  const { athan, dismiss: dismissAthan } = useAthan(
+    prayer,
+    kitchen.enabled && Boolean(settings?.athan_enabled),
+    now,
+  );
   const shift = { translate: `${kitchen.offset.x}px ${kitchen.offset.y}px` };
   const closeMenu = () => {
     setMenu(null);
@@ -211,6 +223,10 @@ export function HouseholdWorkspace({
               onEvent={setSelected}
               onAddEvent={setAdding}
               onAddToList={addToList}
+              settings={settings}
+              forecast={weather.forecast}
+              prayer={prayer}
+              onSetup={() => setMenu("household")}
             />
           )}
           <div hidden={active !== "calendar"}>
@@ -276,6 +292,7 @@ export function HouseholdWorkspace({
                 {accountError}
               </p>
             )}
+            <PlaceSettings settings={settings} onSave={saveSettings} />
             <KitchenModeSetting
               enabled={kitchen.enabled}
               onChange={kitchen.setEnabled}
@@ -298,7 +315,17 @@ export function HouseholdWorkspace({
             </button>
           </Dialog>
         )}
-        <NightDimmer visible={kitchen.dimmed} />
+        <AmbientLayer
+          visible={kitchen.idle}
+          night={kitchen.night}
+          offset={kitchen.offset}
+          lists={lists}
+          today={today}
+          forecast={weather.forecast}
+          prayer={prayer}
+        />
+        <AthanBanner slot={athan} onDismiss={dismissAthan} />
+        <OfflineSnapshotWriter lists={lists} today={today} />
       </main>
     </MotionConfig>
   );

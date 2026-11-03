@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { WorkspaceData } from "@/components/WorkspaceData";
 import { HouseholdWorkspace } from "@/components/HouseholdWorkspace";
 import { clearSessionPin, setSessionPin } from "@/lib/auth";
+import { clearSnapshot } from "@/lib/offline-snapshot";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import type { FridgeList } from "@/lib/types";
 import { ensureUserProfile, getUserDisplayName } from "@/lib/user-profile";
@@ -18,6 +19,7 @@ export function ListShell() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [authUser, setAuthUser] = useState<{
+    id: string;
     name: string;
     avatar: string | null;
   } | null>(null);
@@ -64,6 +66,7 @@ export function ListShell() {
 
         const profile = await ensureUserProfile(supabase, user);
         setAuthUser({
+          id: user.id,
           name: getUserDisplayName(user, profile),
           avatar: profile.avatar_url,
         });
@@ -95,6 +98,7 @@ export function ListShell() {
         setLists([]);
         setPin("");
         clearSessionPin();
+        clearSnapshot();
         router.replace("/");
       }
     });
@@ -105,6 +109,7 @@ export function ListShell() {
     const { error: signOutError } = await supabase.auth.signOut();
     if (signOutError) throw signOutError;
     clearSessionPin();
+    clearSnapshot();
     router.replace("/");
   };
 
@@ -160,7 +165,7 @@ export function ListShell() {
   }
 
   return (
-    <WorkspaceData key={pin} pin={pin} lists={lists}>
+    <WorkspaceData key={pin} pin={pin} userId={authUser?.id ?? ""} lists={lists}>
       <HouseholdWorkspace
         lists={lists}
         name={authUser?.name ?? "Household member"}

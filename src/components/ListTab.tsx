@@ -5,7 +5,9 @@ import { AnimatePresence } from "framer-motion";
 import { AddItemInput } from "@/components/AddItemInput";
 import { ItemRow } from "@/components/ItemRow";
 import { SuggestionPanel } from "@/components/SuggestionPanel";
-import { useListData } from "@/components/WorkspaceData";
+import { useHousehold, useListData } from "@/components/WorkspaceData";
+import { WhoIsAdding } from "@/components/WhoIsAdding";
+import { useKitchenEnabled } from "@/hooks/useKitchenDisplay";
 import { DataStatus } from "@/components/HomeDashboard";
 import type { FridgeList } from "@/lib/types";
 
@@ -25,6 +27,11 @@ export function ListTab({ list }: ListTabProps) {
     connected,
     retry,
   } = useListData(list.id);
+
+  const kitchen = useKitchenEnabled();
+  const { adderId } = useHousehold();
+  // On the kitchen display, credit the member picked in "Who's adding?".
+  const add = (text: string) => addItem(text, kitchen ? adderId : null);
 
   const existingItemTexts = useMemo(
     () => items.filter((i) => !i.is_checked).map((i) => i.text),
@@ -47,6 +54,7 @@ export function ListTab({ list }: ListTabProps) {
           </div>
         </div>
 
+        {kitchen && <WhoIsAdding />}
         <div className="mt-4">
           <AddItemInput
             inputId={`list-input-${list.id}`}
@@ -54,7 +62,7 @@ export function ListTab({ list }: ListTabProps) {
             buttonLabel={list.name === "Grocery" ? "Add item" : "Add task"}
             existingItems={existingItemTexts}
             listName={list.name}
-            onAdd={addItem}
+            onAdd={add}
             placeholder={
               list.name === "Grocery"
                 ? "Milk, scallions, pasta..."
@@ -68,7 +76,7 @@ export function ListTab({ list }: ListTabProps) {
         <SuggestionPanel
           existingItems={existingItemTexts}
           listName={list.name}
-          onAddItem={addItem}
+          onAddItem={add}
         />
       </div>
 

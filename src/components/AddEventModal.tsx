@@ -2,7 +2,8 @@
 
 import { useModalSurface } from "@/hooks/useModalSurface";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { DISMISS_OVERLAYS_EVENT } from "@/lib/kitchen";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, Clock, Repeat, X } from "lucide-react";
 import { NOTIFY_BEFORE_OPTIONS, RECURRENCE_LABELS } from "@/lib/calendar";
@@ -64,22 +65,62 @@ type AddEventModalProps = {
   }) => Promise<boolean>;
 };
 
+type Draft = {
+  dateKey: string;
+  title: string;
+  note: string;
+  eventType: CalendarEventType;
+  color: StickyColor;
+  recurrence: Recurrence;
+  recurrenceEnd: string;
+  eventTime: string;
+  notifyBefore: number;
+};
+
+// A form closed by the kitchen display's idle reset (not by the person) is
+// parked here and restored the next time the form opens for the same day.
+let parkedDraft: Draft | null = null;
+
 export function AddEventModal({
   dateKey,
   busy,
   error,
-  onClose,
+  onClose: closeModal,
   onAdd,
 }: AddEventModalProps) {
+  // Closing on purpose (or saving) discards any parked draft.
+  const onClose = () => {
+    parkedDraft = null;
+    closeModal();
+  };
   const modalRef = useModalSurface(onClose);
-  const [title, setTitle] = useState("");
-  const [note, setNote] = useState("");
-  const [eventType, setEventType] = useState<CalendarEventType>("event");
-  const [color, setColor] = useState<StickyColor>("amber");
-  const [recurrence, setRecurrence] = useState<Recurrence>("none");
-  const [recurrenceEnd, setRecurrenceEnd] = useState("");
-  const [eventTime, setEventTime] = useState("");
-  const [notifyBefore, setNotifyBefore] = useState(-1);
+  const [initial] = useState(() =>
+    parkedDraft?.dateKey === dateKey ? parkedDraft : null,
+  );
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [note, setNote] = useState(initial?.note ?? "");
+  const [eventType, setEventType] = useState<CalendarEventType>(initial?.eventType ?? "event");
+  const [color, setColor] = useState<StickyColor>(initial?.color ?? "amber");
+  const [recurrence, setRecurrence] = useState<Recurrence>(initial?.recurrence ?? "none");
+  const [recurrenceEnd, setRecurrenceEnd] = useState(initial?.recurrenceEnd ?? "");
+  const [eventTime, setEventTime] = useState(initial?.eventTime ?? "");
+  const [notifyBefore, setNotifyBefore] = useState(initial?.notifyBefore ?? -1);
+
+  const draft = useRef<Draft | null>(null);
+  useEffect(() => {
+    draft.current = { dateKey, title, note, eventType, color, recurrence, recurrenceEnd, eventTime, notifyBefore };
+  });
+  // Runs after useModalSurface's own dismiss handler (registered first), so
+  // the draft is parked after that handler's discard.
+  useEffect(() => {
+    const park = () => {
+      if (draft.current && (draft.current.title.trim() || draft.current.note.trim())) {
+        parkedDraft = draft.current;
+      }
+    };
+    window.addEventListener(DISMISS_OVERLAYS_EVENT, park);
+    return () => window.removeEventListener(DISMISS_OVERLAYS_EVENT, park);
+  }, []);
 
   const displayDate = new Date(dateKey + "T00:00:00").toLocaleDateString(
     "en-US",

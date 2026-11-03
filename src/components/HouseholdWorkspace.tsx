@@ -13,6 +13,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { CalendarTab } from "@/components/CalendarTab";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { ListTab } from "@/components/ListTab";
 import { HomeDashboard } from "@/components/HomeDashboard";
 import { InvitePanel } from "@/components/InvitePanel";
@@ -166,6 +167,7 @@ export function HouseholdWorkspace({
             </div>
           ))}
         </div>
+        <InstallPrompt />
         <CalendarDialogs
           day={day}
           setDay={setDay}

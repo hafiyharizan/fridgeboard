@@ -21,6 +21,18 @@ const sortItems = (items: Item[]) =>
     return new Date(rightDate).getTime() - new Date(leftDate).getTime();
   });
 
+/** Ask the server to alert the rest of the household. Best effort, never blocks. */
+function announceNewItem(itemId: string) {
+  void fetch("/api/push/new-item", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ itemId }),
+    keepalive: true,
+  }).catch((err: unknown) => {
+    console.warn("[Push] New item alert failed:", err);
+  });
+}
+
 export function useRealtimeItems(listId: string) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
@@ -161,11 +173,11 @@ export function useRealtimeItems(listId: string) {
     setIsWorking(true);
 
     try {
-      const { error: insertError } = await supabase.from("items").insert({
-        list_id: listId,
-
-        text,
-      });
+      const { data: inserted, error: insertError } = await supabase
+        .from("items")
+        .insert({ list_id: listId, text })
+        .select("id")
+        .single();
 
       if (insertError) {
         setError(insertError.message);
@@ -174,6 +186,7 @@ export function useRealtimeItems(listId: string) {
       }
 
       setError("");
+      announceNewItem(inserted.id);
 
       return true;
     } catch {

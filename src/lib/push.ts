@@ -27,6 +27,11 @@ export type PushPayload = {
   url?: string;
 };
 
+export type PushOptions = {
+  /** Skip devices owned by this member (e.g. the person who made the change). */
+  excludeUserId?: string;
+};
+
 /**
  * Send a push notification to all subscribed devices for a given PIN.
  * Returns the number of successful sends. Expired subscriptions (410/404) are
@@ -37,13 +42,19 @@ export async function sendPushToPin(
   payload: PushPayload,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient<any>,
+  options: PushOptions = {},
 ): Promise<number> {
   if (!initWebPush()) return 0;
 
-  const { data: subs } = await supabase
+  let query = supabase
     .from("push_subscriptions")
     .select("endpoint, p256dh, auth")
     .eq("pin_code", pinCode);
+  if (options.excludeUserId) {
+    // Devices with no owner yet still get the alert; `neq` alone would drop them.
+    query = query.or(`user_id.is.null,user_id.neq.${options.excludeUserId}`);
+  }
+  const { data: subs } = await query;
 
   if (!subs?.length) return 0;
 

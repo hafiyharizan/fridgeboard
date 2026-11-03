@@ -1,0 +1,62 @@
+"use client";
+
+import { createContext, useContext, type ReactNode } from "react";
+import { useRealtimeItems } from "@/hooks/useRealtimeItems";
+import { useRealtimeCalendar } from "@/hooks/useRealtimeCalendar";
+import type { FridgeList } from "@/lib/types";
+
+type ListController = ReturnType<typeof useRealtimeItems>;
+const ListsContext = createContext<Record<string, ListController>>({});
+const CalendarContext = createContext<ReturnType<
+  typeof useRealtimeCalendar
+> | null>(null);
+
+// One hook owner per list, including any additional household lists.
+function ListData({
+  lists,
+  children,
+}: {
+  lists: FridgeList[];
+  children: ReactNode;
+}) {
+  const inherited = useContext(ListsContext);
+  const controller = useRealtimeItems(lists[0].id);
+  return (
+    <ListsContext.Provider value={{ ...inherited, [lists[0].id]: controller }}>
+      {lists.length > 1 ? (
+        <ListData lists={lists.slice(1)}>{children}</ListData>
+      ) : (
+        children
+      )}
+    </ListsContext.Provider>
+  );
+}
+
+export function WorkspaceData({
+  pin,
+  lists,
+  children,
+}: {
+  pin: string;
+  lists: FridgeList[];
+  children: ReactNode;
+}) {
+  const calendar = useRealtimeCalendar(pin);
+  return (
+    <CalendarContext.Provider value={calendar}>
+      {lists.length ? <ListData lists={lists}>{children}</ListData> : children}
+    </CalendarContext.Provider>
+  );
+}
+
+export function useListData(id: string) {
+  const lists = useContext(ListsContext);
+  if (!lists[id]) throw new Error("List controller is unavailable.");
+  return lists[id];
+}
+
+export function useCalendarData() {
+  const calendar = useContext(CalendarContext);
+  if (!calendar) throw new Error("Calendar controller is unavailable.");
+  return calendar;
+}

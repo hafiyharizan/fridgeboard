@@ -4,7 +4,14 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Bell, BellOff, BellRing } from "lucide-react";
 
-type PushState = "checking" | "idle" | "requesting" | "subscribed" | "denied" | "unsupported" | "error";
+type PushState =
+  | "checking"
+  | "idle"
+  | "requesting"
+  | "subscribed"
+  | "denied"
+  | "unsupported"
+  | "error";
 
 function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -24,21 +31,26 @@ export function PushNotificationButton({ pin }: Props) {
   const [state, setState] = useState<PushState>("checking");
 
   useEffect(() => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setState("unsupported");
-      return;
-    }
-
-    if (Notification.permission === "denied") {
-      setState("denied");
-      return;
-    }
-
-    // Check if already subscribed
-    navigator.serviceWorker.ready
-      .then((reg) => reg.pushManager.getSubscription())
-      .then((sub) => setState(sub ? "subscribed" : "idle"))
-      .catch(() => setState("idle"));
+    let mounted = true;
+    const detectState = async (): Promise<PushState> => {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window))
+        return "unsupported";
+      if (Notification.permission === "denied") return "denied";
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        return (await reg.pushManager.getSubscription())
+          ? "subscribed"
+          : "idle";
+      } catch {
+        return "idle";
+      }
+    };
+    void detectState().then((next) => {
+      if (mounted) setState(next);
+    });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const handleEnable = async () => {
@@ -113,11 +125,17 @@ export function PushNotificationButton({ pin }: Props) {
     <motion.button
       whileTap={{ scale: 0.95 }}
       className={`rounded-full border border-border p-2 text-muted transition hover:border-amber/40 hover:text-foreground ${
-        state === "requesting" ? "animate-pulse cursor-wait opacity-60" : "cursor-pointer"
+        state === "requesting"
+          ? "animate-pulse cursor-wait opacity-60"
+          : "cursor-pointer"
       }`}
       disabled={state === "requesting"}
       onClick={handleEnable}
-      title={state === "error" ? "Retry enabling notifications" : "Enable push notifications"}
+      title={
+        state === "error"
+          ? "Retry enabling notifications"
+          : "Enable push notifications"
+      }
       type="button"
     >
       <Bell className="h-4 w-4" />

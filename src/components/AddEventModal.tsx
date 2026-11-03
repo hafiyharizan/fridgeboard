@@ -1,30 +1,54 @@
 "use client";
 
+import { useModalSurface } from "@/hooks/useModalSurface";
+
 import { FormEvent, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, Clock, Repeat, X } from "lucide-react";
 import { NOTIFY_BEFORE_OPTIONS, RECURRENCE_LABELS } from "@/lib/calendar";
-import type { CalendarEventType, NotifyChannel, Recurrence, StickyColor } from "@/lib/types";
+import type {
+  CalendarEventType,
+  NotifyChannel,
+  Recurrence,
+  StickyColor,
+} from "@/lib/types";
 
-const COLOR_OPTIONS: { value: StickyColor; label: string; classes: string }[] = [
-  { value: "amber", label: "Amber", classes: "bg-amber/30 border-amber/60" },
-  { value: "blue", label: "Blue", classes: "bg-blue/25 border-blue/50" },
-  { value: "rose", label: "Rose", classes: "bg-danger/20 border-danger/40" },
-  { value: "green", label: "Green", classes: "bg-success/25 border-success/50" },
-  { value: "purple", label: "Purple", classes: "bg-[#c4b5fd]/30 border-[#c4b5fd]/60" },
-];
+const COLOR_OPTIONS: { value: StickyColor; label: string; classes: string }[] =
+  [
+    { value: "amber", label: "Amber", classes: "bg-amber/30 border-amber/60" },
+    { value: "blue", label: "Blue", classes: "bg-blue/25 border-blue/50" },
+    { value: "rose", label: "Rose", classes: "bg-danger/20 border-danger/40" },
+    {
+      value: "green",
+      label: "Green",
+      classes: "bg-success/25 border-success/50",
+    },
+    {
+      value: "purple",
+      label: "Purple",
+      classes: "bg-[#c4b5fd]/30 border-[#c4b5fd]/60",
+    },
+  ];
 
 // No "to-do" in calendar — use the list tab for to-dos
-const TYPE_OPTIONS: { value: CalendarEventType; label: string; icon: string }[] = [
+const TYPE_OPTIONS: {
+  value: CalendarEventType;
+  label: string;
+  icon: string;
+}[] = [
   { value: "event", label: "Event", icon: "◆" },
   { value: "reminder", label: "Reminder", icon: "◎" },
 ];
 
-const RECURRENCE_OPTIONS = Object.entries(RECURRENCE_LABELS) as [Recurrence, string][];
+const RECURRENCE_OPTIONS = Object.entries(RECURRENCE_LABELS) as [
+  Recurrence,
+  string,
+][];
 
 type AddEventModalProps = {
   dateKey: string;
   busy: boolean;
+  error?: string;
   onClose: () => void;
   onAdd: (data: {
     event_date: string;
@@ -37,10 +61,17 @@ type AddEventModalProps = {
     recurrence_end?: string;
     notify_before: number;
     notify_channels: NotifyChannel[];
-  }) => Promise<void>;
+  }) => Promise<boolean>;
 };
 
-export function AddEventModal({ dateKey, busy, onClose, onAdd }: AddEventModalProps) {
+export function AddEventModal({
+  dateKey,
+  busy,
+  error,
+  onClose,
+  onAdd,
+}: AddEventModalProps) {
+  const modalRef = useModalSurface(onClose);
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
   const [eventType, setEventType] = useState<CalendarEventType>("event");
@@ -50,11 +81,14 @@ export function AddEventModal({ dateKey, busy, onClose, onAdd }: AddEventModalPr
   const [eventTime, setEventTime] = useState("");
   const [notifyBefore, setNotifyBefore] = useState(-1);
 
-  const displayDate = new Date(dateKey + "T00:00:00").toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
+  const displayDate = new Date(dateKey + "T00:00:00").toLocaleDateString(
+    "en-US",
+    {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    },
+  );
 
   // Reminder only makes sense when a specific time is set
   const canSetReminder = eventTime !== "";
@@ -62,9 +96,9 @@ export function AddEventModal({ dateKey, busy, onClose, onAdd }: AddEventModalPr
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const trimmed = title.trim();
-    if (!trimmed) return;
+    if (!trimmed || busy) return;
 
-    await onAdd({
+    const saved = await onAdd({
       event_date: dateKey,
       event_time: eventTime || null,
       title: trimmed,
@@ -72,12 +106,13 @@ export function AddEventModal({ dateKey, busy, onClose, onAdd }: AddEventModalPr
       event_type: eventType,
       color,
       recurrence,
-      recurrence_end: recurrence !== "none" && recurrenceEnd ? recurrenceEnd : undefined,
+      recurrence_end:
+        recurrence !== "none" && recurrenceEnd ? recurrenceEnd : undefined,
       notify_before: canSetReminder ? notifyBefore : -1,
       notify_channels: [] as NotifyChannel[],
     });
 
-    onClose();
+    if (saved) onClose();
   };
 
   return (
@@ -86,7 +121,12 @@ export function AddEventModal({ dateKey, busy, onClose, onAdd }: AddEventModalPr
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 overflow-y-auto bg-foreground/20 p-3 backdrop-blur-sm sm:p-4"
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add event or reminder"
+        tabIndex={-1}
+        className="calendar-overlay fixed inset-0 z-50 overflow-y-auto bg-foreground/20 p-3 backdrop-blur-sm sm:p-4"
         onClick={onClose}
       >
         <div className="flex min-h-full items-start justify-center sm:items-center">
@@ -109,160 +149,196 @@ export function AddEventModal({ dateKey, busy, onClose, onAdd }: AddEventModalPr
                 onClick={onClose}
                 type="button"
               >
+                <span className="sr-only">Close dialog</span>
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* ---- Scrollable form body ---- */}
-            <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
+            {error && (
+              <p className="data-status error" role="alert">
+                {error}
+              </p>
+            )}
+            <form
+              className="flex min-h-0 flex-1 flex-col"
+              onSubmit={handleSubmit}
+            >
               <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 overscroll-y-contain">
-              {/* Title */}
-              <input
-                autoFocus
-                className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm text-foreground outline-none transition placeholder:text-muted/55 focus:border-amber-deep focus:ring-3 focus:ring-amber/20"
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="What's happening?"
-                value={title}
-              />
-
-              {/* Note */}
-              <textarea
-                className="w-full resize-none rounded-xl border border-border bg-white px-3 py-2 text-xs text-foreground outline-none transition placeholder:text-muted/55 focus:border-amber-deep focus:ring-3 focus:ring-amber/20"
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Add a note (optional)"
-                rows={2}
-                value={note}
-              />
-
-              {/* Type — event / reminder only */}
-              <div className="space-y-2">
-                <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-muted">Type</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {TYPE_OPTIONS.map((opt) => (
-                    <button
-                      className={`flex min-h-[3rem] flex-col items-center justify-center gap-1 rounded-[1rem] border px-2 py-2 text-center text-[0.72rem] font-bold leading-tight transition ${
-                        eventType === opt.value
-                          ? "border-amber/55 bg-amber/14 text-foreground"
-                          : "border-border bg-white text-muted hover:border-amber/35"
-                      }`}
-                      key={opt.value}
-                      onClick={() => setEventType(opt.value)}
-                      type="button"
-                    >
-                      <span className="text-[0.7rem] leading-none">{opt.icon}</span>
-                      <span>{opt.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Color */}
-              <div className="space-y-2">
-                <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-muted">Color</p>
-                <div className="flex flex-wrap gap-2">
-                  {COLOR_OPTIONS.map((opt) => (
-                    <button
-                      aria-label={opt.label}
-                      className={`relative h-8 w-8 rounded-full border-2 transition ${opt.classes} ${
-                        color === opt.value
-                          ? "scale-105 shadow-[0_6px_14px_rgba(45,36,28,0.12)] ring-2 ring-foreground/12"
-                          : "hover:scale-105"
-                      }`}
-                      key={opt.value}
-                      onClick={() => setColor(opt.value)}
-                      title={opt.label}
-                      type="button"
-                    >
-                      <span className="absolute inset-[3px] rounded-full border border-white/65" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Time — required to enable reminders */}
-              <div className="space-y-1">
-                <div className="flex items-center gap-1">
-                  <Clock className="h-3 w-3 text-muted" />
-                  <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-muted">
-                    Time <span className="normal-case font-normal">(optional)</span>
-                  </p>
-                </div>
+                {/* Title */}
                 <input
-                  className="w-full rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
-                  onChange={(e) => {
-                    setEventTime(e.target.value);
-                    // Clear reminder if time is removed
-                    if (!e.target.value) setNotifyBefore(-1);
-                  }}
-                  type="time"
-                  value={eventTime}
+                  aria-label="Event title"
+                autoFocus
+                  className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm text-foreground outline-none transition placeholder:text-muted/55 focus:border-amber-deep focus:ring-3 focus:ring-amber/20"
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="What's happening?"
+                  value={title}
                 />
-              </div>
 
-              {/* Recurrence */}
-              <div className="space-y-1">
-                <div className="flex items-center gap-1">
-                  <Repeat className="h-3 w-3 text-muted" />
-                  <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-muted">Repeat</p>
+                {/* Note */}
+                <textarea
+                aria-label="Event note"
+                  className="w-full resize-none rounded-xl border border-border bg-white px-3 py-2 text-xs text-foreground outline-none transition placeholder:text-muted/55 focus:border-amber-deep focus:ring-3 focus:ring-amber/20"
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Add a note (optional)"
+                  rows={2}
+                  value={note}
+                />
+
+                {/* Type — event / reminder only */}
+                <div className="space-y-2">
+                  <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-muted">
+                    Type
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {TYPE_OPTIONS.map((opt) => (
+                      <button
+                        className={`flex min-h-[3rem] flex-col items-center justify-center gap-1 rounded-[1rem] border px-2 py-2 text-center text-[0.72rem] font-bold leading-tight transition ${
+                          eventType === opt.value
+                            ? "border-amber/55 bg-amber/14 text-foreground"
+                            : "border-border bg-white text-muted hover:border-amber/35"
+                        }`}
+                        key={opt.value}
+                        onClick={() => setEventType(opt.value)}
+                        type="button"
+                      >
+                        <span className="text-[0.7rem] leading-none">
+                          {opt.icon}
+                        </span>
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
+
+                {/* Color */}
+                <div className="space-y-2">
+                  <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-muted">
+                    Color
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {COLOR_OPTIONS.map((opt) => (
+                      <button
+                        aria-label={opt.label}
+                        className={`relative h-8 w-8 rounded-full border-2 transition ${opt.classes} ${
+                          color === opt.value
+                            ? "scale-105 shadow-[0_6px_14px_rgba(45,36,28,0.12)] ring-2 ring-foreground/12"
+                            : "hover:scale-105"
+                        }`}
+                        key={opt.value}
+                        onClick={() => setColor(opt.value)}
+                        title={opt.label}
+                        type="button"
+                      >
+                        <span className="absolute inset-[3px] rounded-full border border-white/65" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Time — required to enable reminders */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-3 w-3 text-muted" />
+                    <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-muted">
+                      Time{" "}
+                      <span className="normal-case font-normal">
+                        (optional)
+                      </span>
+                    </p>
+                  </div>
+                  <input
+                    className="w-full rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
+                    onChange={(e) => {
+                      setEventTime(e.target.value);
+                      // Clear reminder if time is removed
+                      if (!e.target.value) setNotifyBefore(-1);
+                    }}
+                    type="time"
+                    value={eventTime}
+                  />
+                </div>
+
+                {/* Recurrence */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1">
+                    <Repeat className="h-3 w-3 text-muted" />
+                    <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-muted">
+                      Repeat
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="flex-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
+                      onChange={(e) =>
+                        setRecurrence(e.target.value as Recurrence)
+                      }
+                      value={recurrence}
+                    >
+                      {RECURRENCE_OPTIONS.map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+
+                    {recurrence !== "none" ? (
+                      <label className="flex items-center gap-1.5 text-xs text-muted">
+                        <span className="shrink-0 text-[0.6rem] uppercase tracking-wider">
+                          until
+                        </span>
+                        <input
+                          className="rounded-lg border border-border bg-white px-2 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
+                          min={dateKey}
+                          onChange={(e) => setRecurrenceEnd(e.target.value)}
+                          type="date"
+                          value={recurrenceEnd}
+                        />
+                      </label>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Remind me — only available when time is set */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1">
+                    <Bell
+                      className={`h-3 w-3 ${canSetReminder ? "text-muted" : "text-muted/40"}`}
+                    />
+                    <p
+                      className={`text-[0.6rem] font-bold uppercase tracking-[0.18em] ${canSetReminder ? "text-muted" : "text-muted/40"}`}
+                    >
+                      Remind me
+                    </p>
+                    {!canSetReminder ? (
+                      <span className="text-[0.55rem] text-muted/50">
+                        — set a time first
+                      </span>
+                    ) : null}
+                  </div>
                   <select
-                    className="flex-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
-                    onChange={(e) => setRecurrence(e.target.value as Recurrence)}
-                    value={recurrence}
+                    className={`w-full rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition ${
+                      canSetReminder
+                        ? "focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
+                        : "cursor-not-allowed opacity-40"
+                    }`}
+                    disabled={!canSetReminder}
+                    onChange={(e) => setNotifyBefore(Number(e.target.value))}
+                    value={notifyBefore}
                   >
-                    {RECURRENCE_OPTIONS.map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
+                    {NOTIFY_BEFORE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
                     ))}
                   </select>
-
-                  {recurrence !== "none" ? (
-                    <label className="flex items-center gap-1.5 text-xs text-muted">
-                      <span className="shrink-0 text-[0.6rem] uppercase tracking-wider">until</span>
-                      <input
-                        className="rounded-lg border border-border bg-white px-2 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
-                        min={dateKey}
-                        onChange={(e) => setRecurrenceEnd(e.target.value)}
-                        type="date"
-                        value={recurrenceEnd}
-                      />
-                    </label>
+                  {canSetReminder && notifyBefore >= 0 ? (
+                    <p className="text-[0.6rem] text-muted">
+                      Push to all subscribed devices
+                    </p>
                   ) : null}
                 </div>
               </div>
-
-              {/* Remind me — only available when time is set */}
-              <div className="space-y-1">
-                <div className="flex items-center gap-1">
-                  <Bell className={`h-3 w-3 ${canSetReminder ? "text-muted" : "text-muted/40"}`} />
-                  <p className={`text-[0.6rem] font-bold uppercase tracking-[0.18em] ${canSetReminder ? "text-muted" : "text-muted/40"}`}>
-                    Remind me
-                  </p>
-                  {!canSetReminder ? (
-                    <span className="text-[0.55rem] text-muted/50">— set a time first</span>
-                  ) : null}
-                </div>
-                <select
-                  className={`w-full rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition ${
-                    canSetReminder
-                      ? "focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
-                      : "cursor-not-allowed opacity-40"
-                  }`}
-                  disabled={!canSetReminder}
-                  onChange={(e) => setNotifyBefore(Number(e.target.value))}
-                  value={notifyBefore}
-                >
-                  {NOTIFY_BEFORE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                {canSetReminder && notifyBefore >= 0 ? (
-                  <p className="text-[0.6rem] text-muted">Push to all subscribed devices</p>
-                ) : null}
-              </div>
-            </div>
 
               {/* ---- Sticky footer / submit ---- */}
               <div className="shrink-0 border-t border-border/60 px-4 py-3">

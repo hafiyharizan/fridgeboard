@@ -1,43 +1,42 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { AddEventModal } from "@/components/AddEventModal";
 import { CalendarGrid } from "@/components/CalendarGrid";
 import { CalendarSettings } from "@/components/CalendarSettings";
-import { DayDetailSheet } from "@/components/DayDetailSheet";
-import { EventDetail } from "@/components/EventDetail";
 import { PushNotificationButton } from "@/components/PushNotificationButton";
-import { useRealtimeCalendar } from "@/hooks/useRealtimeCalendar";
+import { useCalendarData } from "@/components/WorkspaceData";
+import { DataStatus } from "@/components/HomeDashboard";
 import { getMonthName } from "@/lib/calendar";
 import type { CalendarImportSource, ExpandedCalendarEvent } from "@/lib/types";
 
 type CalendarTabProps = {
   pin: string;
+  onDay: (date: string) => void;
+  onEvent: (event: ExpandedCalendarEvent) => void;
 };
 
-export function CalendarTab({ pin }: CalendarTabProps) {
+export function CalendarTab({ pin, onDay, onEvent }: CalendarTabProps) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
-  const [expandedDate, setExpandedDate] = useState<string | null>(null);
-  const [addingToDate, setAddingToDate] = useState<string | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<ExpandedCalendarEvent | null>(null);
 
   const {
     getMonthEvents,
     loading,
     isWorking,
     error,
-    addEvent,
-    toggleDone,
-    removeEvent,
     importSource,
     createSyncLink,
-  } = useRealtimeCalendar(pin);
+    connected,
+    retry,
+  } = useCalendarData();
 
-  const monthEvents = useMemo(() => getMonthEvents(year, month), [getMonthEvents, year, month]);
+  const monthEvents = useMemo(
+    () => getMonthEvents(year, month),
+    [getMonthEvents, year, month],
+  );
 
   const goToPrevMonth = () => {
     if (month === 0) {
@@ -62,16 +61,6 @@ export function CalendarTab({ pin }: CalendarTabProps) {
     setMonth(now.getMonth());
   };
 
-  const handleDeleteAndClose = async (eventId: string) => {
-    await removeEvent(eventId);
-    setSelectedEvent(null);
-  };
-
-  const handleToggleAndClose = async (event: ExpandedCalendarEvent) => {
-    await toggleDone(event);
-    setSelectedEvent(null);
-  };
-
   const handleImport = async (source: CalendarImportSource) => {
     return importSource(source, year);
   };
@@ -82,21 +71,31 @@ export function CalendarTab({ pin }: CalendarTabProps) {
       <div className="border-b border-border/80 px-4 pb-4 pt-4 sm:px-5">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted">Calendar</p>
-            <h2 className="text-3xl text-foreground sm:text-[2.2rem]">What&apos;s coming up?</h2>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted">
+              Calendar
+            </p>
+            <h2 className="text-3xl text-foreground sm:text-[2.2rem]">
+              What&apos;s coming up?
+            </h2>
           </div>
           <div className="flex items-center gap-2">
-            <CalendarSettings busy={isWorking} onCreateSyncLink={createSyncLink} onImport={handleImport} year={year} />
+            <CalendarSettings
+              busy={isWorking}
+              onCreateSyncLink={createSyncLink}
+              onImport={handleImport}
+              year={year}
+            />
             <PushNotificationButton pin={pin} />
           </div>
         </div>
 
         {/* Month navigation */}
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <motion.button
               whileTap={{ scale: 0.9 }}
               className="rounded-full border border-border p-2 text-muted transition hover:bg-foreground/5 hover:text-foreground"
+              aria-label="Previous month"
               onClick={goToPrevMonth}
               type="button"
             >
@@ -110,6 +109,7 @@ export function CalendarTab({ pin }: CalendarTabProps) {
             <motion.button
               whileTap={{ scale: 0.9 }}
               className="rounded-full border border-border p-2 text-muted transition hover:bg-foreground/5 hover:text-foreground"
+              aria-label="Next month"
               onClick={goToNextMonth}
               type="button"
             >
@@ -138,8 +138,8 @@ export function CalendarTab({ pin }: CalendarTabProps) {
             year={year}
             month={month}
             events={monthEvents}
-            onDayClick={setExpandedDate}
-            onEventClick={setSelectedEvent}
+            onDayClick={onDay}
+            onEventClick={onEvent}
           />
         )}
       </div>
@@ -148,58 +148,18 @@ export function CalendarTab({ pin }: CalendarTabProps) {
       {!loading && monthEvents.length > 0 ? (
         <div className="border-t border-border/50 px-4 py-3 sm:px-5">
           <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-muted">
-            {monthEvents.length} {monthEvents.length === 1 ? "note" : "notes"} this month
+            {monthEvents.length} {monthEvents.length === 1 ? "note" : "notes"}{" "}
+            this month
           </p>
         </div>
       ) : null}
 
-      {error ? (
-        <div className="border-t border-border bg-danger/8 px-4 py-3 text-sm text-danger sm:px-5">
-          {error}
-        </div>
-      ) : null}
-
-      {/* Add event modal */}
-      {/* Day detail sheet — tap a day to see its events */}
-      <AnimatePresence>
-        {expandedDate ? (
-          <DayDetailSheet
-            dateKey={expandedDate}
-            events={monthEvents.filter((e) => e.occurrence_date === expandedDate)}
-            onAddEvent={() => setAddingToDate(expandedDate)}
-            onClose={() => setExpandedDate(null)}
-            onSelectEvent={(event) => {
-              setExpandedDate(null);
-              setSelectedEvent(event);
-            }}
-          />
-        ) : null}
-      </AnimatePresence>
-
-      {/* Add event modal */}
-      <AnimatePresence>
-        {addingToDate ? (
-          <AddEventModal
-            busy={isWorking}
-            dateKey={addingToDate}
-            onAdd={addEvent}
-            onClose={() => setAddingToDate(null)}
-          />
-        ) : null}
-      </AnimatePresence>
-
-      {/* Event detail modal */}
-      <AnimatePresence>
-        {selectedEvent ? (
-          <EventDetail
-            busy={isWorking}
-            event={selectedEvent}
-            onClose={() => setSelectedEvent(null)}
-            onDelete={handleDeleteAndClose}
-            onToggle={handleToggleAndClose}
-          />
-        ) : null}
-      </AnimatePresence>
+      <DataStatus
+        retry={retry}
+        loading={false}
+        error={error}
+        connected={connected}
+      />
     </section>
   );
 }

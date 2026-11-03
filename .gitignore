@@ -43,3 +43,10 @@ next-env.d.ts
 
 # claude worktrees
 .claude/
+
+# Local browser validation artifacts
+/output/playwright/
+/.playwright-cli/
+
+# Local Netlify folder
+.netlify

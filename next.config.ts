@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-  throw new Error("Missing required environment variable: NEXT_PUBLIC_SUPABASE_URL");
+  throw new Error(
+    "Missing required environment variable: NEXT_PUBLIC_SUPABASE_URL",
+  );
 }
 if (
   !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
@@ -14,6 +16,27 @@ if (
 }
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
+          },
+        ],
+      },
+      {
+        source: "/api/:path*",
+        headers: [{ key: "Cache-Control", value: "no-store" }],
+      },
+    ];
+  },
   images: {
     qualities: [75],
     remotePatterns: [

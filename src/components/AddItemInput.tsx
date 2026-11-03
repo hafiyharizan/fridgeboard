@@ -6,15 +6,17 @@ import { autocomplete } from "@/lib/suggestions";
 
 type AddItemInputProps = {
   busy: boolean;
+  inputId?: string;
   buttonLabel: string;
   existingItems: string[];
   listName: string;
-  onAdd: (text: string) => Promise<void>;
+  onAdd: (text: string) => Promise<boolean>;
   placeholder: string;
 };
 
 export function AddItemInput({
   busy,
+  inputId,
   buttonLabel,
   existingItems,
   listName,
@@ -38,7 +40,10 @@ export function AddItemInput({
   // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     };
@@ -48,10 +53,9 @@ export function AddItemInput({
 
   const submit = async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed || busy) return;
     setOpen(false);
-    setValue("");
-    await onAdd(trimmed);
+    if (await onAdd(trimmed)) setValue("");
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -86,7 +90,9 @@ export function AddItemInput({
     return (
       <>
         {text.slice(0, idx)}
-        <span className="font-bold text-foreground">{text.slice(idx, idx + q.length)}</span>
+        <span className="font-bold text-foreground">
+          {text.slice(idx, idx + q.length)}
+        </span>
         {text.slice(idx + q.length)}
       </>
     );
@@ -96,9 +102,18 @@ export function AddItemInput({
     <div className="relative" ref={wrapperRef}>
       <form className="flex gap-3" onSubmit={handleSubmit}>
         <input
+          id={inputId}
+          aria-label={buttonLabel}
+          disabled={busy}
           className="min-w-0 flex-1 rounded-[1.2rem] border border-border bg-white px-4 py-3 text-base text-foreground outline-none transition placeholder:text-muted/55 focus:border-amber-deep focus:ring-4 focus:ring-amber/20"
-          onChange={(event) => { setValue(event.target.value); setOpen(true); setSelectedIndex(-1); }}
-          onFocus={() => { if (matches.length > 0) setOpen(true); }}
+          onChange={(event) => {
+            setValue(event.target.value);
+            setOpen(true);
+            setSelectedIndex(-1);
+          }}
+          onFocus={() => {
+            if (matches.length > 0) setOpen(true);
+          }}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           value={value}
@@ -116,29 +131,32 @@ export function AddItemInput({
 
       <AnimatePresence>
         {showDropdown && matches.length > 0 ? (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
             className="absolute left-0 right-16 z-10 mt-2 overflow-hidden rounded-[1.2rem] border border-border bg-white/95 backdrop-blur-md shadow-[0_12px_32px_rgba(95,65,36,0.15)]"
           >
-          {matches.map((match, i) => (
-            <button
-              className={`flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
-                i === selectedIndex
-                  ? "bg-amber/15 text-foreground"
-                  : "text-muted hover:bg-amber/8 hover:text-foreground"
-              }`}
-              key={match}
-              onMouseDown={(e) => { e.preventDefault(); void submit(match); }}
-              onMouseEnter={() => setSelectedIndex(i)}
-              type="button"
-            >
-              <span className="text-xs text-amber-deep">+</span>
-              {highlightMatch(match)}
-            </button>
-          ))}
+            {matches.map((match, i) => (
+              <button
+                className={`flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
+                  i === selectedIndex
+                    ? "bg-amber/15 text-foreground"
+                    : "text-muted hover:bg-amber/8 hover:text-foreground"
+                }`}
+                key={match}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  void submit(match);
+                }}
+                onMouseEnter={() => setSelectedIndex(i)}
+                type="button"
+              >
+                <span className="text-xs text-amber-deep">+</span>
+                {highlightMatch(match)}
+              </button>
+            ))}
           </motion.div>
         ) : null}
       </AnimatePresence>

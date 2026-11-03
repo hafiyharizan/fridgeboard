@@ -1,6 +1,6 @@
 import type { NotifyChannel } from "@/lib/types";
 import { sendPushToPin } from "@/lib/push";
-import { createSupabaseServiceClient } from "@/lib/supabase";
+import { createSupabaseServiceClient } from "@/lib/supabase-admin";
 
 const CRON_SECRET = process.env.CRON_SECRET || "";
 
@@ -74,11 +74,9 @@ async function sendWebhook(url: string, payload: Record<string, unknown>): Promi
 
 export async function POST(request: Request) {
   // Auth check
-  if (CRON_SECRET) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  // Never expose privileged notification jobs when configuration is missing.
+  if (!CRON_SECRET || request.headers.get("authorization") !== `Bearer ${CRON_SECRET}`) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = createSupabaseServiceClient();

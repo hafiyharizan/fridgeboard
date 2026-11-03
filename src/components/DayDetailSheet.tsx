@@ -1,8 +1,15 @@
 "use client";
 
+import { useModalSurface } from "@/hooks/useModalSurface";
+
 import { motion } from "framer-motion";
 import { Bell, Clock, Plus, Repeat, X } from "lucide-react";
-import { EVENT_TYPE_ICONS, formatEventTime, NOTIFY_BEFORE_OPTIONS, RECURRENCE_LABELS } from "@/lib/calendar";
+import {
+  EVENT_TYPE_ICONS,
+  formatEventTime,
+  NOTIFY_BEFORE_OPTIONS,
+  RECURRENCE_LABELS,
+} from "@/lib/calendar";
 import type { ExpandedCalendarEvent, StickyColor } from "@/lib/types";
 
 const STICKY_LEFT: Record<StickyColor, string> = {
@@ -21,7 +28,6 @@ const STICKY_ROW: Record<StickyColor, string> = {
   purple: "bg-[#c4b5fd]/10 border-[#c4b5fd]/25",
 };
 
-
 type DayDetailSheetProps = {
   dateKey: string;
   events: ExpandedCalendarEvent[];
@@ -37,15 +43,20 @@ export function DayDetailSheet({
   onAddEvent,
   onSelectEvent,
 }: DayDetailSheetProps) {
-  const displayDate = new Date(dateKey + "T00:00:00").toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
+  const modalRef = useModalSurface(onClose);
+  const displayDate = new Date(dateKey + "T00:00:00").toLocaleDateString(
+    "en-US",
+    {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    },
+  );
 
   // Sort by time (timed events first, then untimed alphabetically)
   const sorted = [...events].sort((a, b) => {
-    if (a.event_time && b.event_time) return a.event_time.localeCompare(b.event_time);
+    if (a.event_time && b.event_time)
+      return a.event_time.localeCompare(b.event_time);
     if (a.event_time) return -1;
     if (b.event_time) return 1;
     return a.title.localeCompare(b.title);
@@ -56,7 +67,12 @@ export function DayDetailSheet({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/20 backdrop-blur-sm sm:items-center sm:px-4"
+      ref={modalRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Day details"
+      tabIndex={-1}
+      className="calendar-overlay fixed inset-0 z-50 flex items-end justify-center bg-foreground/20 backdrop-blur-sm sm:items-center sm:px-4"
       onClick={onClose}
     >
       <motion.div
@@ -79,19 +95,24 @@ export function DayDetailSheet({
             onClick={onClose}
             type="button"
           >
+            <span className="sr-only">Close dialog</span>
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
           {sorted.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted">Nothing on this day yet.</p>
+            <p className="py-6 text-center text-sm text-muted">
+              Nothing on this day yet.
+            </p>
           ) : (
             <div className="space-y-2">
               {sorted.map((event) => {
                 const notifyLabel =
                   event.notify_before >= 0
-                    ? NOTIFY_BEFORE_OPTIONS.find((o) => o.value === event.notify_before)?.label
+                    ? NOTIFY_BEFORE_OPTIONS.find(
+                        (o) => o.value === event.notify_before,
+                      )?.label
                     : null;
 
                 return (
@@ -105,12 +126,18 @@ export function DayDetailSheet({
                     type="button"
                   >
                     {/* Color stripe */}
-                    <span className={`w-1 shrink-0 ${STICKY_LEFT[event.color]}`} />
+                    <span
+                      className={`w-1 shrink-0 ${STICKY_LEFT[event.color]}`}
+                    />
 
                     <div className="flex flex-1 flex-col gap-0.5 px-3 py-2.5">
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`text-sm font-medium text-foreground ${event.is_done ? "line-through opacity-50" : ""}`}>
-                          <span className="mr-1 text-xs">{EVENT_TYPE_ICONS[event.event_type]}</span>
+                        <span
+                          className={`text-sm font-medium text-foreground ${event.is_done ? "line-through opacity-50" : ""}`}
+                        >
+                          <span className="mr-1 text-xs">
+                            {EVENT_TYPE_ICONS[event.event_type]}
+                          </span>
                           {event.title}
                         </span>
                         {event.event_time ? (
@@ -122,7 +149,9 @@ export function DayDetailSheet({
                       </div>
 
                       {event.note ? (
-                        <p className="truncate text-xs text-muted">{event.note}</p>
+                        <p className="truncate text-xs text-muted">
+                          {event.note}
+                        </p>
                       ) : null}
 
                       <div className="mt-0.5 flex flex-wrap gap-1">

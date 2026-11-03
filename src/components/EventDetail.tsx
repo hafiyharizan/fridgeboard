@@ -1,8 +1,14 @@
 "use client";
 
+import { useModalSurface } from "@/hooks/useModalSurface";
+
 import { motion } from "framer-motion";
 import { Bell, Check, Clock, Repeat, Trash2, X } from "lucide-react";
-import { formatEventTime, NOTIFY_BEFORE_OPTIONS, RECURRENCE_LABELS } from "@/lib/calendar";
+import {
+  formatEventTime,
+  NOTIFY_BEFORE_OPTIONS,
+  RECURRENCE_LABELS,
+} from "@/lib/calendar";
 import type { ExpandedCalendarEvent, StickyColor } from "@/lib/types";
 
 const STICKY_BG: Record<StickyColor, string> = {
@@ -22,28 +28,48 @@ const TYPE_LABELS: Record<string, string> = {
 type EventDetailProps = {
   event: ExpandedCalendarEvent;
   busy: boolean;
+  error?: string;
   onClose: () => void;
   onToggle: (event: ExpandedCalendarEvent) => Promise<void>;
   onDelete: (eventId: string) => Promise<void>;
 };
 
-export function EventDetail({ event, busy, onClose, onToggle, onDelete }: EventDetailProps) {
-  const displayDate = new Date(event.occurrence_date + "T00:00:00").toLocaleDateString("en-US", {
+export function EventDetail({
+  event,
+  busy,
+  error,
+  onClose,
+  onToggle,
+  onDelete,
+}: EventDetailProps) {
+  const modalRef = useModalSurface(onClose);
+  const displayDate = new Date(
+    event.occurrence_date + "T00:00:00",
+  ).toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
   });
 
-  const notifyLabel = NOTIFY_BEFORE_OPTIONS.find((o) => o.value === event.notify_before)?.label;
+  const notifyLabel = NOTIFY_BEFORE_OPTIONS.find(
+    (o) => o.value === event.notify_before,
+  )?.label;
 
-  const displayTime = event.event_time ? formatEventTime(event.event_time) : null;
+  const displayTime = event.event_time
+    ? formatEventTime(event.event_time)
+    : null;
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 px-4 backdrop-blur-sm"
+      ref={modalRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Event details"
+      tabIndex={-1}
+      className="calendar-overlay fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 px-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div
@@ -64,17 +90,22 @@ export function EventDetail({ event, busy, onClose, onToggle, onDelete }: EventD
             onClick={onClose}
             type="button"
           >
+            <span className="sr-only">Close dialog</span>
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Content */}
         <div className="px-5 pb-2 pt-2">
-          <h3 className={`text-xl text-foreground ${event.is_done ? "line-through opacity-60" : ""}`}>
+          <h3
+            className={`text-xl text-foreground ${event.is_done ? "line-through opacity-60" : ""}`}
+          >
             {event.title}
           </h3>
           {event.note ? (
-            <p className="mt-1 text-sm leading-relaxed text-muted">{event.note}</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">
+              {event.note}
+            </p>
           ) : null}
 
           {/* Time badge */}
@@ -92,7 +123,10 @@ export function EventDetail({ event, busy, onClose, onToggle, onDelete }: EventD
                 <Repeat className="h-2.5 w-2.5" />
                 {RECURRENCE_LABELS[event.recurrence]}
                 {event.recurrence_end ? (
-                  <span className="text-muted/60"> until {event.recurrence_end}</span>
+                  <span className="text-muted/60">
+                    {" "}
+                    until {event.recurrence_end}
+                  </span>
                 ) : null}
               </span>
             ) : null}
@@ -118,9 +152,14 @@ export function EventDetail({ event, busy, onClose, onToggle, onDelete }: EventD
           </div>
         </div>
 
+        {error && (
+          <p className="data-status error" role="alert">
+            {error}
+          </p>
+        )}
         {/* Actions */}
         <div className="flex gap-2 border-t border-border/50 px-5 py-3">
-          {(event.event_type === "todo" || event.event_type === "reminder") ? (
+          {event.event_type === "todo" || event.event_type === "reminder" ? (
             <motion.button
               whileTap={{ scale: 0.95 }}
               className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold transition ${

@@ -8,7 +8,7 @@ import { smartSuggest } from "@/lib/suggestions";
 type SuggestionPanelProps = {
   listName: string;
   existingItems: string[];
-  onAddItem: (text: string) => Promise<void>;
+  onAddItem: (text: string) => Promise<boolean>;
 };
 
 export function SuggestionPanel({

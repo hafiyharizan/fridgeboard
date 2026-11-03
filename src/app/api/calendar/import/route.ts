@@ -1,3 +1,4 @@
+import { isSameOriginRequest } from "@/lib/request-security";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getCalendarSourceEvents, isCalendarImportSupported, normalizeCalendarTitle } from "@/lib/calendar-sources";
@@ -11,6 +12,7 @@ const VALID_SOURCES = new Set<CalendarImportSource>([
 ]);
 
 export async function POST(request: Request) {
+  if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   let payload: { source?: unknown; year?: unknown };
 
   try {
@@ -19,6 +21,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Send a JSON body with source and year." }, { status: 400 });
   }
 
+  if (!payload || typeof payload !== "object") return NextResponse.json({ error: "Invalid import request." }, { status: 400 });
   const source = payload.source;
   const year = Number(payload.year);
 

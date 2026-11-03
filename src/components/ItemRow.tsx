@@ -5,8 +5,8 @@ import type { Item } from "@/lib/types";
 type ItemRowProps = {
   busy: boolean;
   item: Item;
-  onDelete: (itemId: string) => Promise<void>;
-  onToggle: (item: Item) => Promise<void>;
+  onDelete: (itemId: string) => Promise<boolean>;
+  onToggle: (item: Item) => Promise<boolean>;
 };
 
 export function ItemRow({ busy, item, onDelete, onToggle }: ItemRowProps) {
@@ -22,7 +22,7 @@ export function ItemRow({ busy, item, onDelete, onToggle }: ItemRowProps) {
     >
       <button
         aria-label={item.is_checked ? `Uncheck ${item.text}` : `Check ${item.text}`}
-        className={`flex h-6 w-6 items-center justify-center rounded-full border transition ${
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition ${
           item.is_checked
             ? "border-success bg-success text-white"
             : "border-muted/35 bg-transparent text-transparent hover:border-amber-deep"
@@ -46,7 +46,7 @@ export function ItemRow({ busy, item, onDelete, onToggle }: ItemRowProps) {
 
       <button
         aria-label={`Delete ${item.text}`}
-        className="rounded-full p-2 text-muted/40 transition hover:bg-danger/10 hover:text-danger sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full p-2 text-muted transition hover:bg-danger/10 hover:text-danger"
         disabled={busy}
         onClick={() => onDelete(item.id)}
         type="button"

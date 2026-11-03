@@ -1,9 +1,11 @@
+import { isSameOriginRequest } from "@/lib/request-security";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { buildAppUrl } from "@/lib/site-url";
 import { createSupabaseRouteClient } from "@/lib/supabase";
 
 export async function POST(request: Request) {
+  if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const cookieStore = await cookies();
   const supabase = createSupabaseRouteClient(cookieStore);
   const {

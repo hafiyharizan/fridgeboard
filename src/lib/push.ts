@@ -1,7 +1,9 @@
 // Server-side VAPID push utility
 // Requires env vars: NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
 
+import "server-only";
 import webpush from "web-push";
+import { isPushSubscription } from "@/lib/request-security";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 function initWebPush(): boolean {
@@ -49,17 +51,30 @@ export async function sendPushToPin(
 
   const results = await Promise.allSettled(
     subs.map((sub: { endpoint: string; p256dh: string; auth: string }) =>
-      webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        message,
-      ).catch(async (err: { statusCode?: number; message?: string }) => {
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
-        } else {
-          console.error("[Push] Send failed:", err.message);
-        }
-        throw err;
-      }),
+      isPushSubscription({
+        endpoint: sub.endpoint,
+        keys: { p256dh: sub.p256dh, auth: sub.auth },
+      })
+        ? webpush
+            .sendNotification(
+              {
+                endpoint: sub.endpoint,
+                keys: { p256dh: sub.p256dh, auth: sub.auth },
+              },
+              message,
+            )
+            .catch(async (err: { statusCode?: number; message?: string }) => {
+              if (err.statusCode === 410 || err.statusCode === 404) {
+                await supabase
+                  .from("push_subscriptions")
+                  .delete()
+                  .eq("endpoint", sub.endpoint);
+              } else {
+                console.error("[Push] Send failed:", err.message);
+              }
+              throw err;
+            })
+        : Promise.reject(new Error("Unsupported push destination")),
     ),
   );
 

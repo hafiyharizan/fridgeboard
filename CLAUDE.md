@@ -76,7 +76,7 @@ Use `@/*` for all imports from `src/`. Example: `import { createSupabaseBrowserC
 Google sign-in via Supabase Auth. Each user has a `user_profiles` row whose `pin_code` links them to a household (the 4-digit PIN is the internal household ID, not a secret). RLS scopes household data with `public.current_user_pin()`.
 
 - Clients may write only `display_name` / `avatar_url` on `user_profiles`; `pin_code` is set only by the security definer functions `create_household` and `join_household_with_invite`.
-- `push_subscriptions`, `notification_log` and `suggestion_feedback` have RLS on with no policies: service role only, via API routes.
+- `push_subscriptions`, `notification_log`, `item_push_log` and `suggestion_feedback` have RLS on with no policies: service role only, via API routes.
 - Webhook notification URLs must be public HTTPS (`lib/webhook-url.ts`).
 - New members join with a single-use invite code (8 chars, expires after 7 days) made by an existing member via `create_household_invite`. Joining by PIN was removed. Helpers live in `lib/invite-code.ts` and `lib/household.ts`.
 
@@ -171,6 +171,18 @@ Cron-triggered notification dispatcher, called every minute by the `event-remind
 - Dispatches to enabled `notification_channels` matching `pin_code`
 - Supports: email (Resend), Telegram (live), webhook (live)
 - Returns `{ sent: number, checked: number }`
+
+---
+
+### `POST /api/push/new-item`
+
+Called by `useRealtimeItems` right after a member adds a list item. Body: `{ itemId }` only.
+
+- Auth: signed-in session + same origin. The server reads the item, list and adder's name itself; only the member who added the item (`items.created_by`) can announce it, within 10 minutes.
+- `item_push_log` makes each announcement single-use.
+- Skips the adder's own devices (`push_subscriptions.user_id`). Notifications are tagged per list, so a burst of additions replaces itself instead of stacking.
+
+`InstallPrompt` (mounted in `HouseholdWorkspace`) suggests installing the app: a native install button on Chromium, Share → Add to Home Screen steps on iPhone/iPad (the only way iOS allows web push). "Not now" snoozes it for 30 days.
 
 ---
 

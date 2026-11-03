@@ -61,6 +61,7 @@ describe("push registration authorization", () => {
     expect(mocks.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         pin_code: "1234",
+        user_id: "user-a",
         endpoint: body.subscription.endpoint,
       }),
       { onConflict: "endpoint" },

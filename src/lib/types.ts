@@ -14,6 +14,8 @@ export type Item = {
   is_checked: boolean;
   list_id: string;
   text: string;
+  /** Member who added the item; null for items added before tracking began. */
+  created_by?: string | null;
 };
 
 export type CalendarEventType = "event" | "reminder" | "todo";
@@ -69,6 +71,8 @@ export type PushSubscriptionRecord = {
   p256dh: string;
   auth: string;
   user_agent: string | null;
+  /** Member who owns this device; null for rows registered before tracking began. */
+  user_id: string | null;
   created_at: string;
 };
 
@@ -177,6 +181,7 @@ export type Database = {
           p256dh: string;
           auth: string;
           user_agent?: string | null;
+          user_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -186,6 +191,7 @@ export type Database = {
           p256dh?: string;
           auth?: string;
           user_agent?: string | null;
+          user_id?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -221,6 +227,7 @@ export type Database = {
           is_checked?: boolean;
           list_id: string;
           text: string;
+          created_by?: string | null;
         };
         Update: {
           checked_at?: string | null;
@@ -239,6 +246,12 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      item_push_log: {
+        Row: { item_id: string; sent_at: string };
+        Insert: { item_id: string; sent_at?: string };
+        Update: { item_id?: string; sent_at?: string };
+        Relationships: [];
       };
       households: {
         Row: Household;

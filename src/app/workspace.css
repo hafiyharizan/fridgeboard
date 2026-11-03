@@ -806,3 +806,62 @@ textarea:focus-visible {
     min-height: calc(100dvh - 164px);
   }
 }
+
+/* Home-screen install suggestion, pinned above the bottom safe area. */
+.install-banner {
+  position: fixed;
+  z-index: 40;
+  left: 16px;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  margin-inline: auto;
+  max-width: 560px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 14px 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fffdf9;
+  color: var(--foreground);
+  box-shadow: 0 18px 50px #26342924;
+}
+.install-icon {
+  flex: none;
+  border-radius: 12px;
+}
+.install-copy {
+  flex: 1;
+  min-width: 0;
+}
+.install-copy strong {
+  display: block;
+  font-size: 15px;
+}
+.install-copy p {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.install-copy .inline-icon {
+  display: inline;
+  vertical-align: -2px;
+}
+.install-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+@media (max-width: 480px) {
+  .install-banner {
+    flex-wrap: wrap;
+  }
+  .install-icon {
+    display: none;
+  }
+  .install-actions {
+    margin-left: auto;
+  }
+}

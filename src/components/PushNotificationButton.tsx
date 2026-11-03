@@ -37,9 +37,16 @@ export function PushNotificationButton() {
       if (Notification.permission === "denied") return "denied";
       try {
         const reg = await navigator.serviceWorker.ready;
-        return (await reg.pushManager.getSubscription())
-          ? "subscribed"
-          : "idle";
+        const existing = await reg.pushManager.getSubscription();
+        if (!existing) return "idle";
+        // Re-register so the server knows which member owns this device
+        // (older rows have none) and the row survives a household change.
+        void fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subscription: existing }),
+        }).catch(() => undefined);
+        return "subscribed";
       } catch {
         return "idle";
       }

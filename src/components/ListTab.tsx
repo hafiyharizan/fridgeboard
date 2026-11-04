@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { AnimatePresence } from "framer-motion";
+import { ListChecks, ShoppingBasket } from "lucide-react";
 import { AddItemInput } from "@/components/AddItemInput";
 import { ItemRow } from "@/components/ItemRow";
 import { SuggestionPanel } from "@/components/SuggestionPanel";
@@ -14,101 +15,83 @@ type ListTabProps = {
 };
 
 export function ListTab({ list }: ListTabProps) {
-  const {
-    addItem,
-    error,
-    isWorking,
-    items,
-    loading,
-    removeItem,
-    toggleItem,
-    connected,
-    retry,
-  } = useListData(list.id);
+  const { addItem, error, isWorking, items, loading, removeItem, toggleItem, connected, retry } =
+    useListData(list.id);
+  const grocery = list.name === "Grocery";
 
-  const existingItemTexts = useMemo(
-    () => items.filter((i) => !i.is_checked).map((i) => i.text),
-    [items],
-  );
+  const open = useMemo(() => items.filter((item) => !item.is_checked), [items]);
+  const done = useMemo(() => items.filter((item) => item.is_checked), [items]);
+  const existingItemTexts = useMemo(() => open.map((item) => item.text), [open]);
 
   return (
-    <section className="note-panel flex h-full flex-col overflow-hidden">
-      <div className="border-b border-border/80 px-4 pb-4 pt-4 sm:px-5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted">
-              {list.name} list
-            </p>
-            <h2 className="text-3xl text-foreground sm:text-[2.2rem]">
-              {list.name === "Grocery"
-                ? "What do we need?"
-                : "What still needs doing?"}
-            </h2>
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <AddItemInput
-            inputId={`list-input-${list.id}`}
-            busy={isWorking}
-            buttonLabel={list.name === "Grocery" ? "Add item" : "Add task"}
-            existingItems={existingItemTexts}
-            listName={list.name}
-            onAdd={addItem}
-            placeholder={
-              list.name === "Grocery"
-                ? "Milk, scallions, pasta..."
-                : "Call plumber, water plants..."
-            }
-          />
-        </div>
-      </div>
-
-      <div className="border-b border-border/50 px-4 py-3 sm:px-5">
-        <SuggestionPanel
+    <section className="panel list-panel" aria-label={grocery ? "Groceries" : list.name}>
+      <div className="list-composer">
+        <AddItemInput
+          inputId={`list-input-${list.id}`}
+          busy={isWorking}
+          buttonLabel={grocery ? "Add item" : "Add task"}
           existingItems={existingItemTexts}
           listName={list.name}
-          onAddItem={addItem}
+          onAdd={addItem}
+          placeholder={grocery ? "Add an item" : "Add a task"}
         />
+        <SuggestionPanel existingItems={existingItemTexts} listName={list.name} onAddItem={addItem} />
       </div>
 
-      <DataStatus
-        retry={retry}
-        loading={false}
-        error={error}
-        connected={connected}
-      />
-      <div className="flex-1 overflow-y-auto px-3 pb-3 pt-3 sm:px-4">
-        {loading ? (
-          <div className="flex min-h-48 items-center justify-center text-sm text-muted">
-            Syncing the latest changes...
-          </div>
-        ) : null}
-
-        {!loading && !error && !items.length ? (
-          <div className="flex min-h-48 flex-col items-center justify-center gap-2 px-4 text-center">
-            <h3 className="text-2xl text-foreground">Nothing here yet.</h3>
-            <p className="max-w-xs text-sm leading-6 text-muted">
-              Add the first {list.name === "Grocery" ? "grocery item" : "to-do"}{" "}
-              and everyone in your household can see it here.
-            </p>
-          </div>
-        ) : null}
-
-        <div className="space-y-3">
-          <AnimatePresence initial={false}>
-            {items.map((item) => (
-              <ItemRow
-                busy={isWorking}
-                item={item}
-                key={item.id}
-                onDelete={removeItem}
-                onToggle={toggleItem}
-              />
-            ))}
-          </AnimatePresence>
+      {(error || (!connected && !loading)) && (
+        <div className="panel-body pb-0">
+          <DataStatus retry={retry} loading={false} error={error} connected={connected} />
         </div>
-      </div>
+      )}
+
+      {loading ? (
+        <div className="panel-body">
+          <DataStatus loading error="" connected rows={5} />
+        </div>
+      ) : !error && !items.length ? (
+        <div className="empty-state">
+          <span className="empty-state-icon">
+            {grocery ? <ShoppingBasket size={18} /> : <ListChecks size={18} />}
+          </span>
+          <h3>{grocery ? "The list is empty" : "No tasks yet"}</h3>
+          <p>
+            Add the first {grocery ? "item" : "task"} above. Everyone in your household sees it
+            straight away.
+          </p>
+        </div>
+      ) : (
+        <>
+          {open.length > 0 && (
+            <ul className="item-list" aria-label={grocery ? "To get" : "Open tasks"}>
+              <AnimatePresence initial={false}>
+                {open.map((item) => (
+                  <ItemRow busy={isWorking} item={item} key={item.id} onDelete={removeItem} onToggle={toggleItem} />
+                ))}
+              </AnimatePresence>
+            </ul>
+          )}
+          {!open.length && done.length > 0 && (
+            <p className="list-all-done">
+              {grocery ? "Everything is in the basket." : "Every task is done."}
+            </p>
+          )}
+          {done.length > 0 && (
+            <>
+              <div className="list-group-header">
+                <h3>{grocery ? "In the basket" : "Done"}</h3>
+                <span className="badge">{done.length}</span>
+              </div>
+              <ul className="item-list is-done" aria-label={grocery ? "In the basket" : "Done"}>
+                <AnimatePresence initial={false}>
+                  {done.map((item) => (
+                    <ItemRow busy={isWorking} item={item} key={item.id} onDelete={removeItem} onToggle={toggleItem} />
+                  ))}
+                </AnimatePresence>
+              </ul>
+            </>
+          )}
+        </>
+      )}
     </section>
   );
 }

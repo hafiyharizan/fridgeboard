@@ -1,10 +1,8 @@
 "use client";
 
-import { useModalSurface } from "@/hooks/useModalSurface";
-
 import { FormEvent, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Bell, Clock, Repeat, X } from "lucide-react";
+import { BellRing, CalendarDays, Check, type LucideIcon } from "lucide-react";
+import { ModalFrame } from "@/components/ModalFrame";
 import { NOTIFY_BEFORE_OPTIONS, RECURRENCE_LABELS } from "@/lib/calendar";
 import type {
   CalendarEventType,
@@ -13,31 +11,18 @@ import type {
   StickyColor,
 } from "@/lib/types";
 
-const COLOR_OPTIONS: { value: StickyColor; label: string; classes: string }[] =
-  [
-    { value: "amber", label: "Amber", classes: "bg-amber/30 border-amber/60" },
-    { value: "blue", label: "Blue", classes: "bg-blue/25 border-blue/50" },
-    { value: "rose", label: "Rose", classes: "bg-danger/20 border-danger/40" },
-    {
-      value: "green",
-      label: "Green",
-      classes: "bg-success/25 border-success/50",
-    },
-    {
-      value: "purple",
-      label: "Purple",
-      classes: "bg-[#c4b5fd]/30 border-[#c4b5fd]/60",
-    },
-  ];
+const COLOR_OPTIONS: { value: StickyColor; label: string }[] = [
+  { value: "amber", label: "Amber" },
+  { value: "blue", label: "Blue" },
+  { value: "rose", label: "Rose" },
+  { value: "green", label: "Green" },
+  { value: "purple", label: "Purple" },
+];
 
 // No "to-do" in calendar — use the list tab for to-dos
-const TYPE_OPTIONS: {
-  value: CalendarEventType;
-  label: string;
-  icon: string;
-}[] = [
-  { value: "event", label: "Event", icon: "◆" },
-  { value: "reminder", label: "Reminder", icon: "◎" },
+const TYPE_OPTIONS: { value: CalendarEventType; label: string; Icon: LucideIcon }[] = [
+  { value: "event", label: "Event", Icon: CalendarDays },
+  { value: "reminder", label: "Reminder", Icon: BellRing },
 ];
 
 const RECURRENCE_OPTIONS = Object.entries(RECURRENCE_LABELS) as [
@@ -71,7 +56,6 @@ export function AddEventModal({
   onClose,
   onAdd,
 }: AddEventModalProps) {
-  const modalRef = useModalSurface(onClose);
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
   const [eventType, setEventType] = useState<CalendarEventType>("event");
@@ -81,14 +65,11 @@ export function AddEventModal({
   const [eventTime, setEventTime] = useState("");
   const [notifyBefore, setNotifyBefore] = useState(-1);
 
-  const displayDate = new Date(dateKey + "T00:00:00").toLocaleDateString(
-    "en-US",
-    {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    },
-  );
+  const displayDate = new Date(dateKey + "T00:00:00").toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
 
   // Reminder only makes sense when a specific time is set
   const canSetReminder = eventTime !== "";
@@ -116,245 +97,173 @@ export function AddEventModal({
   };
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        ref={modalRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Add event or reminder"
-        tabIndex={-1}
-        className="calendar-overlay fixed inset-0 z-50 overflow-y-auto bg-foreground/20 p-3 backdrop-blur-sm sm:p-4"
-        onClick={onClose}
-      >
-        <div className="flex min-h-full items-start justify-center sm:items-center">
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 40 }}
-            transition={{ type: "spring", stiffness: 400, damping: 32 }}
-            className="my-auto flex w-full max-w-lg flex-col overflow-hidden rounded-[1.5rem] border border-white/60 bg-white/95 shadow-[0_24px_64px_rgba(60,40,20,0.15)] backdrop-blur-xl max-h-[calc(100svh-1.5rem)] sm:max-h-[calc(100svh-2rem)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* ---- Sticky header ---- */}
-            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-              <div className="flex items-baseline gap-2">
-                <p className="text-sm font-bold text-foreground">Pin a note</p>
-                <p className="text-xs text-muted">{displayDate}</p>
-              </div>
-              <button
-                className="rounded-full p-1.5 text-muted transition hover:bg-foreground/5 hover:text-foreground"
-                onClick={onClose}
-                type="button"
-              >
-                <span className="sr-only">Close dialog</span>
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+    <ModalFrame label="Add event or reminder" title="New event" description={displayDate} onClose={onClose} size="lg">
+      <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
+        <div className="modal-body form-stack">
+          {error && (
+            <p className="alert alert-error" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="field">
+            <label className="field-label" htmlFor="event-title">
+              Title
+            </label>
+            <input
+              id="event-title"
+              aria-label="Event title"
+              data-autofocus
+              className="input"
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Swimming lesson"
+              value={title}
+            />
+          </div>
 
-            {/* ---- Scrollable form body ---- */}
-            {error && (
-              <p className="data-status error" role="alert">
-                {error}
-              </p>
-            )}
-            <form
-              className="flex min-h-0 flex-1 flex-col"
-              onSubmit={handleSubmit}
-            >
-              <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 overscroll-y-contain">
-                {/* Title */}
-                <input
-                  aria-label="Event title"
-                autoFocus
-                  className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm text-foreground outline-none transition placeholder:text-muted/55 focus:border-amber-deep focus:ring-3 focus:ring-amber/20"
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="What's happening?"
-                  value={title}
-                />
-
-                {/* Note */}
-                <textarea
-                aria-label="Event note"
-                  className="w-full resize-none rounded-xl border border-border bg-white px-3 py-2 text-xs text-foreground outline-none transition placeholder:text-muted/55 focus:border-amber-deep focus:ring-3 focus:ring-amber/20"
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="Add a note (optional)"
-                  rows={2}
-                  value={note}
-                />
-
-                {/* Type — event / reminder only */}
-                <div className="space-y-2">
-                  <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-muted">
-                    Type
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {TYPE_OPTIONS.map((opt) => (
-                      <button
-                        className={`flex min-h-[3rem] flex-col items-center justify-center gap-1 rounded-[1rem] border px-2 py-2 text-center text-[0.72rem] font-bold leading-tight transition ${
-                          eventType === opt.value
-                            ? "border-amber/55 bg-amber/14 text-foreground"
-                            : "border-border bg-white text-muted hover:border-amber/35"
-                        }`}
-                        key={opt.value}
-                        onClick={() => setEventType(opt.value)}
-                        type="button"
-                      >
-                        <span className="text-[0.7rem] leading-none">
-                          {opt.icon}
-                        </span>
-                        <span>{opt.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Color */}
-                <div className="space-y-2">
-                  <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-muted">
-                    Color
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {COLOR_OPTIONS.map((opt) => (
-                      <button
-                        aria-label={opt.label}
-                        className={`relative h-8 w-8 rounded-full border-2 transition ${opt.classes} ${
-                          color === opt.value
-                            ? "scale-105 shadow-[0_6px_14px_rgba(45,36,28,0.12)] ring-2 ring-foreground/12"
-                            : "hover:scale-105"
-                        }`}
-                        key={opt.value}
-                        onClick={() => setColor(opt.value)}
-                        title={opt.label}
-                        type="button"
-                      >
-                        <span className="absolute inset-[3px] rounded-full border border-white/65" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Time — required to enable reminders */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3 text-muted" />
-                    <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-muted">
-                      Time{" "}
-                      <span className="normal-case font-normal">
-                        (optional)
-                      </span>
-                    </p>
-                  </div>
-                  <input
-                    className="w-full rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
-                    onChange={(e) => {
-                      setEventTime(e.target.value);
-                      // Clear reminder if time is removed
-                      if (!e.target.value) setNotifyBefore(-1);
-                    }}
-                    type="time"
-                    value={eventTime}
-                  />
-                </div>
-
-                {/* Recurrence */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1">
-                    <Repeat className="h-3 w-3 text-muted" />
-                    <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-muted">
-                      Repeat
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <select
-                      className="flex-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
-                      onChange={(e) =>
-                        setRecurrence(e.target.value as Recurrence)
-                      }
-                      value={recurrence}
-                    >
-                      {RECURRENCE_OPTIONS.map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-
-                    {recurrence !== "none" ? (
-                      <label className="flex items-center gap-1.5 text-xs text-muted">
-                        <span className="shrink-0 text-[0.6rem] uppercase tracking-wider">
-                          until
-                        </span>
-                        <input
-                          className="rounded-lg border border-border bg-white px-2 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
-                          min={dateKey}
-                          onChange={(e) => setRecurrenceEnd(e.target.value)}
-                          type="date"
-                          value={recurrenceEnd}
-                        />
-                      </label>
-                    ) : null}
-                  </div>
-                </div>
-
-                {/* Remind me — only available when time is set */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1">
-                    <Bell
-                      className={`h-3 w-3 ${canSetReminder ? "text-muted" : "text-muted/40"}`}
-                    />
-                    <p
-                      className={`text-[0.6rem] font-bold uppercase tracking-[0.18em] ${canSetReminder ? "text-muted" : "text-muted/40"}`}
-                    >
-                      Remind me
-                    </p>
-                    {!canSetReminder ? (
-                      <span className="text-[0.55rem] text-muted/50">
-                        — set a time first
-                      </span>
-                    ) : null}
-                  </div>
-                  <select
-                    className={`w-full rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition ${
-                      canSetReminder
-                        ? "focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
-                        : "cursor-not-allowed opacity-40"
-                    }`}
-                    disabled={!canSetReminder}
-                    onChange={(e) => setNotifyBefore(Number(e.target.value))}
-                    value={notifyBefore}
-                  >
-                    {NOTIFY_BEFORE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                  {canSetReminder && notifyBefore >= 0 ? (
-                    <p className="text-[0.6rem] text-muted">
-                      Push to all subscribed devices
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-
-              {/* ---- Sticky footer / submit ---- */}
-              <div className="shrink-0 border-t border-border/60 px-4 py-3">
-                <motion.button
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full rounded-xl bg-foreground px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#2f241b] disabled:opacity-60"
-                  disabled={busy || !title.trim()}
-                  type="submit"
+          <div className="field">
+            <span className="field-label" id="event-type-label">
+              Type
+            </span>
+            <div className="segmented" role="group" aria-labelledby="event-type-label">
+              {TYPE_OPTIONS.map((opt) => (
+                <button
+                  aria-pressed={eventType === opt.value}
+                  key={opt.value}
+                  onClick={() => setEventType(opt.value)}
+                  type="button"
                 >
-                  Pin to calendar
-                </motion.button>
+                  <opt.Icon size={15} />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="field">
+              <label className="field-label" htmlFor="event-time">
+                Time <span className="optional">Optional</span>
+              </label>
+              <input
+                id="event-time"
+                className="input tabular"
+                onChange={(e) => {
+                  setEventTime(e.target.value);
+                  // A reminder needs a time, so clear it when the time goes.
+                  if (!e.target.value) setNotifyBefore(-1);
+                }}
+                type="time"
+                value={eventTime}
+              />
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="event-reminder">
+                Remind me
+              </label>
+              <select
+                id="event-reminder"
+                className="select"
+                disabled={!canSetReminder}
+                onChange={(e) => setNotifyBefore(Number(e.target.value))}
+                value={notifyBefore}
+              >
+                {NOTIFY_BEFORE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <span className="field-hint">
+                {canSetReminder
+                  ? notifyBefore >= 0
+                    ? "Sent to every device with notifications on."
+                    : "Choose when to send a push notification."
+                  : "Set a time to choose a reminder."}
+              </span>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="field">
+              <label className="field-label" htmlFor="event-repeat">
+                Repeat
+              </label>
+              <select
+                id="event-repeat"
+                className="select"
+                onChange={(e) => setRecurrence(e.target.value as Recurrence)}
+                value={recurrence}
+              >
+                {RECURRENCE_OPTIONS.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {recurrence !== "none" ? (
+              <div className="field">
+                <label className="field-label" htmlFor="event-until">
+                  Until <span className="optional">Optional</span>
+                </label>
+                <input
+                  id="event-until"
+                  className="input tabular"
+                  min={dateKey}
+                  onChange={(e) => setRecurrenceEnd(e.target.value)}
+                  type="date"
+                  value={recurrenceEnd}
+                />
               </div>
-            </form>
-          </motion.div>
+            ) : null}
+          </div>
+
+          <div className="field">
+            <span className="field-label" id="event-colour-label">
+              Colour
+            </span>
+            <div className="swatches" role="group" aria-labelledby="event-colour-label">
+              {COLOR_OPTIONS.map((opt) => (
+                <button
+                  aria-label={opt.label}
+                  aria-pressed={color === opt.value}
+                  className={`swatch tone-${opt.value}`}
+                  key={opt.value}
+                  onClick={() => setColor(opt.value)}
+                  title={opt.label}
+                  type="button"
+                >
+                  {color === opt.value ? <Check size={14} strokeWidth={3} /> : null}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="field">
+            <label className="field-label" htmlFor="event-note">
+              Note <span className="optional">Optional</span>
+            </label>
+            <textarea
+              id="event-note"
+              aria-label="Event note"
+              className="textarea"
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Anything people should know"
+              rows={2}
+              value={note}
+            />
+          </div>
         </div>
-      </motion.div>
-    </AnimatePresence>
+
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onClose} type="button">
+            Cancel
+          </button>
+          <button className="btn btn-primary" disabled={busy || !title.trim()} type="submit">
+            {busy ? "Adding…" : "Add to calendar"}
+          </button>
+        </div>
+      </form>
+    </ModalFrame>
   );
 }

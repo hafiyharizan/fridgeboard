@@ -31,15 +31,19 @@ Fridgeboard is a shared household management app: grocery lists, to-do lists, an
 src/
   app/
     page.tsx                    # Home — renders PinEntry
-    layout.tsx                  # Root layout (Fraunces + Nunito fonts)
-    globals.css                 # Tailwind base styles
+    layout.tsx                  # Root layout (IBM Plex Sans via next/font/local)
+    globals.css                 # Design tokens + UI primitives (buttons, inputs, panels, modals)
+    workspace.css               # App shell and per-view layouts
+    fonts/                      # Bundled IBM Plex Sans woff2 files (SIL OFL)
     list/
       page.tsx                  # Main app — renders ListShell (client component)
     api/
       notifications/
         route.ts                # POST /api/notifications — cron-triggered notification sender
   components/
-    PinEntry.tsx                # PIN authentication screen
+    PinEntry.tsx                # Google sign-in screen
+    AuthScreen.tsx              # Shared logo + loading screen for auth/setup
+    ModalFrame.tsx              # Shared overlay/panel/header for animated dialogs
     ListShell.tsx               # App shell — tab state, loads lists from Supabase
     ListTab.tsx                 # Grocery/to-do list view
     ItemRow.tsx                 # Single list item (check, delete)
@@ -216,7 +220,7 @@ npm run test:watch    # Run tests in watch mode
 npm run test:coverage # Run tests with coverage report
 ```
 
-**Note on `next/font/google`:** Fonts (Fraunces, Nunito) are downloaded from Google at build time and self-hosted. `npm run build` requires outbound HTTPS access to `fonts.googleapis.com`. Use `npm run build:local` in air-gapped CI. The font mock is in `test/font-mock.json`.
+**Fonts:** IBM Plex Sans is bundled in `src/app/fonts/` and loaded with `next/font/local`, so `npm run build` needs no network access. `build:local` and `test/font-mock.json` are no longer required but still work.
 
 ---
 
@@ -230,10 +234,17 @@ npm run test:coverage # Run tests with coverage report
 ### Styling
 - Tailwind CSS v4 only. No CSS modules, no inline `style` props except for dynamic values.
 - PostCSS config is in `postcss.config.mjs` using `@tailwindcss/postcss`.
-- Global styles in `src/app/globals.css`.
+- **Design system** (`src/app/globals.css`): neutral canvas, white surfaces, hairline borders, one pine-green accent (`--accent`). Radii step up with elevation: controls 8px, panels 12px, overlays 16px; shadows only on things that float.
+  - Tokens: `--canvas --surface --border --ink --ink-2 --muted --subtle --accent --danger …`, also exposed as Tailwind colours (`text-muted`, `bg-surface`, …).
+  - Primitives (`@layer components`): `.btn` + `.btn-primary|secondary|ghost|danger|link`, `.btn-sm|lg|block`, `.icon-btn`, `.input .textarea .select`, `.field .field-label .field-hint`, `.segmented` (uses `aria-pressed`), `.panel .panel-header .panel-title .panel-body`, `.badge`, `.alert-error|warning|success`, `.empty-state`, `.skeleton`, `.overlay .modal .modal-header|body|footer`.
+  - Event colours: put `tone-{amber|blue|rose|green|purple}` on an element and use `var(--tone)`, `var(--tone-soft)`, `var(--tone-ink)`.
+  - Base element rules must stay inside `@layer base`; unlayered rules beat the component layer.
+- Layouts for the shell and each view live in `src/app/workspace.css`. Phones (≤720px) get a bottom tab bar; the month grid shows coloured dots below 600px.
+- Overlays: use `ModalFrame` (animated, focus-trapped via `useModalSurface`) or `Dialog` (native `<dialog>`). Mark the field to focus with `data-autofocus`.
+- Copy: sentence case, no all-caps labels; buttons say what happens ("Add to calendar").
 
 ### Animations
-- Use Framer Motion (`framer-motion`) for all animations. Do not use CSS transitions for interactive UI elements — Framer Motion is already a dependency and is used throughout.
+- Use Framer Motion (`framer-motion`) for motion: overlays opening/closing, list rows entering/leaving, the kitchen switch. CSS transitions are only for short (120ms) colour/border changes on hover and focus. Keep motion tied to what the user just did; no decorative loops.
 
 ### State Management
 - No global state library (no Redux, Zustand, etc.). State lives in React component state + Supabase Realtime hooks.

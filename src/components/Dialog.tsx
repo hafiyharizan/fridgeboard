@@ -4,12 +4,18 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
+/**
+ * Native <dialog> with the shared modal look. Children supply `.modal-body`
+ * and an optional `.modal-footer`.
+ */
 export function Dialog({
   title,
+  description,
   onClose,
   children,
 }: {
   title: string;
+  description?: ReactNode;
   onClose: () => void;
   children: ReactNode;
 }) {
@@ -26,7 +32,7 @@ export function Dialog({
   return createPortal(
     <dialog
       ref={ref}
-      className="workspace-dialog"
+      className="workspace-dialog modal"
       aria-label={title}
       onCancel={(event) => {
         event.preventDefault();
@@ -36,14 +42,13 @@ export function Dialog({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="dialog-heading">
-        <h2>{title}</h2>
-        <button
-          className="icon-button"
-          onClick={onClose}
-          aria-label="Close dialog"
-        >
-          <X size={20} />
+      <div className="modal-header">
+        <div className="min-w-0">
+          <h2 className="modal-title">{title}</h2>
+          {description ? <p className="modal-desc">{description}</p> : null}
+        </div>
+        <button className="icon-btn" onClick={onClose} aria-label="Close dialog" type="button">
+          <X size={18} />
         </button>
       </div>
       {children}

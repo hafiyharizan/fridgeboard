@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AuthLoading } from "@/components/AuthScreen";
 import { WorkspaceData } from "@/components/WorkspaceData";
 import { HouseholdWorkspace } from "@/components/HouseholdWorkspace";
 import { clearSessionPin, setSessionPin } from "@/lib/auth";
@@ -109,51 +110,28 @@ export function ListShell() {
   };
 
   if (loading) {
-    return (
-      <main className="fridge-wrap">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fridge-card mx-auto flex min-h-[75vh] w-full max-w-2xl items-center justify-center px-6 py-10 text-muted"
-        >
-          <motion.div
-            animate={{ scale: [1, 1.05, 1], opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          >
-            Warming up your lists...
-          </motion.div>
-        </motion.div>
-      </main>
-    );
+    return <AuthLoading message="Loading your household…" />;
   }
 
   if (error || !lists.length) {
     return (
-      <main className="fridge-wrap">
-        <section className="fridge-card mx-auto flex min-h-[75vh] w-full max-w-2xl flex-col items-center justify-center gap-5 px-6 py-10 text-center">
-          <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted">
-              Fridgeboard
-            </p>
-            <h1 className="text-4xl text-foreground">
-              Something needs a quick fix.
-            </h1>
-            <p className="mx-auto max-w-md text-sm leading-6 text-muted sm:text-base">
-              {error || "We could not load your shared lists right now."}
-            </p>
+      <main className="auth-wrap">
+        <section className="auth-card" role="alert">
+          <div className="auth-head">
+            <span className="empty-state-icon auth-error-icon">
+              <AlertTriangle size={18} />
+            </span>
+            <h1 className="auth-title">Couldn&apos;t open your household</h1>
+            <p className="auth-desc">{error || "Your shared lists didn't load."}</p>
           </div>
-          <motion.button
-            whileHover={{
-              scale: 1.02,
-              boxShadow: "0 8px 24px rgba(60, 40, 20, 0.16)",
-            }}
-            whileTap={{ scale: 0.98 }}
-            className="cursor-pointer rounded-full bg-foreground px-5 py-3 text-sm font-bold text-white shadow-sm transition-all duration-200 hover:bg-[#2f241b]"
-            onClick={handleResetPin}
-            type="button"
-          >
-            Back to sign in
-          </motion.button>
+          <div className="grid gap-2">
+            <button className="btn btn-primary btn-lg btn-block" onClick={() => window.location.reload()} type="button">
+              <RefreshCw size={16} /> Try again
+            </button>
+            <button className="btn btn-ghost btn-block" onClick={handleResetPin} type="button">
+              Back to sign in
+            </button>
+          </div>
         </section>
       </main>
     );

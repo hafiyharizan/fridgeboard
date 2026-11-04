@@ -26,7 +26,11 @@ export function useModalSurface(onClose: () => void, enabled = true) {
           'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]',
         ),
       ).filter((node) => node.getClientRects().length);
-    (focusable()[0] ?? root).focus();
+    // Prefer a field marked data-autofocus (e.g. the event title); otherwise
+    // keep focus if it is already inside, or move it to the first control.
+    const preferred = root.querySelector<HTMLElement>("[data-autofocus]");
+    if (preferred) preferred.focus();
+    else if (!root.contains(document.activeElement)) (focusable()[0] ?? root).focus();
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();

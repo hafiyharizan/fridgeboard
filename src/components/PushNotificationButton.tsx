@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import { Bell, BellOff, BellRing } from "lucide-react";
 
 type PushState =
@@ -102,49 +101,44 @@ export function PushNotificationButton() {
   // Fully unsupported browser — hide entirely
   if (state === "unsupported" || state === "checking") return null;
 
-  // Already subscribed — show a passive indicator
+  // Already subscribed — passive status
   if (state === "subscribed") {
     return (
-      <div
-        className="rounded-full border border-amber/40 bg-amber/10 p-2 text-amber-deep"
-        title="Push notifications enabled"
-      >
-        <BellRing className="h-4 w-4" />
-      </div>
+      <span className="status-pill is-on" title="This device gets push notifications" role="status">
+        <BellRing size={15} />
+        <span className="hide-on-phone">Notifications on</span>
+      </span>
     );
   }
 
-  // Permission permanently denied — show disabled icon
+  // Permission permanently denied
   if (state === "denied") {
     return (
-      <div
-        className="rounded-full border border-border p-2 text-muted/40"
-        title="Notifications blocked — enable in browser settings"
+      <span
+        className="status-pill"
+        title="Notifications are blocked. Allow them for this site in your browser settings."
+        role="status"
       >
-        <BellOff className="h-4 w-4" />
-      </div>
+        <BellOff size={15} />
+        <span className="hide-on-phone">Notifications blocked</span>
+      </span>
     );
   }
 
-  // idle | error — tap-to-enable button
+  // idle | requesting | error — tap to enable
   return (
-    <motion.button
-      whileTap={{ scale: 0.95 }}
-      className={`rounded-full border border-border p-2 text-muted transition hover:border-amber/40 hover:text-foreground ${
-        state === "requesting"
-          ? "animate-pulse cursor-wait opacity-60"
-          : "cursor-pointer"
-      }`}
+    <button
+      className="btn btn-secondary btn-sm"
       disabled={state === "requesting"}
+      aria-busy={state === "requesting"}
       onClick={handleEnable}
-      title={
-        state === "error"
-          ? "Retry enabling notifications"
-          : "Enable push notifications"
-      }
+      aria-label={state === "error" ? "Retry turning on notifications" : "Turn on notifications"}
       type="button"
     >
-      <Bell className="h-4 w-4" />
-    </motion.button>
+      <Bell size={15} />
+      <span className="hide-on-phone">
+        {state === "requesting" ? "Turning on…" : state === "error" ? "Retry notifications" : "Turn on notifications"}
+      </span>
+    </button>
   );
 }

@@ -55,6 +55,11 @@ export function useListData(id: string) {
   return lists[id];
 }
 
+/** Every list controller, keyed by list id (for household-wide summaries). */
+export function useAllListData() {
+  return useContext(ListsContext);
+}
+
 export function useCalendarData() {
   const calendar = useContext(CalendarContext);
   if (!calendar) throw new Error("Calendar controller is unavailable.");

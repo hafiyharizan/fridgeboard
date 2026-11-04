@@ -42,7 +42,7 @@ export function HoldToOpenButton({
   return (
     <div className="hold-wrap">
       <button
-        className="icon-button settings-trigger"
+        className="icon-btn settings-trigger"
         aria-label={locked ? `${label} (press and hold)` : label}
         onPointerDown={(event) => {
           if (!locked || event.button !== 0) return;
@@ -145,13 +145,15 @@ export function KitchenModeSetting({
   onChange: (on: boolean) => void;
 }) {
   return (
-    <section className="kitchen-setting">
-      <div>
-        <h3 id="kitchen-mode-label">Kitchen display</h3>
-        <p>
-          For a tablet that stays on the wall: keeps the screen on, returns to
-          Home after 2 minutes, dims at night, updates itself, and needs a
-          press-and-hold to open settings. Only affects this device.
+    <div className="kitchen-setting">
+      <div className="min-w-0 flex-1">
+        <h3 className="modal-section-title" id="kitchen-mode-label">
+          Kitchen display
+        </h3>
+        <p className="section-copy">
+          For a tablet that stays on the wall. Keeps the screen on, returns to Home after two
+          minutes, dims at night and updates itself. Settings need a press and hold. Only
+          affects this device.
         </p>
       </div>
       <button
@@ -168,6 +170,6 @@ export function KitchenModeSetting({
           transition={{ type: "spring", stiffness: 500, damping: 34 }}
         />
       </button>
-    </section>
+    </div>
   );
 }

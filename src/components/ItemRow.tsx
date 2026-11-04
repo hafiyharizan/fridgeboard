@@ -11,48 +11,36 @@ type ItemRowProps = {
 
 export function ItemRow({ busy, item, onDelete, onToggle }: ItemRowProps) {
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 15, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-      className={`group flex items-center gap-3 rounded-[1.4rem] border border-border bg-white/85 px-4 py-3 shadow-[0_10px_24px_rgba(95,65,36,0.06)] transition ${
-        item.is_checked ? "opacity-70" : ""
-      }`}
+    <motion.li
+      layout="position"
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, transition: { duration: 0.12 } }}
+      transition={{ type: "spring", stiffness: 600, damping: 42 }}
+      className={`item-row${item.is_checked ? " is-checked" : ""}`}
     >
       <button
         aria-label={item.is_checked ? `Uncheck ${item.text}` : `Check ${item.text}`}
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition ${
-          item.is_checked
-            ? "border-success bg-success text-white"
-            : "border-muted/35 bg-transparent text-transparent hover:border-amber-deep"
-        }`}
+        aria-pressed={item.is_checked}
+        className="check"
         disabled={busy}
         onClick={() => onToggle(item)}
         type="button"
       >
-        {item.is_checked ? <Check className="h-4 w-4" strokeWidth={3} /> : null}
+        <span className="check-box">
+          <Check size={13} strokeWidth={3} />
+        </span>
       </button>
-
-      <div className="min-w-0 flex-1">
-        <p
-          className={`text-base leading-6 text-foreground transition sm:text-[1.05rem] ${
-            item.is_checked ? "line-through text-muted/60" : ""
-          }`}
-        >
-          {item.text}
-        </p>
-      </div>
-
+      <span className="item-text">{item.text}</span>
       <button
         aria-label={`Delete ${item.text}`}
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full p-2 text-muted transition hover:bg-danger/10 hover:text-danger"
+        className="icon-btn icon-btn-danger item-delete"
         disabled={busy}
         onClick={() => onDelete(item.id)}
         type="button"
       >
-        <Trash2 className="h-4 w-4" />
+        <Trash2 size={16} />
       </button>
-    </motion.div>
+    </motion.li>
   );
 }

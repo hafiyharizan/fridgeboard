@@ -123,12 +123,12 @@ export function InstallPrompt() {
           </div>
           <div className="install-actions">
             {mode === "native" && (
-              <button className="primary-button" onClick={install} type="button">
-                <Download size={17} /> Install
+              <button className="btn btn-primary btn-sm" onClick={install} type="button">
+                <Download size={15} /> Install
               </button>
             )}
             <button
-              className="icon-button"
+              className="icon-btn"
               aria-label="Not now"
               onClick={dismiss}
               type="button"

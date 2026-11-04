@@ -129,7 +129,7 @@ export function AddEventModal({
         className="calendar-overlay fixed inset-0 z-50 overflow-y-auto bg-foreground/20 p-3 backdrop-blur-sm sm:p-4"
         onClick={onClose}
       >
-        <div className="flex min-h-full items-start justify-center sm:items-center">
+        <div className="calendar-overlay-scroller flex min-h-full items-start justify-center sm:items-center">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
@@ -169,6 +169,7 @@ export function AddEventModal({
                 <input
                   aria-label="Event title"
                 autoFocus
+                data-autofocus
                   className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm text-foreground outline-none transition placeholder:text-muted/55 focus:border-amber-deep focus:ring-3 focus:ring-amber/20"
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="What's happening?"

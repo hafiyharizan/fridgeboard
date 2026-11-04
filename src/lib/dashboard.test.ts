@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  defaultScheduleDay,
+  eventPhase,
   greeting,
   nextDateKey,
   nextUpEvent,
   pendingItems,
+  rowsThatFit,
   upcomingEvents,
   weekDates,
 } from "./dashboard";
@@ -105,5 +108,37 @@ describe("home helpers", () => {
   it("treats all-day events as still ahead today", () => {
     const events = [{ id: "x", occurrence_date: "2026-11-03", event_time: null }];
     expect(nextUpEvent(events, at(21))?.id).toBe("x");
+  });
+});
+
+describe("time-aware schedule", () => {
+  const at = (h: number, m = 0) => new Date(2026, 10, 3, h, m);
+  const today = (time: string | null) => ({ occurrence_date: "2026-11-03", event_time: time });
+
+  it("keeps an event current for an hour after it starts", () => {
+    expect(eventPhase(today("19:30"), at(19, 0))).toBe("later");
+    expect(eventPhase(today("19:30"), at(19, 30))).toBe("now");
+    expect(eventPhase(today("19:30"), at(20, 29))).toBe("now");
+    expect(eventPhase(today("19:30"), at(20, 30))).toBe("earlier");
+    expect(eventPhase(today(null), at(23, 59))).toBe("now");
+    expect(eventPhase({ occurrence_date: "2026-11-02", event_time: null }, at(9))).toBe("earlier");
+    expect(eventPhase({ occurrence_date: "2026-11-04", event_time: "08:00" }, at(23))).toBe("later");
+  });
+
+  it("opens on tomorrow once today is over", () => {
+    const day = [today("09:30"), today("17:15"), today("19:30")];
+    expect(defaultScheduleDay(day, at(12))).toBe("today");
+    expect(defaultScheduleDay(day, at(20, 0))).toBe("today");
+    expect(defaultScheduleDay(day, at(20, 44))).toBe("tomorrow");
+    expect(defaultScheduleDay([...day, today(null)], at(22))).toBe("today");
+    expect(defaultScheduleDay([], at(9))).toBe("today");
+    expect(defaultScheduleDay([], at(18))).toBe("tomorrow");
+  });
+
+  it("counts whole rows that fit", () => {
+    expect(rowsThatFit(300, 56, 8)).toBe(4);
+    expect(rowsThatFit(312, 56, 8)).toBe(5);
+    expect(rowsThatFit(40, 56, 8)).toBe(0);
+    expect(rowsThatFit(300, 0, 8)).toBe(0);
   });
 });

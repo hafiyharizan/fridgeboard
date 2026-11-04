@@ -69,6 +69,17 @@ export function nextPrayer(slots: PrayerSlot[], now: Date): PrayerSlot | null {
   return slots.find((slot) => slot.time.getTime() >= now.getTime()) ?? null;
 }
 
+/**
+ * What Home shows: today's times until Isha has passed, then tomorrow's,
+ * so the highlighted tile and the "next" line always agree.
+ */
+export function prayerView(today: PrayerSlot[], tomorrow: PrayerSlot[], now: Date) {
+  const next = nextPrayer(today, now);
+  return next
+    ? { today, shown: today, next, nextIsTomorrow: false }
+    : { today, shown: tomorrow, next: tomorrow[0] ?? null, nextIsTomorrow: true };
+}
+
 /** The prayer whose athan is due right now (within the window), if any. */
 export function duePrayer(
   slots: PrayerSlot[],

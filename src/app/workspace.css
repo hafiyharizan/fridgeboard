@@ -41,6 +41,103 @@
   --border: var(--line);
 }
 
+/* Automatic dark theme: HouseholdWorkspace sets <html data-theme="dark">
+   from sunset to sunrise (isDarkTime in lib/weather.ts). Warm, low-glare
+   greens so the kitchen tablet doesn't light up the room at night.
+   Deep greens stay mid-tone fills for white button text; text that used
+   them reads the lighter *-text tokens instead. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #121513;
+  --background-strong: #1b1f1c;
+  --surface: rgba(27, 31, 28, 0.78);
+  --surface-strong: #1b1f1c;
+  --foreground: #e8ece8;
+  --muted: #a3ada6;
+  --border: rgba(232, 236, 232, 0.1);
+  --shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.4);
+  --amber-deep: #e9b483;
+  --blue: #7aa8d8;
+  --blue-deep: #a9c8ea;
+  --success: #8fa898;
+  --danger: #ef8f80;
+}
+:root[data-theme="dark"] .household-workspace,
+:root[data-theme="dark"] .workspace-dialog {
+  --canvas: #121513;
+  --card: #1b1f1c;
+  --oat: #2a2f2b;
+  --oat-soft: #232825;
+  --sage: #8fa898;
+  --sage-deep: #5e7a67;
+  --sage-ink: #4f6857;
+  --sage-deep-text: #aac4b2;
+  --sage-ink-text: #c6dacd;
+  --sage-tint: #1f2a23;
+  --sage-tint-strong: #29392e;
+  --amber: #d99b65;
+  --amber-tint: #3a2b1d;
+  --amber-strong: #5a3d22;
+  --amber-ink: #f2c79c;
+  --rose-tint: #3b2421;
+  --rose-ink: #f3b0a6;
+  --ink: #e8ece8;
+  --ink-fill: #39413b;
+  --muted: #a3ada6;
+  --line: rgba(232, 236, 232, 0.09);
+  --focus: #9db8a6;
+  --shadow-1: 0 4px 16px -2px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 10px 28px -4px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 20px 40px -8px rgba(0, 0, 0, 0.6);
+}
+:root[data-theme="dark"] body {
+  background-color: #121513;
+}
+:root[data-theme="dark"] .event-amber {
+  --event: #d99b65;
+  --event-tint: #33271c;
+}
+:root[data-theme="dark"] .event-blue {
+  --event: #7ea3cf;
+  --event-tint: #1f2836;
+}
+:root[data-theme="dark"] .event-rose {
+  --event: #d98b7b;
+  --event-tint: #35221f;
+}
+:root[data-theme="dark"] .event-green {
+  --event: #8fa898;
+  --event-tint: #1f2a23;
+}
+:root[data-theme="dark"] .event-purple {
+  --event: #a895c8;
+  --event-tint: #2a2436;
+}
+/* Older components still use a few fixed light utilities. */
+:root[data-theme="dark"] :is(.bg-white, .bg-\[\#f7f5f0\]) {
+  background-color: var(--card, #1b1f1c);
+}
+:root[data-theme="dark"] :is(.bg-white\/60, .bg-white\/70, .bg-white\/90, .bg-white\/95) {
+  background-color: rgba(27, 31, 28, 0.92);
+}
+:root[data-theme="dark"] :is(.border-white\/60, .border-white\/65) {
+  border-color: var(--line, rgba(232, 236, 232, 0.09));
+}
+:root[data-theme="dark"] .bg-foreground {
+  background-color: #5e7a67;
+}
+:root[data-theme="dark"] .text-\[\#4a6e3f\] {
+  color: #b5d3a9;
+}
+/* Overlays are tinted from the ink colour, which is light at night. */
+:root[data-theme="dark"] .calendar-overlay.bg-foreground\/20,
+:root[data-theme="dark"] .bg-foreground\/20.fixed {
+  background-color: rgba(0, 0, 0, 0.55);
+}
+:root[data-theme="dark"] .workspace-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
 .household-workspace {
   min-height: 100vh;
   min-height: 100dvh;
@@ -97,7 +194,7 @@ textarea:focus-visible {
   place-items: center;
   border-radius: 14px;
   background: var(--sage-tint);
-  color: var(--sage-deep);
+  color: var(--sage-deep-text, var(--sage-deep));
 }
 .pill {
   display: inline-flex;
@@ -111,7 +208,7 @@ textarea:focus-visible {
   letter-spacing: 0.02em;
   white-space: nowrap;
   background: var(--sage-tint-strong);
-  color: var(--sage-ink);
+  color: var(--sage-ink-text, var(--sage-ink));
 }
 .pill-amber {
   background: var(--amber-tint);
@@ -169,14 +266,14 @@ textarea:focus-visible {
   align-items: center;
   gap: 4px;
   padding-inline: 4px;
-  color: var(--sage-deep);
+  color: var(--sage-deep-text, var(--sage-deep));
   font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
   border-radius: 10px;
 }
 .text-button:hover {
-  color: var(--sage-ink);
+  color: var(--sage-ink-text, var(--sage-ink));
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -189,7 +286,7 @@ textarea:focus-visible {
 .data-status {
   margin: 8px 0;
   padding: 10px 14px;
-  color: var(--sage-ink);
+  color: var(--sage-ink-text, var(--sage-ink));
   background: var(--sage-tint);
   border-radius: 12px;
   font-size: 14px;
@@ -205,7 +302,7 @@ textarea:focus-visible {
   padding: 2px 9px;
   font-size: 12px;
   font-weight: 700;
-  color: var(--sage-ink);
+  color: var(--sage-ink-text, var(--sage-ink));
 }
 
 /* Round checkbox: 26px ring inside a 48px touch target. */
@@ -234,7 +331,7 @@ textarea:focus-visible {
 }
 .check-control:hover .check-ring svg {
   opacity: 0.7;
-  color: var(--sage-deep);
+  color: var(--sage-deep-text, var(--sage-deep));
 }
 .check-ring.is-checked {
   background: var(--sage);
@@ -296,7 +393,7 @@ textarea:focus-visible {
   place-items: center;
   flex: none;
   background: var(--sage-tint);
-  color: var(--sage-deep);
+  color: var(--sage-deep-text, var(--sage-deep));
   border-radius: 14px;
 }
 .brand-text {
@@ -439,31 +536,16 @@ textarea:focus-visible {
 
 /* Hero clock */
 .hero-card {
-  padding: 24px 26px;
+  padding: 20px 24px 16px;
   border-radius: var(--radius-hero);
-}
-.hero-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.hero-top .eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.hero-top .eyebrow svg {
-  color: var(--amber);
 }
 .hero-time {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-top: 14px;
-  font-size: 76px;
+  font-size: 66px;
   font-weight: 700;
-  line-height: 80px;
+  line-height: 70px;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
 }
@@ -474,10 +556,10 @@ textarea:focus-visible {
   color: var(--muted);
 }
 .hero-date {
-  margin-top: 6px;
-  font-size: 20px;
+  margin-top: 2px;
+  font-size: 19px;
   font-weight: 500;
-  line-height: 28px;
+  line-height: 26px;
 }
 .hero-next {
   display: flex;
@@ -485,8 +567,8 @@ textarea:focus-visible {
   gap: 10px;
   width: 100%;
   min-height: 48px;
-  margin-top: 16px;
-  padding-top: 14px;
+  margin-top: 10px;
+  padding-top: 4px;
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 15px;
@@ -531,170 +613,512 @@ textarea:focus-visible {
 }
 .sync-badge.is-live {
   background: var(--sage-tint-strong);
-  color: var(--sage-ink);
+  color: var(--sage-ink-text, var(--sage-ink));
 }
 .sync-badge.is-live .sync-dot {
   background: var(--sage);
 }
 
-/* Outside: weather + prayer */
-.outside-card {
-  padding: 20px 22px;
+/* Outside: weather + prayer on an animated sky (components/Sky.tsx).
+   White text throughout; a scrim at the bottom keeps small text readable
+   on the lighter dawn and dusk skies. */
+.outside-card.sky {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 18px 20px;
+  border: 0;
+  background: #1f2a44;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(8, 12, 28, 0.28);
 }
-.outside-setup {
+.sky-backdrop,
+.sky-scene,
+.sky-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.sky-scene {
+  overflow: hidden;
+}
+.sky-scrim {
+  background: linear-gradient(180deg, rgba(8, 12, 28, 0) 35%, rgba(8, 12, 28, 0.34) 100%);
+}
+.sky-content {
+  position: relative;
+}
+.sky-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+}
+.sky-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sky-where {
+  min-width: 0;
+}
+.sky-place {
+  margin-top: 2px;
+  color: inherit;
+  overflow: hidden;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 28px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sky-temp {
+  margin-top: -2px;
+  font-size: 64px;
+  font-weight: 200;
+  line-height: 68px;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.sky-summary {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  padding-bottom: 8px;
+  text-align: right;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.85);
+}
+.sky-summary svg {
+  margin-bottom: 4px;
+  filter: drop-shadow(0 1px 2px rgba(8, 12, 28, 0.25));
+}
+.sky-summary strong {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+}
+.sky-summary span svg {
+  display: inline;
+  margin: 0;
+  vertical-align: -2px;
+}
+.sky-waiting {
+  margin-top: 6px;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.85);
+}
+.sky-setup {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
+  min-height: 64px;
   margin-top: 12px;
-  padding: 12px;
+  padding: 12px 14px;
   border-radius: 16px;
-  background: var(--sage-tint);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
   text-align: left;
 }
-.outside-setup strong {
+.sky-setup strong {
   display: block;
   font-size: 16px;
 }
-.outside-setup span span {
-  color: var(--muted);
+.sky-setup span span {
   font-size: 14px;
+  color: rgba(255, 255, 255, 0.82);
 }
-.weather-now {
+
+/* Secondary weather: one quiet line of stats, then tip and tomorrow. */
+.weather-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 15px;
+}
+.weather-stats > div {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-top: 12px;
-}
-.weather-icon {
-  flex: none;
-  width: 54px;
-  height: 54px;
-  display: grid;
-  place-items: center;
-  border-radius: 16px;
-  background: var(--amber-tint);
-  color: var(--amber-ink);
-}
-.weather-temp {
-  font-size: 44px;
-  font-weight: 700;
-  line-height: 48px;
-  letter-spacing: -0.03em;
-}
-.weather-words {
-  display: flex;
-  flex-direction: column;
+  gap: 5px;
   min-width: 0;
-  font-size: 14px;
-  color: var(--muted);
 }
-.weather-words b {
-  font-size: 16px;
-  color: var(--ink);
+.weather-stats dt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
-.weather-words svg {
-  display: inline;
-  vertical-align: -2px;
+.weather-stats dt svg {
+  flex: none;
 }
+.weather-stats dd {
+  margin: 0;
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.weather-tip,
 .weather-tomorrow {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
-  margin-top: 10px;
-  font-size: 14px;
-  color: var(--muted);
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 15px;
+  line-height: 1.4;
 }
+.weather-tip {
+  color: #fff;
+}
+.weather-tip svg,
 .weather-tomorrow svg {
   flex: none;
-  color: var(--sage-deep);
+  margin-top: 2px;
+}
+.weather-tip svg {
+  color: #ffd98a;
 }
 .prayer-strip {
-  margin-top: 14px;
+  margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
 }
 .prayer-next {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
-  color: var(--muted);
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.8);
 }
 .prayer-next svg {
   flex: none;
-  color: var(--sage-deep);
 }
-.prayer-next strong {
-  color: var(--ink);
+.prayer-day {
+  color: #fff;
+  font-weight: 700;
+}
+.prayer-countdown {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.prayer-countdown strong {
+  color: #fff;
 }
 .prayer-times {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   padding: 0;
   list-style: none;
 }
+/* Tiles are tinted, not blurred: backdrop-filter over animated layers
+   would re-blur every frame on the tablet. */
 .prayer-times li {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6px 2px;
+  min-width: 0;
+  padding: 5px 2px;
   border-radius: 12px;
-  background: var(--oat-soft);
-  font-size: 11px;
+  background: rgba(8, 12, 28, 0.22);
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.03em;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.8);
+}
+.prayer-times li span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .prayer-times li strong {
-  font-size: 15px;
-  color: var(--ink);
+  font-size: 18px;
+  line-height: 24px;
+  color: #fff;
   font-variant-numeric: tabular-nums;
 }
 .prayer-times li.is-next {
-  background: var(--sage-deep);
-  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.92);
+  color: #5b655e;
+  text-shadow: none;
 }
 .prayer-times li.is-next strong {
-  color: #fff;
+  color: #2b332e;
 }
 
-/* Quick input */
-.quick-card {
-  margin-top: auto;
-  padding: 20px 22px 22px;
+/* Sky layers. Compositor-only loops (transform/opacity). */
+.sky-star {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+  animation: sky-twinkle 3s ease-in-out infinite;
 }
-.quick-tiles {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.sky-star.is-dim {
+  opacity: 0.5;
+  animation-name: sky-twinkle-dim;
+}
+.sky-moon {
+  position: absolute;
+  top: -40px;
+  right: -30px;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(220, 228, 255, 0.28) 0%, rgba(220, 228, 255, 0) 65%);
+}
+.sky-sun {
+  position: absolute;
+  top: -90px;
+  right: -70px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 236, 170, 0.55) 0%, rgba(255, 220, 140, 0.18) 38%, rgba(255, 220, 140, 0) 68%);
+  animation: sky-glow 9s ease-in-out infinite;
+}
+.sky-cloud {
+  position: absolute;
+  left: 0;
+  border-radius: 50%;
+  filter: blur(14px);
+  will-change: transform;
+  animation: sky-drift 90s linear infinite;
+}
+.sky-cloud.is-light {
+  background: rgba(255, 255, 255, 0.42);
+}
+.sky-cloud.is-grey {
+  background: rgba(225, 230, 238, 0.32);
+}
+.sky-cloud.is-dark {
+  background: rgba(150, 160, 185, 0.26);
+}
+.sky-fog {
+  position: absolute;
+  left: -40%;
+  top: 22%;
+  width: 180%;
+  height: 34%;
+  border-radius: 50%;
+  background: rgba(235, 238, 242, 0.28);
+  filter: blur(18px);
+  animation: sky-fog 26s ease-in-out infinite alternate;
+}
+.sky-fog.is-low {
+  top: 60%;
+  animation-duration: 34s;
+  animation-direction: alternate-reverse;
+}
+.sky-drop {
+  position: absolute;
+  top: -30px;
+  width: 1.5px;
+  border-radius: 1px;
+  background: linear-gradient(180deg, rgba(220, 232, 255, 0), rgba(220, 232, 255, 0.65));
+  animation: sky-fall 1s linear infinite;
+}
+.sky-flake {
+  position: absolute;
+  top: -12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  animation: sky-snow 9s linear infinite;
+}
+.sky-flash {
+  position: absolute;
+  inset: 0;
+  background: rgba(225, 232, 255, 0.9);
+  opacity: 0;
+  animation: sky-flash 11s linear infinite;
+}
+@keyframes sky-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes sky-twinkle-dim {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+@keyframes sky-glow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+@keyframes sky-drift {
+  from {
+    transform: translate3d(-300px, 0, 0);
+  }
+  to {
+    transform: translate3d(520px, 0, 0);
+  }
+}
+@keyframes sky-fog {
+  from {
+    transform: translate3d(-12%, 0, 0);
+  }
+  to {
+    transform: translate3d(12%, 0, 0);
+  }
+}
+@keyframes sky-fall {
+  from {
+    transform: translate3d(0, 0, 0) rotate(12deg);
+  }
+  to {
+    transform: translate3d(-90px, 440px, 0) rotate(12deg);
+  }
+}
+@keyframes sky-snow {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(14px, 220px, 0);
+  }
+  100% {
+    transform: translate3d(-8px, 440px, 0);
+  }
+}
+@keyframes sky-flash {
+  0%,
+  86%,
+  100% {
+    opacity: 0;
+  }
+  87% {
+    opacity: 0.5;
+  }
+  88% {
+    opacity: 0.08;
+  }
+  90% {
+    opacity: 0.38;
+  }
+  93% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sky-backdrop * {
+    animation: none !important;
+  }
+  .sky-drop,
+  .sky-flake,
+  .sky-flash {
+    display: none;
+  }
+}
+
+/* News: two headlines in whatever height is left in the side column. */
+.news-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px 22px 12px;
+  overflow: hidden;
+}
+.news-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  margin-top: 14px;
 }
-.quick-tile {
+.news-head .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.news-head .eyebrow svg {
+  color: var(--amber);
+}
+.news-head .text-button {
+  margin: -10px -4px -10px 0;
+}
+.news-list {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: 4px -8px 0;
+  padding: 0;
+  list-style: none;
+}
+.news-list.is-dialog {
+  margin: 0;
+}
+.news-list li + li {
+  border-top: 1px solid var(--line);
+}
+.news-item {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 72px;
-  padding: 10px 8px;
-  border-radius: 16px;
+  gap: 2px;
+  min-height: 48px;
+  padding: 9px 8px;
+  border-radius: 12px;
+}
+.news-item:hover {
+  background: var(--sage-tint);
+}
+.news-title {
+  display: -webkit-box;
+  overflow: hidden;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
-.quick-tile.is-sage {
-  background: var(--sage-deep);
-  color: #fff;
+.news-meta {
+  font-size: 13px;
+  color: var(--muted);
 }
-.quick-tile.is-oat {
-  background: var(--oat);
-  color: var(--ink);
+.news-skeleton {
+  display: block;
+  height: 38px;
+  margin: 8px;
+  border-radius: 10px;
+  background: var(--sage-tint);
 }
-.quick-tile.is-amber {
-  background: var(--amber-strong);
-  color: var(--amber-ink);
+.card-add {
+  margin: -6px 0 -6px auto;
+  color: var(--sage-deep-text, var(--sage-deep));
+}
+.card-add + .card-open {
+  margin-left: -10px;
+}
+.schedule-add {
+  margin-right: -4px;
 }
 
 /* Family schedule */
@@ -765,6 +1189,7 @@ textarea:focus-visible {
   box-shadow: var(--shadow-1);
 }
 .agenda {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -840,6 +1265,38 @@ textarea:focus-visible {
 }
 .agenda-icon {
   color: var(--muted);
+}
+.agenda-row.is-past {
+  background: var(--oat-soft);
+}
+.agenda-row.is-past > * {
+  opacity: 0.55;
+}
+.agenda-title .pill-now {
+  flex: none;
+  background: var(--sage-deep);
+  color: #fff;
+}
+.agenda-note {
+  padding: 4px 4px 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+.agenda-extra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+}
+.agenda-extra .text-button:only-child:not(.agenda-earlier) {
+  margin-left: auto;
+}
+.agenda-earlier {
+  color: var(--muted);
+}
+.agenda-earlier svg.is-flipped {
+  rotate: 180deg;
 }
 .agenda-row.is-done strong {
   text-decoration: line-through;
@@ -961,11 +1418,22 @@ textarea:focus-visible {
   padding-bottom: 14px;
   border-bottom: 1px solid var(--line);
 }
+.list-card .card-heading {
+  gap: 10px;
+}
 .list-card .card-heading h2 {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
   font-size: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.list-card .card-heading .pill {
+  flex: none;
 }
 .list-rows {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -1009,9 +1477,9 @@ textarea:focus-visible {
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
-  padding-top: 6px;
+  padding-top: 2px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* ---------- List and calendar tabs ---------- */
@@ -1060,7 +1528,7 @@ textarea:focus-visible {
   border-radius: 8px;
 }
 .is-today .calendar-day-button {
-  color: var(--sage-deep);
+  color: var(--sage-deep-text, var(--sage-deep));
 }
 .household-workspace .note-panel .calendar-event-button {
   min-height: 32px;
@@ -1154,7 +1622,7 @@ textarea:focus-visible {
   background: var(--sage-tint-strong);
 }
 .quick-options svg {
-  color: var(--sage-deep);
+  color: var(--sage-deep-text, var(--sage-deep));
 }
 .quick-options span {
   flex: 1;
@@ -1272,7 +1740,7 @@ textarea:focus-visible {
   z-index: 30;
   padding: 8px 12px;
   border-radius: 12px;
-  background: var(--ink);
+  background: var(--ink-fill, var(--ink));
   color: #fff;
   font-size: 13px;
   font-weight: 700;
@@ -1349,7 +1817,7 @@ textarea:focus-visible {
 .member-chip[aria-checked="true"] {
   border-color: var(--sage);
   background: var(--sage-tint);
-  color: var(--sage-ink);
+  color: var(--sage-ink-text, var(--sage-ink));
 }
 .member-avatar {
   width: 34px;
@@ -1643,18 +2111,27 @@ textarea:focus-visible {
 
 /* ---------- Responsive ---------- */
 
-/* Landscape tablet and up: everything fits on one screen, no page scroll. */
+/* Landscape tablet and up: everything fits on one screen, no page scroll.
+   Lists show whole rows only (useWholeRows) plus a "View all" link. */
 @media (min-width: 1180px) and (min-height: 680px) {
   .household-workspace.is-home {
     height: 100dvh;
     overflow: hidden;
+  }
+  .is-home .agenda,
+  .is-home .list-rows,
+  .is-home .news-list {
+    overflow: hidden;
+  }
+  .is-home [data-clipped] {
+    visibility: hidden;
   }
 }
 
 /* Shorter landscape screens (e.g. 1280×800): tighten vertical rhythm. */
 @media (min-width: 1180px) and (max-height: 860px) {
   .household-workspace {
-    --gutter: 16px;
+    --gutter: 14px;
   }
   .dashboard-header {
     margin-top: 16px;
@@ -1662,26 +2139,45 @@ textarea:focus-visible {
     padding-block: 8px;
   }
   .hero-card {
-    padding: 18px 22px;
+    padding: 16px 20px 8px;
   }
   .hero-time {
-    font-size: 64px;
-    line-height: 68px;
-    margin-top: 8px;
+    font-size: 60px;
+    line-height: 64px;
   }
   .hero-date {
     font-size: 18px;
+    line-height: 24px;
   }
   .hero-next {
-    margin-top: 10px;
-    padding-top: 10px;
+    margin-top: 6px;
+    padding-top: 0;
   }
-  .outside-card,
-  .quick-card {
-    padding: 16px 18px;
+  .outside-card.sky,
+  .news-card {
+    padding: 14px 18px;
   }
-  .quick-tile {
-    min-height: 64px;
+  .sky-temp {
+    font-size: 56px;
+    line-height: 58px;
+  }
+  .weather-stats {
+    margin-top: 6px;
+    padding-top: 8px;
+  }
+  .weather-tip,
+  .weather-tomorrow {
+    margin-top: 4px;
+  }
+  .prayer-strip {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+  .prayer-times {
+    margin-top: 6px;
+  }
+  .prayer-times li {
+    padding: 3px 2px;
   }
   .schedule-card {
     padding: 18px 18px 16px;
@@ -1710,6 +2206,12 @@ textarea:focus-visible {
 
 /* Portrait tablet / small laptop: two columns, lists underneath. */
 @media (max-width: 1179px) {
+  .prayer-times {
+    gap: 4px;
+  }
+  .prayer-times li span {
+    font-size: 12px;
+  }
   .dashboard-header {
     flex-wrap: wrap;
   }
@@ -1790,6 +2292,17 @@ textarea:focus-visible {
       "schedule"
       "lists";
   }
+  /* One column: headlines go last, after the schedule and lists. */
+  .home-grid {
+    display: flex;
+    flex-direction: column;
+  }
+  .home-side {
+    display: contents;
+  }
+  .news-card {
+    order: 1;
+  }
   .home-lists {
     grid-template-columns: 1fr;
   }
@@ -1860,6 +2373,10 @@ textarea:focus-visible {
   }
   .install-actions {
     margin-left: auto;
+  }
+  /* Room for the list name: "+" already opens the list, as do the tabs. */
+  .card-add + .card-open {
+    display: none;
   }
 }
 

@@ -44,12 +44,14 @@ src/
       push/prayer/              # Cron: athan push at prayer times
       calendar/{feed,import,sync}/  # iCal feed, holiday imports, sync links
       version/                  # Live deploy id (kitchen display self-update)
+      news/                     # Headlines for the Home news card (server-side RSS)
   components/
     ListShell.tsx               # Auth check, loads household lists
     WorkspaceData.tsx           # Realtime controllers + household context (members, settings, adder)
     HouseholdWorkspace.tsx      # Header, tabs, dialogs, kitchen mode wiring
     HomeDashboard.tsx           # Home grid + AmbientLayer (idle "today" view data)
     Ambient.tsx                 # Outside card (weather/prayer), athan banner, idle view, place settings
+    Sky.tsx                     # Animated sky behind the Outside card
     KitchenDisplay.tsx          # Settings hold button, sync badge, kitchen switch
     WhoIsAdding.tsx             # Kitchen display member picker
     ListTab.tsx, ItemRow.tsx, AddItemInput.tsx, SuggestionPanel.tsx
@@ -60,14 +62,16 @@ src/
     useRealtimeItems.ts, useRealtimeCalendar.ts   # Live data, refresh on wake
     useHouseholdInfo.ts         # Members + household_settings
     useKitchenDisplay.ts        # Wake lock, idle, night, self-update
-    useAmbient.ts               # useNow, useWeather, usePrayerDay, useAthan
+    useAmbient.ts               # useNow, useWeather, usePrayerDay, useAthan, useNews
     useModalSurface.ts, watchWake.ts
+    useWholeRows.ts             # One-screen Home: hide rows that would be cut off
   lib/
     types.ts                    # All types + Database schema type
     supabase.ts / supabase-admin.ts   # Browser/route clients / service client (server only)
     calendar.ts, dashboard.ts   # Recurrence expansion, Home helpers
     kitchen.ts                  # Kitchen display rules and timings
     weather.ts, prayer.ts       # Open-Meteo parsing, prayer times (adhan)
+    news.ts                     # RSS/Atom parsing for the Home news card
     push.ts, new-item-push.ts   # Web Push sending and wording
     offline-snapshot.ts         # Last-known board for public/offline.html
 supabase/migrations/            # SQL migrations (apply in filename order)
@@ -176,6 +180,7 @@ const supabase = createClient(
 | `CRON_SECRET` | Yes (cron routes) | Bearer token for `/api/notifications` and `/api/push/remind`. If unset, those routes reject every request (fail closed). |
 | `TELEGRAM_BOT_TOKEN` | Optional | For Telegram notification channel |
 | `APP_TIMEZONE` | Optional | IANA zone for event dates/times in cron routes (default `Australia/Perth`; Netlify functions run in UTC) |
+| `NEWS_FEEDS` | Optional | Home news card feeds: comma-separated `Label\|https://…` RSS/Atom URLs, max 6 (default ABC News WA + ABC Top Stories) |
 
 ---
 
@@ -210,11 +215,15 @@ Cron, every minute (same `event-reminders` scheduled function). For households w
 
 ### Weather and prayer times
 
-Weather comes from Open-Meteo (no key) in the browser (`useWeather`), refreshed every 30 minutes and cached on the device. The household location is set in the household dialog (Open-Meteo geocoding search). Prayer times are computed on the device (`usePrayerDay`). On a kitchen display with athan alerts on, `useAthan` shows a banner and plays `public/athan.mp3` if present, otherwise a soft chime.
+Weather comes from Open-Meteo (no key) in the browser (`useWeather`), refreshed every 30 minutes and cached on the device. The Outside card is styled like the iPhone Weather app: "Home" + suburb, a large thin temperature, then a quiet line of UV, humidity and wind, a one-line tip (about tonight after dark) and tomorrow (`weatherTip`, `uvLevel` in `lib/weather.ts`). Behind it, `components/Sky.tsx` draws an animated sky chosen by `skyScene` (time of day from Open-Meteo sunrise/sunset: dawn, day, dusk, night × clear, partly, cloudy, fog, rain, storm, snow). The household location is set in the household dialog (Open-Meteo geocoding search). Prayer times are computed on the device (`usePrayerDay`). On a kitchen display with athan alerts on, `useAthan` shows a banner and plays `public/athan.mp3` if present, otherwise a soft chime.
 
 ### Offline fallback
 
 `public/sw.js` serves `public/offline.html` when a page navigation fails. That page renders the last-known board that `OfflineSnapshotWriter` saves in localStorage (`fridgeboard.snapshot`, cleared on sign-out), read-only, and returns to `/list` when the connection is back.
+
+### `GET /api/news`
+
+Headlines for the Home news card. Fetches the fixed feed list from `NEWS_FEEDS` (never a URL from the client) on the server, since RSS has no CORS; 8s timeout; redirects followed by hand (max 3, https only); body capped at 2MB while downloading; 15-minute in-memory cache shared by concurrent requests; stale copy served if every feed fails. Parsing in `lib/news.ts` (no XML dependency, single forward scan so a malformed feed can't go quadratic): tags stripped, entities decoded, only http(s) links kept, merged newest first without duplicates. `useNews` in `hooks/useAmbient.ts` caches on the device (`fridgeboard.news`) and refreshes every 15 minutes and on wake.
 
 ### `GET /api/version`
 
@@ -265,11 +274,14 @@ npm run test:coverage # Run tests with coverage report
 - PostCSS config is in `postcss.config.mjs` using `@tailwindcss/postcss`.
 - Global styles in `src/app/globals.css`.
 - Design system "Warm & Homely" (kitchen ambient hub): warm cream canvas `#F7F5F0`, white cards, heritage sage `#6C8273` / deep laurel `#4C6153`, soft amber `#D99B65`, ink `#2B332E`. One font: Plus Jakarta Sans (`--font-body`; `--font-heading` points to it).
+- Automatic light/dark: the signed-in app is light by day and dark from sunset to sunrise at home (`isDarkTime` in `lib/weather.ts`, using Open-Meteo sun times; fallback 6 AM–6 PM). `useAutoTheme` in `HouseholdWorkspace` sets `<html data-theme="dark">` before paint and updates `theme-color`; it's removed on sign-out, so sign-in and onboarding stay light. Dark tokens live under `:root[data-theme="dark"]` at the top of `workspace.css`. Deep greens stay mid-tone fills for white button text; text that used them reads `--sage-deep-text` / `--sage-ink-text`. New colours should come from tokens so both themes work.
 - The signed-in workspace is styled in `src/app/workspace.css`, scoped to `.household-workspace` with tokens (`--sage`, `--amber-tint`, `--radius-card`, `--shadow-1`…) defined at the top. Shared pieces: `.card`, `.pill`, `.icon-tile`, `.check-control` + `.check-ring`, `.list-row`, `event-<color>` (sets `--event` / `--event-tint`).
-- Home (`HomeDashboard`) is a three-column landscape layout (clock + glance + quick add | Family Schedule | To-Do + Groceries) that fits 1280×800 without scrolling; two columns below 1180px, one column below 760px. Touch targets are at least 48px.
+- Home (`HomeDashboard`) is a three-column landscape layout (clock + Outside + News | Family Schedule | To-Do + Groceries) that fits 1280×800 without scrolling. On that one-screen layout, cards show whole rows only (`hooks/useWholeRows.ts` hides rows that would be cut off) with a "View all · N" link. Two columns below 1180px, one column below 760px (news moves last).
+- The schedule is time-aware (`eventPhase`, `defaultScheduleDay` in `lib/dashboard.ts`): an event is "Now" from its start until an hour later, finished ones fold into "Earlier today", and Home opens on Tomorrow once today is over (or from 6 PM on an empty day). Prayer tiles switch to tomorrow's times after Isha (`prayerView` in `lib/prayer.ts`). News shows two headlines; "More news" opens the rest. Text meant to be read across the kitchen is at least 13–15px. Adding from Home uses the "+" buttons on the schedule, To-Do and Groceries cards. Touch targets are at least 48px.
 
 ### Animations
 - Use Framer Motion (`framer-motion`) for all animations. Do not use CSS transitions for interactive UI elements — Framer Motion is already a dependency and is used throughout.
+- Exception: the looping weather sky (`components/Sky.tsx`) uses CSS keyframes on transform/opacity, so an always-on tablet runs them on the compositor with no JavaScript per frame. Framer Motion only cross-fades between scenes. Loops stop under `prefers-reduced-motion`. Don't add `backdrop-filter` over the sky (it would re-blur every frame).
 
 ### State Management
 - No global state library (no Redux, Zustand, etc.). State lives in React component state + Supabase Realtime hooks.
@@ -305,6 +317,8 @@ Vitest is configured. Tests live alongside source files as `*.test.ts`.
 
 - `src/lib/calendar.test.ts` — covers all pure calendar utilities and recurrence expansion
 - `src/lib/suggestions.test.ts` — covers autocomplete and smartSuggest
+- `src/lib/news.test.ts` — feed parsing, merging, `NEWS_FEEDS` and story ages
+- `src/app/api/news/route.test.ts` — redirect, size-cap and caching rules for `/api/news`
 
 The vitest config (`vitest.config.ts`) sets up the `@/*` path alias and uses the `node` environment (no DOM needed for pure utility tests).
 

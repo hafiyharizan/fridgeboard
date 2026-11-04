@@ -66,3 +66,44 @@ export function nextUpEvent<T extends Timed>(events: T[], now: Date): T | null {
     }) ?? null
   );
 }
+
+/** An event still counts as happening for this long after it starts. */
+export const EVENT_GRACE_MINUTES = 60;
+
+export type EventPhase = "earlier" | "now" | "later";
+
+/**
+ * Where an event sits relative to `now`: finished ("earlier"), under way
+ * (from its start until EVENT_GRACE_MINUTES later, or all day) or ahead.
+ */
+export function eventPhase(event: Timed, now: Date, graceMinutes = EVENT_GRACE_MINUTES): EventPhase {
+  const today = dateKey(now);
+  if (event.occurrence_date < today) return "earlier";
+  if (event.occurrence_date > today) return "later";
+  if (!event.event_time) return "now";
+  const [hours, minutes] = event.event_time.split(":").map(Number);
+  const start = hours * 60 + minutes;
+  const clock = now.getHours() * 60 + now.getMinutes();
+  if (clock < start) return "later";
+  return clock < start + graceMinutes ? "now" : "earlier";
+}
+
+/**
+ * Which day Home's schedule opens on: tomorrow once everything today is
+ * over (or, on an empty day, from 6 PM), otherwise today.
+ */
+export function defaultScheduleDay(events: Timed[], now: Date): "today" | "tomorrow" {
+  const today = dateKey(now);
+  const todays = events.filter((event) => event.occurrence_date === today);
+  if (!todays.length) return now.getHours() >= 18 ? "tomorrow" : "today";
+  return todays.every((event) => eventPhase(event, now) === "earlier") ? "tomorrow" : "today";
+}
+
+/**
+ * How many equal-height rows fit in `available` pixels with `gap` between
+ * them. Used to show whole rows instead of cutting the last one off.
+ */
+export function rowsThatFit(available: number, rowHeight: number, gap: number): number {
+  if (rowHeight <= 0 || available <= 0) return 0;
+  return Math.max(0, Math.floor((available + gap) / (rowHeight + gap)));
+}

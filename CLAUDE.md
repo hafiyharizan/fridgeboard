@@ -31,7 +31,7 @@ Fridgeboard is a shared household management app: grocery lists, to-do lists, an
 src/
   app/
     page.tsx                    # Home — renders PinEntry
-    layout.tsx                  # Root layout (Fraunces + Nunito fonts)
+    layout.tsx                  # Root layout (Figtree via next/font/local, bundled in app/fonts)
     globals.css                 # Tailwind base styles
     list/
       page.tsx                  # Main app — renders ListShell (client component)
@@ -39,7 +39,10 @@ src/
       notifications/
         route.ts                # POST /api/notifications — cron-triggered notification sender
   components/
-    PinEntry.tsx                # PIN authentication screen
+    PinEntry.tsx                # Google sign-in screen
+    HouseholdWorkspace.tsx      # Signed-in shell: header card, tabs, dialogs, quick add
+    HomeDashboard.tsx           # Home hub: clock, weather, quick add, family schedule, To-Do, Groceries
+    People.tsx                  # Crew: person tags, picker, household people settings
     ListShell.tsx               # App shell — tab state, loads lists from Supabase
     ListTab.tsx                 # Grocery/to-do list view
     ItemRow.tsx                 # Single list item (check, delete)
@@ -110,6 +113,12 @@ Managed via SQL migrations in `supabase/migrations/`. Apply in filename timestam
 **`notification_log`** — idempotency log for sent notifications
 - `id` uuid PK, `event_id` uuid, `channel_type` text, `sent_at` timestamptz, `status` text
 
+**`household_people`** — the household "crew" (kids and others need no account)
+- `id` uuid PK, `pin_code` text, `name` text (1–40 chars), `color`: `"sage" | "peach" | "sky" | "lilac" | "sand" | "rose"`, `sort_order` int
+- RLS: household members only. Max 12 per household (trigger). Deleting a person untags them from events (trigger). Realtime enabled.
+- `calendar_events.person_ids` uuid[] (default `{}`) — who an event is for; empty = whole family.
+- The UI degrades gracefully before the migration runs (`useHouseholdPeople().available === false`, events are inserted without `person_ids`).
+
 **`suggestion_feedback`** — tracks accepted/dismissed suggestions
 - `id` uuid PK, `list_id` uuid, `suggestion_text` text, `action` text, `created_at` timestamptz
 
@@ -155,6 +164,7 @@ const supabase = createClient(
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes (API routes) | Supabase service role key (server-side only) |
 | `CRON_SECRET` | Yes (cron routes) | Bearer token for `/api/notifications` and `/api/push/remind`. If unset, those routes reject every request (fail closed). |
 | `TELEGRAM_BOT_TOKEN` | Optional | For Telegram notification channel |
+| `NEXT_PUBLIC_WEATHER_LAT` / `_LON` / `_LABEL` | Optional | Location for the Home weather card (Open-Meteo, no key). Defaults to Perth, WA |
 | `APP_TIMEZONE` | Optional | IANA zone for event dates/times in cron routes (default `Australia/Perth`; Netlify functions run in UTC) |
 
 ---
@@ -188,6 +198,15 @@ Called by `useRealtimeItems` right after a member adds a list item. Body: `{ ite
 
 Returns `{ version }`, the build stamp `APP_VERSION` (Netlify `DEPLOY_ID`, else `COMMIT_REF`, else `"dev"`; set in `next.config.ts`). Kitchen displays poll it and reload while idle when it changes. `"dev"` never triggers a reload.
 
+### Home hub
+
+`HomeDashboard` is the default view:
+- **Clock card:** big time, season and part of day, a Live/Syncing badge, and the next event (`lib/hub.ts` `nextEventLine`, e.g. "Swimming lesson in 42 minutes (Nayla)").
+- **Weather card:** Open-Meteo forecast fetched from the browser by `hooks/useWeather.ts`. Refreshes every 30 min and caches in localStorage (`fridgeboard.weather`). Parsing, WMO codes and the advice line are in `lib/weather.ts`.
+- **Quick add:** + Event opens `AddEventModal`; + Task and + Grocery open an in-place dialog that adds several items without leaving Home.
+- **Family schedule:** Today, Tomorrow or Week tabs, plus crew chips that filter by person (whole-family events always show). Past events today are dimmed.
+- **To-Do and Groceries cards:** open items, plus items done today ("Done at 6:45 AM"). Grocery rows get a category icon from `lib/hub.ts` `groceryIcon`.
+
 ### Kitchen display mode
 
 A per-device switch in the household menu (localStorage `fridgeboard.kitchen-mode`) for a wall tablet. Logic in `hooks/useKitchenDisplay.ts`, pure rules and timings in `lib/kitchen.ts`, UI in `components/KitchenDisplay.tsx`.
@@ -216,7 +235,7 @@ npm run test:watch    # Run tests in watch mode
 npm run test:coverage # Run tests with coverage report
 ```
 
-**Note on `next/font/google`:** Fonts (Fraunces, Nunito) are downloaded from Google at build time and self-hosted. `npm run build` requires outbound HTTPS access to `fonts.googleapis.com`. Use `npm run build:local` in air-gapped CI. The font mock is in `test/font-mock.json`.
+**Fonts:** Figtree (variable, SIL OFL) is bundled in `src/app/fonts/` and loaded with `next/font/local` as both `--font-heading` and `--font-body`, so `npm run build` needs no network access. `build:local` still works.
 
 ---
 
@@ -230,7 +249,10 @@ npm run test:coverage # Run tests with coverage report
 ### Styling
 - Tailwind CSS v4 only. No CSS modules, no inline `style` props except for dynamic values.
 - PostCSS config is in `postcss.config.mjs` using `@tailwindcss/postcss`.
-- Global styles in `src/app/globals.css`.
+- Global styles in `src/app/globals.css`; workspace and hub layouts in `src/app/workspace.css`.
+- Look: pale sage canvas, white 24px cards, deep green primary (`--primary` / `bg-primary`, `--green`), peach accent (`--peach`). Hub tokens (`--soft`, `--sage`, `--green`, `--peach*`, `--card-*`) are on `:root` so portaled dialogs get them.
+- Event colours: `.event-{amber|blue|rose|green|purple}` set `--tone` / `--tone-soft`. Person colours: `.person-{sage|peach|sky|lilac|sand|rose}` set `--chip-bg` / `--chip-ink`.
+- Home fills the viewport at ≥1100×700 (header + grid as a flex column; cards scroll internally) so the kitchen tablet (1280×800) never scrolls. Below 1100px it's two columns, below 720px one column.
 
 ### Animations
 - Use Framer Motion (`framer-motion`) for all animations. Do not use CSS transitions for interactive UI elements — Framer Motion is already a dependency and is used throughout.
@@ -269,6 +291,8 @@ Vitest is configured. Tests live alongside source files as `*.test.ts`.
 
 - `src/lib/calendar.test.ts` — covers all pure calendar utilities and recurrence expansion
 - `src/lib/suggestions.test.ts` — covers autocomplete and smartSuggest
+- `src/lib/hub.test.ts` — season/day part, next-event line, item labels, grocery icons
+- `src/lib/weather.test.ts` — location, Open-Meteo parsing, WMO codes, UV, advice line
 
 The vitest config (`vitest.config.ts`) sets up the `@/*` path alias and uses the `node` environment (no DOM needed for pure utility tests).
 

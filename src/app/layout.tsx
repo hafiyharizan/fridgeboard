@@ -1,17 +1,14 @@
 import type { Metadata } from "next";
-import { Fraunces, Nunito } from "next/font/google";
+import localFont from "next/font/local";
 import { SwRegistration } from "@/components/SwRegistration";
 import "./globals.css";
 
-const fraunces = Fraunces({
-  subsets: ["latin"],
-  variable: "--font-heading",
-  display: "swap",
-});
-
-const nunito = Nunito({
-  subsets: ["latin"],
-  variable: "--font-body",
+// Figtree (SIL OFL, see fonts/Figtree-OFL.txt), bundled so builds don't need
+// Google Fonts. One family for headings and body, as in the hub design.
+const figtree = localFont({
+  src: "./fonts/figtree-latin-wght-normal.woff2",
+  weight: "300 900",
+  variable: "--font-figtree",
   display: "swap",
 });
 
@@ -28,8 +25,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${fraunces.variable} ${nunito.variable}`}>
+    <html lang="en" className={figtree.variable}>
+      <body>
         <SwRegistration />
         {children}
       </body>

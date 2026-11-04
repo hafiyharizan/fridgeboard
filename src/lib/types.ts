@@ -44,6 +44,20 @@ export type CalendarEvent = {
   source_type: CalendarSourceType;
   source_label: string | null;
   source_event_id: string | null;
+  /** Who the event is for (household_people ids). Empty means the whole family. */
+  person_ids?: string[];
+};
+
+export type PersonColor = "sage" | "peach" | "sky" | "lilac" | "sand" | "rose";
+
+/** Someone the household plans around; they don't need an account. */
+export type HouseholdPerson = {
+  id: string;
+  pin_code: string;
+  name: string;
+  color: PersonColor;
+  sort_order: number;
+  created_at: string;
 };
 
 /** A virtual occurrence of a recurring event expanded onto a specific date. */
@@ -124,6 +138,7 @@ export type Database = {
           recurrence_end?: string | null;
           notify_before?: number;
           notify_channels?: NotifyChannel[];
+          person_ids?: string[];
           created_at?: string;
           source_type?: CalendarSourceType;
           source_label?: string | null;
@@ -143,6 +158,7 @@ export type Database = {
           recurrence_end?: string | null;
           notify_before?: number;
           notify_channels?: NotifyChannel[];
+          person_ids?: string[];
           created_at?: string;
           source_type?: CalendarSourceType;
           source_label?: string | null;
@@ -298,6 +314,21 @@ export type Database = {
           channel_type?: string;
           sent_at?: string;
           status?: string;
+        };
+        Relationships: [];
+      };
+      household_people: {
+        Row: HouseholdPerson;
+        Insert: {
+          pin_code: string;
+          name: string;
+          color?: PersonColor;
+          sort_order?: number;
+        };
+        Update: {
+          name?: string;
+          color?: PersonColor;
+          sort_order?: number;
         };
         Relationships: [];
       };

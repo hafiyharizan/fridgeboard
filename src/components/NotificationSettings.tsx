@@ -239,7 +239,7 @@ export function NotificationSettings({ pin }: NotificationSettingsProps) {
                       <div className="flex gap-2">
                         <motion.button
                           whileTap={{ scale: 0.98 }}
-                          className="flex-1 rounded-xl bg-foreground px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[#2f241b] disabled:opacity-60"
+                          className="flex-1 rounded-xl bg-primary px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-primary-hover disabled:opacity-60"
                           disabled={!addValue.trim()}
                           type="submit"
                         >

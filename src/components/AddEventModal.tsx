@@ -5,6 +5,7 @@ import { useModalSurface } from "@/hooks/useModalSurface";
 import { FormEvent, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, Clock, Repeat, X } from "lucide-react";
+import { PersonPicker } from "@/components/People";
 import { NOTIFY_BEFORE_OPTIONS, RECURRENCE_LABELS } from "@/lib/calendar";
 import type {
   CalendarEventType,
@@ -61,6 +62,7 @@ type AddEventModalProps = {
     recurrence_end?: string;
     notify_before: number;
     notify_channels: NotifyChannel[];
+    person_ids?: string[];
   }) => Promise<boolean>;
 };
 
@@ -80,6 +82,7 @@ export function AddEventModal({
   const [recurrenceEnd, setRecurrenceEnd] = useState("");
   const [eventTime, setEventTime] = useState("");
   const [notifyBefore, setNotifyBefore] = useState(-1);
+  const [personIds, setPersonIds] = useState<string[]>([]);
 
   const displayDate = new Date(dateKey + "T00:00:00").toLocaleDateString(
     "en-US",
@@ -110,6 +113,7 @@ export function AddEventModal({
         recurrence !== "none" && recurrenceEnd ? recurrenceEnd : undefined,
       notify_before: canSetReminder ? notifyBefore : -1,
       notify_channels: [] as NotifyChannel[],
+      person_ids: personIds,
     });
 
     if (saved) onClose();
@@ -186,6 +190,8 @@ export function AddEventModal({
                   value={note}
                 />
 
+                <PersonPicker value={personIds} onChange={setPersonIds} />
+
                 {/* Type — event / reminder only */}
                 <div className="space-y-2">
                   <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-muted">
@@ -221,7 +227,7 @@ export function AddEventModal({
                     {COLOR_OPTIONS.map((opt) => (
                       <button
                         aria-label={opt.label}
-                        className={`relative h-8 w-8 rounded-full border-2 transition ${opt.classes} ${
+                        className={`swatch-button relative h-9 w-9 rounded-full border-2 transition ${opt.classes} ${
                           color === opt.value
                             ? "scale-105 shadow-[0_6px_14px_rgba(45,36,28,0.12)] ring-2 ring-foreground/12"
                             : "hover:scale-105"
@@ -345,7 +351,7 @@ export function AddEventModal({
               <div className="shrink-0 border-t border-border/60 px-4 py-3">
                 <motion.button
                   whileTap={{ scale: 0.98 }}
-                  className="w-full rounded-xl bg-foreground px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#2f241b] disabled:opacity-60"
+                  className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-primary-hover disabled:opacity-60"
                   disabled={busy || !title.trim()}
                   type="submit"
                 >

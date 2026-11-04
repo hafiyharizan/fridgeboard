@@ -16,6 +16,41 @@ export type Item = {
   text: string;
   /** Member who added the item; null for items added before tracking began. */
   created_by?: string | null;
+  /** Member credited on a shared device ("who's adding?"); null = created_by. */
+  added_by?: string | null;
+};
+
+export type PrayerMethod =
+  | "MuslimWorldLeague"
+  | "Egyptian"
+  | "Karachi"
+  | "UmmAlQura"
+  | "Dubai"
+  | "MoonsightingCommittee"
+  | "NorthAmerica"
+  | "Kuwait"
+  | "Qatar"
+  | "Singapore"
+  | "Tehran"
+  | "Turkey";
+
+export type HouseholdSettings = {
+  pin_code: string;
+  location_name: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  timezone: string | null;
+  prayer_enabled: boolean;
+  prayer_method: PrayerMethod;
+  prayer_madhab: "shafi" | "hanafi";
+  athan_enabled: boolean;
+  updated_at: string;
+};
+
+export type HouseholdMember = {
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
 };
 
 export type CalendarEventType = "event" | "reminder" | "todo";
@@ -44,20 +79,6 @@ export type CalendarEvent = {
   source_type: CalendarSourceType;
   source_label: string | null;
   source_event_id: string | null;
-  /** Who the event is for (household_people ids). Empty means the whole family. */
-  person_ids?: string[];
-};
-
-export type PersonColor = "sage" | "peach" | "sky" | "lilac" | "sand" | "rose";
-
-/** Someone the household plans around; they don't need an account. */
-export type HouseholdPerson = {
-  id: string;
-  pin_code: string;
-  name: string;
-  color: PersonColor;
-  sort_order: number;
-  created_at: string;
 };
 
 /** A virtual occurrence of a recurring event expanded onto a specific date. */
@@ -138,7 +159,6 @@ export type Database = {
           recurrence_end?: string | null;
           notify_before?: number;
           notify_channels?: NotifyChannel[];
-          person_ids?: string[];
           created_at?: string;
           source_type?: CalendarSourceType;
           source_label?: string | null;
@@ -158,7 +178,6 @@ export type Database = {
           recurrence_end?: string | null;
           notify_before?: number;
           notify_channels?: NotifyChannel[];
-          person_ids?: string[];
           created_at?: string;
           source_type?: CalendarSourceType;
           source_label?: string | null;
@@ -244,6 +263,7 @@ export type Database = {
           list_id: string;
           text: string;
           created_by?: string | null;
+          added_by?: string | null;
         };
         Update: {
           checked_at?: string | null;
@@ -262,6 +282,18 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      household_settings: {
+        Row: HouseholdSettings;
+        Insert: Partial<Omit<HouseholdSettings, "pin_code">> & { pin_code: string };
+        Update: Partial<HouseholdSettings>;
+        Relationships: [];
+      };
+      prayer_push_log: {
+        Row: { pin_code: string; prayer: string; prayer_date: string; sent_at: string };
+        Insert: { pin_code: string; prayer: string; prayer_date: string; sent_at?: string };
+        Update: { pin_code?: string; prayer?: string; prayer_date?: string; sent_at?: string };
+        Relationships: [];
       };
       item_push_log: {
         Row: { item_id: string; sent_at: string };
@@ -317,21 +349,6 @@ export type Database = {
         };
         Relationships: [];
       };
-      household_people: {
-        Row: HouseholdPerson;
-        Insert: {
-          pin_code: string;
-          name: string;
-          color?: PersonColor;
-          sort_order?: number;
-        };
-        Update: {
-          name?: string;
-          color?: PersonColor;
-          sort_order?: number;
-        };
-        Relationships: [];
-      };
       user_profiles: {
         Row: UserProfile;
         // pin_code is set only by create_household / join_household_with_invite.
@@ -364,6 +381,10 @@ export type Database = {
       current_user_pin: {
         Args: Record<string, never>;
         Returns: string | null;
+      };
+      household_members: {
+        Args: Record<string, never>;
+        Returns: HouseholdMember[];
       };
       get_calendar_feed: {
         Args: {

@@ -2,10 +2,10 @@
 
 import { useModalSurface } from "@/hooks/useModalSurface";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { DISMISS_OVERLAYS_EVENT } from "@/lib/kitchen";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, Clock, Repeat, X } from "lucide-react";
-import { PersonPicker } from "@/components/People";
 import { NOTIFY_BEFORE_OPTIONS, RECURRENCE_LABELS } from "@/lib/calendar";
 import type {
   CalendarEventType,
@@ -62,27 +62,65 @@ type AddEventModalProps = {
     recurrence_end?: string;
     notify_before: number;
     notify_channels: NotifyChannel[];
-    person_ids?: string[];
   }) => Promise<boolean>;
 };
+
+type Draft = {
+  dateKey: string;
+  title: string;
+  note: string;
+  eventType: CalendarEventType;
+  color: StickyColor;
+  recurrence: Recurrence;
+  recurrenceEnd: string;
+  eventTime: string;
+  notifyBefore: number;
+};
+
+// A form closed by the kitchen display's idle reset (not by the person) is
+// parked here and restored the next time the form opens for the same day.
+let parkedDraft: Draft | null = null;
 
 export function AddEventModal({
   dateKey,
   busy,
   error,
-  onClose,
+  onClose: closeModal,
   onAdd,
 }: AddEventModalProps) {
+  // Closing on purpose (or saving) discards any parked draft.
+  const onClose = () => {
+    parkedDraft = null;
+    closeModal();
+  };
   const modalRef = useModalSurface(onClose);
-  const [title, setTitle] = useState("");
-  const [note, setNote] = useState("");
-  const [eventType, setEventType] = useState<CalendarEventType>("event");
-  const [color, setColor] = useState<StickyColor>("amber");
-  const [recurrence, setRecurrence] = useState<Recurrence>("none");
-  const [recurrenceEnd, setRecurrenceEnd] = useState("");
-  const [eventTime, setEventTime] = useState("");
-  const [notifyBefore, setNotifyBefore] = useState(-1);
-  const [personIds, setPersonIds] = useState<string[]>([]);
+  const [initial] = useState(() =>
+    parkedDraft?.dateKey === dateKey ? parkedDraft : null,
+  );
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [note, setNote] = useState(initial?.note ?? "");
+  const [eventType, setEventType] = useState<CalendarEventType>(initial?.eventType ?? "event");
+  const [color, setColor] = useState<StickyColor>(initial?.color ?? "amber");
+  const [recurrence, setRecurrence] = useState<Recurrence>(initial?.recurrence ?? "none");
+  const [recurrenceEnd, setRecurrenceEnd] = useState(initial?.recurrenceEnd ?? "");
+  const [eventTime, setEventTime] = useState(initial?.eventTime ?? "");
+  const [notifyBefore, setNotifyBefore] = useState(initial?.notifyBefore ?? -1);
+
+  const draft = useRef<Draft | null>(null);
+  useEffect(() => {
+    draft.current = { dateKey, title, note, eventType, color, recurrence, recurrenceEnd, eventTime, notifyBefore };
+  });
+  // Runs after useModalSurface's own dismiss handler (registered first), so
+  // the draft is parked after that handler's discard.
+  useEffect(() => {
+    const park = () => {
+      if (draft.current && (draft.current.title.trim() || draft.current.note.trim())) {
+        parkedDraft = draft.current;
+      }
+    };
+    window.addEventListener(DISMISS_OVERLAYS_EVENT, park);
+    return () => window.removeEventListener(DISMISS_OVERLAYS_EVENT, park);
+  }, []);
 
   const displayDate = new Date(dateKey + "T00:00:00").toLocaleDateString(
     "en-US",
@@ -113,7 +151,6 @@ export function AddEventModal({
         recurrence !== "none" && recurrenceEnd ? recurrenceEnd : undefined,
       notify_before: canSetReminder ? notifyBefore : -1,
       notify_channels: [] as NotifyChannel[],
-      person_ids: personIds,
     });
 
     if (saved) onClose();
@@ -133,7 +170,7 @@ export function AddEventModal({
         className="calendar-overlay fixed inset-0 z-50 overflow-y-auto bg-foreground/20 p-3 backdrop-blur-sm sm:p-4"
         onClick={onClose}
       >
-        <div className="calendar-overlay-scroller flex min-h-full items-start justify-center sm:items-center">
+        <div className="flex min-h-full items-start justify-center sm:items-center">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
@@ -173,7 +210,6 @@ export function AddEventModal({
                 <input
                   aria-label="Event title"
                 autoFocus
-                data-autofocus
                   className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm text-foreground outline-none transition placeholder:text-muted/55 focus:border-amber-deep focus:ring-3 focus:ring-amber/20"
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="What's happening?"
@@ -189,8 +225,6 @@ export function AddEventModal({
                   rows={2}
                   value={note}
                 />
-
-                <PersonPicker value={personIds} onChange={setPersonIds} />
 
                 {/* Type — event / reminder only */}
                 <div className="space-y-2">
@@ -227,7 +261,7 @@ export function AddEventModal({
                     {COLOR_OPTIONS.map((opt) => (
                       <button
                         aria-label={opt.label}
-                        className={`swatch-button relative h-9 w-9 rounded-full border-2 transition ${opt.classes} ${
+                        className={`relative h-8 w-8 rounded-full border-2 transition ${opt.classes} ${
                           color === opt.value
                             ? "scale-105 shadow-[0_6px_14px_rgba(45,36,28,0.12)] ring-2 ring-foreground/12"
                             : "hover:scale-105"
@@ -351,7 +385,7 @@ export function AddEventModal({
               <div className="shrink-0 border-t border-border/60 px-4 py-3">
                 <motion.button
                   whileTap={{ scale: 0.98 }}
-                  className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-primary-hover disabled:opacity-60"
+                  className="w-full rounded-xl bg-foreground px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#2f241b] disabled:opacity-60"
                   disabled={busy || !title.trim()}
                   type="submit"
                 >

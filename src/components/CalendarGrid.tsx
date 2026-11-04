@@ -50,7 +50,7 @@ export function CalendarGrid({
           return (
             <div
               key={date}
-              className={`calendar-month-cell ${today ? "bg-[#f5e3dc]" : ""}`}
+              className={`calendar-month-cell${today ? " is-today" : ""}`}
             >
               <button
                 className="calendar-day-button"

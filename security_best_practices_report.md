@@ -16,17 +16,17 @@
 
 ## Remaining findings
 
-### SEC-01 — High: permissive push-subscription database policy
+### SEC-01 — Resolved: permissive push-subscription database policy
 
-Evidence: `supabase/migrations/20260407000000_add_push_subscriptions.sql:20-24` defines an all-operations policy with `USING (true)` and `WITH CHECK (true)`.
+Was: `supabase/migrations/20260407000000_add_push_subscriptions.sql` created an all-operations policy with `USING (true)` and `WITH CHECK (true)`.
 
-If deployed as written and permitted by table grants, callers can bypass the secured API through Supabase's direct table interface, potentially reading or modifying other households' subscriptions. API authorization does not repair a permissive database policy. Verify deployed policy/grants and replace it with household-scoped authenticated policies or service-only writes in a separately reviewed migration. No policy or schema was changed under the preservation requirement.
+Fixed by `supabase/migrations/20261102010000_lock_down_server_tables.sql`, which drops that policy (and the equally open ones on `notification_log` and `suggestion_feedback`), keeps RLS on with no policies and revokes table access from `anon` and `authenticated`. Only the service role, used by API routes, can reach these tables. Later service-only tables (`item_push_log`, `prayer_push_log`) follow the same pattern. Confirm the migration has been applied to the deployed project.
 
-### SEC-02 — High: arbitrary notification webhook destinations
+### SEC-02 — Medium (partly mitigated): notification webhook destinations
 
 Evidence: `src/app/api/notifications/route.ts:58-65` sends a server-side request to a stored URL; the webhook dispatch at line 153 obtains it from `config.channel_value`.
 
-An account able to configure a webhook can potentially direct privileged server requests toward internal services. The cron secret blocks unauthorized job invocation, but does not validate stored destinations. Remediation requires a destination allowlist or public-destination checks with DNS/IP handling, redirect restrictions and deployment egress controls. Existing webhook behaviour was retained; review this before enabling untrusted household webhook configuration.
+An account able to configure a webhook can potentially direct privileged server requests toward internal services. The cron secret blocks unauthorized job invocation, but does not validate stored destinations. Remediation requires a destination allowlist or public-destination checks with DNS/IP handling, redirect restrictions and deployment egress controls. Mitigation since this review: `src/lib/webhook-url.ts` now requires public HTTPS URLs and rejects literal private, loopback and link-local hosts. Redirects are not followed (`redirect: "manual"` in `src/app/api/notifications/route.ts`). Still open: a public hostname that resolves to a private address (DNS rebinding) is not checked; add resolved-IP checks before enabling untrusted household webhook configuration.
 
 ## Verification limits
 

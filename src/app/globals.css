@@ -2,25 +2,22 @@
 @import "./workspace.css";
 
 :root {
-  /* Hub palette: pale sage canvas, white cards, deep green ink, peach accent. */
-  --font-heading: var(--font-figtree);
-  --font-body: var(--font-figtree);
-  --background: #eef4ee;
-  --background-strong: #e2ebe2;
+  /* Warm & Homely: warm cream canvas, linen cards, heritage sage, soft amber. */
+  --background: #f7f5f0;
+  --background-strong: #ede9e1;
   --surface: rgba(255, 255, 255, 0.72);
   --surface-strong: #ffffff;
-  --foreground: #1f2d25;
-  --muted: #627168;
-  --border: rgba(52, 82, 62, 0.13);
-  --shadow: 0 1px 2px rgba(31, 45, 37, 0.04), 0 18px 40px -18px rgba(31, 45, 37, 0.16);
-  --amber: #f6ae78;
-  --amber-deep: #c46a2e;
-  --blue: #8fb0d6;
+  --foreground: #2b332e;
+  --muted: #5b655e;
+  --border: rgba(43, 51, 46, 0.08);
+  --shadow: 0 4px 16px -2px rgba(43, 51, 46, 0.05);
+  --amber: #d99b65;
+  --amber-deep: #855324;
+  --blue: #7aa8d8;
   --blue-deep: #3f6f9f;
-  --success: #5f9a6b;
-  --danger: #d0574d;
-  --primary: #3d5a48;
-  --primary-hover: #2f4839;
+  --success: #6c8273;
+  --danger: #b3473a;
+  --font-heading: var(--font-body);
 }
 
 * {
@@ -51,7 +48,7 @@ textarea {
 }
 
 ::selection {
-  background: rgba(246, 174, 120, 0.35);
+  background: rgba(217, 155, 101, 0.3);
 }
 
 @theme inline {
@@ -69,8 +66,6 @@ textarea {
   --color-blue-deep: var(--blue-deep);
   --color-success: var(--success);
   --color-danger: var(--danger);
-  --color-primary: var(--primary);
-  --color-primary-hover: var(--primary-hover);
 }
 
 @utility text-balance {
@@ -94,19 +89,17 @@ textarea {
   }
 
   .fridge-card {
-    background: #fff;
+    background: #ffffff;
     border: 1px solid var(--border);
-    box-shadow: var(--shadow);
-    @apply rounded-[1.75rem];
+    box-shadow: 0 10px 28px -4px rgba(43, 51, 46, 0.08);
+    @apply rounded-[1.5rem];
   }
 
   .note-panel {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.75));
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 
-      inset 0 1px 0 rgba(255, 255, 255, 0.9),
-      0 4px 16px rgba(0, 0, 0, 0.03);
-    @apply rounded-[1.75rem] backdrop-blur-md;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    @apply rounded-[1.5rem];
   }
 
   .pin-dot {

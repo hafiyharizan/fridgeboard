@@ -61,11 +61,35 @@ beforeEach(() => {
   mocks.list.mockResolvedValue({ data: { name: "Grocery", pin_code: "1234" } });
   mocks.profile.mockResolvedValue({ data: { display_name: "Alex Tan" } });
   mocks.claim.mockResolvedValue({ error: null });
-  mocks.admin.mockReturnValue({ from: () => ({ insert: mocks.claim }) });
+  mocks.admin.mockReturnValue({
+    from: (table: string) =>
+      table === "item_push_log" ? { insert: mocks.claim } : reader(table),
+  });
   mocks.send.mockResolvedValue(2);
 });
 
 describe("new item push", () => {
+  it("credits the member picked on a shared tablet and skips their devices", async () => {
+    mocks.item.mockResolvedValue({
+      data: {
+        id: ITEM_ID,
+        list_id: LIST_ID,
+        text: "Bread",
+        created_by: "user-a",
+        added_by: "user-c",
+        created_at: new Date().toISOString(),
+      },
+    });
+    mocks.profile.mockResolvedValue({ data: { display_name: "Sarah Lee" } });
+    await POST(request());
+    expect(mocks.send).toHaveBeenCalledWith(
+      "1234",
+      expect.objectContaining({ body: "Sarah added Bread" }),
+      expect.anything(),
+      { excludeUserId: "user-c" },
+    );
+  });
+
   it("rejects cross-site requests", async () => {
     expect((await POST(request(undefined, "https://evil.example"))).status).toBe(403);
     expect(mocks.send).not.toHaveBeenCalled();

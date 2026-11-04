@@ -1,14 +1,13 @@
-import type { Metadata } from "next";
-import localFont from "next/font/local";
+import type { Metadata, Viewport } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { SwRegistration } from "@/components/SwRegistration";
 import "./globals.css";
 
-// Figtree (SIL OFL, see fonts/Figtree-OFL.txt), bundled so builds don't need
-// Google Fonts. One family for headings and body, as in the hub design.
-const figtree = localFont({
-  src: "./fonts/figtree-latin-wght-normal.woff2",
-  weight: "300 900",
-  variable: "--font-figtree",
+// One family for everything (design system: clarity from across the room).
+// Exposed as both variables so older screens using --font-heading follow along.
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-body",
   display: "swap",
 });
 
@@ -17,6 +16,16 @@ export const metadata: Metadata = {
   description: "A warm shared grocery and to-do list for two phones and one home.",
   applicationName: "Fridgeboard",
   manifest: "/manifest.json",
+  icons: {
+    icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  appleWebApp: { capable: true, title: "Fridgeboard", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#f7f5f0",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -25,8 +34,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={figtree.variable}>
-      <body>
+    <html lang="en">
+      <body className={jakarta.variable}>
         <SwRegistration />
         {children}
       </body>

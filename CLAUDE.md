@@ -12,7 +12,7 @@ Fridgeboard is a shared household management app: grocery lists, to-do lists, an
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 16.2.1 (App Router) |
+| Framework | Next.js 16.4 (App Router) |
 | UI | React 19.2.4 |
 | Styling | Tailwind CSS v4 |
 | Animation | Framer Motion 12 |
@@ -30,40 +30,49 @@ Fridgeboard is a shared household management app: grocery lists, to-do lists, an
 ```
 src/
   app/
-    page.tsx                    # Home — renders PinEntry
-    layout.tsx                  # Root layout (Figtree via next/font/local, bundled in app/fonts)
-    globals.css                 # Tailwind base styles
-    list/
-      page.tsx                  # Main app — renders ListShell (client component)
+    page.tsx                    # Sign-in (renders PinEntry: Google sign-in)
+    setup-household/, setup-pin/, auth/   # Onboarding and OAuth callback
+    list/page.tsx               # Signed-in app — renders ListShell (client)
+    layout.tsx                  # Root layout (Plus Jakarta Sans, manifest, viewport)
+    globals.css                 # Tailwind + global tokens
+    workspace.css               # Signed-in workspace design system (Warm & Homely)
     api/
-      notifications/
-        route.ts                # POST /api/notifications — cron-triggered notification sender
+      notifications/            # Cron: calendar reminders (email/Telegram/webhook)
+      push/subscribe/           # Register a device for Web Push
+      push/new-item/            # Alert the household about a new list item
+      push/remind/              # Cron: grocery reminder / morning summary
+      push/prayer/              # Cron: athan push at prayer times
+      calendar/{feed,import,sync}/  # iCal feed, holiday imports, sync links
+      version/                  # Live deploy id (kitchen display self-update)
   components/
-    PinEntry.tsx                # Google sign-in screen
-    HouseholdWorkspace.tsx      # Signed-in shell: header card, tabs, dialogs, quick add
-    HomeDashboard.tsx           # Home hub: clock, weather, quick add, family schedule, To-Do, Groceries
-    People.tsx                  # Crew: person tags, picker, household people settings
-    ListShell.tsx               # App shell — tab state, loads lists from Supabase
-    ListTab.tsx                 # Grocery/to-do list view
-    ItemRow.tsx                 # Single list item (check, delete)
-    AddItemInput.tsx            # Input + suggestion dropdown for new items
-    SuggestionPanel.tsx         # Smart suggestions panel
-    CalendarTab.tsx             # Month calendar view
-    CalendarGrid.tsx            # Calendar grid rendering
-    AddEventModal.tsx           # Create/edit calendar events
-    EventDetail.tsx             # View/edit a calendar event
-    NotificationSettings.tsx    # Manage notification channels
+    ListShell.tsx               # Auth check, loads household lists
+    WorkspaceData.tsx           # Realtime controllers + household context (members, settings, adder)
+    HouseholdWorkspace.tsx      # Header, tabs, dialogs, kitchen mode wiring
+    HomeDashboard.tsx           # Home grid + AmbientLayer (idle "today" view data)
+    Ambient.tsx                 # Outside card (weather/prayer), athan banner, idle view, place settings
+    KitchenDisplay.tsx          # Settings hold button, sync badge, kitchen switch
+    WhoIsAdding.tsx             # Kitchen display member picker
+    ListTab.tsx, ItemRow.tsx, AddItemInput.tsx, SuggestionPanel.tsx
+    CalendarTab.tsx, CalendarGrid.tsx, CalendarDialogs.tsx, AddEventModal.tsx,
+    DayDetailSheet.tsx, EventDetail.tsx, CalendarSettings.tsx
+    InstallPrompt.tsx, PushNotificationButton.tsx, InvitePanel.tsx, Dialog.tsx
   hooks/
-    useRealtimeItems.ts         # Supabase Realtime subscription for list items
-    useRealtimeCalendar.ts      # Supabase Realtime subscription for calendar events
+    useRealtimeItems.ts, useRealtimeCalendar.ts   # Live data, refresh on wake
+    useHouseholdInfo.ts         # Members + household_settings
+    useKitchenDisplay.ts        # Wake lock, idle, night, self-update
+    useAmbient.ts               # useNow, useWeather, usePrayerDay, useAthan
+    useModalSurface.ts, watchWake.ts
   lib/
-    types.ts                    # All TypeScript types + Database schema type
-    supabase.ts                 # Browser Supabase client (singleton via createBrowserClient)
-    calendar.ts                 # Recurrence expansion, date formatting, month logic
-    suggestions.ts              # Static suggestion library (no API calls)
-supabase/
-  migrations/                   # SQL migration files (apply in filename order)
-public/                         # Static assets (SVGs)
+    types.ts                    # All types + Database schema type
+    supabase.ts / supabase-admin.ts   # Browser/route clients / service client (server only)
+    calendar.ts, dashboard.ts   # Recurrence expansion, Home helpers
+    kitchen.ts                  # Kitchen display rules and timings
+    weather.ts, prayer.ts       # Open-Meteo parsing, prayer times (adhan)
+    push.ts, new-item-push.ts   # Web Push sending and wording
+    offline-snapshot.ts         # Last-known board for public/offline.html
+supabase/migrations/            # SQL migrations (apply in filename order)
+netlify/functions/              # Scheduled functions calling the cron routes
+public/                         # sw.js, offline.html, manifest.json, icons
 ```
 
 ---
@@ -113,14 +122,16 @@ Managed via SQL migrations in `supabase/migrations/`. Apply in filename timestam
 **`notification_log`** — idempotency log for sent notifications
 - `id` uuid PK, `event_id` uuid, `channel_type` text, `sent_at` timestamptz, `status` text
 
-**`household_people`** — the household "crew" (kids and others need no account)
-- `id` uuid PK, `pin_code` text, `name` text (1–40 chars), `color`: `"sage" | "peach" | "sky" | "lilac" | "sand" | "rose"`, `sort_order` int
-- RLS: household members only. Max 12 per household (trigger). Deleting a person untags them from events (trigger). Realtime enabled.
-- `calendar_events.person_ids` uuid[] (default `{}`) — who an event is for; empty = whole family.
-- The UI degrades gracefully before the migration runs (`useHouseholdPeople().available === false`, events are inserted without `person_ids`).
-
 **`suggestion_feedback`** — tracks accepted/dismissed suggestions
 - `id` uuid PK, `list_id` uuid, `suggestion_text` text, `action` text, `created_at` timestamptz
+
+**`household_settings`** — one row per household (members read/write their own)
+- `pin_code` PK, `location_name`, `latitude`, `longitude`, `timezone`
+- `prayer_enabled`, `prayer_method` (adhan method name), `prayer_madhab` (`shafi`/`hanafi`), `athan_enabled`
+
+**`items.added_by`** — member credited when an item is typed on a shared kitchen tablet ("who's adding?"); a trigger clears it unless that member is in the list's household. **`household_members()`** RPC returns name/avatar of the caller's household members.
+
+**`prayer_push_log`**, **`item_push_log`** — single-use logs for athan and new-item pushes (service role only).
 
 ### Key Types (src/lib/types.ts)
 
@@ -164,7 +175,6 @@ const supabase = createClient(
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes (API routes) | Supabase service role key (server-side only) |
 | `CRON_SECRET` | Yes (cron routes) | Bearer token for `/api/notifications` and `/api/push/remind`. If unset, those routes reject every request (fail closed). |
 | `TELEGRAM_BOT_TOKEN` | Optional | For Telegram notification channel |
-| `NEXT_PUBLIC_WEATHER_LAT` / `_LON` / `_LABEL` | Optional | Location for the Home weather card (Open-Meteo, no key). Defaults to Perth, WA |
 | `APP_TIMEZONE` | Optional | IANA zone for event dates/times in cron routes (default `Australia/Perth`; Netlify functions run in UTC) |
 
 ---
@@ -194,18 +204,21 @@ Called by `useRealtimeItems` right after a member adds a list item. Body: `{ ite
 
 `InstallPrompt` (mounted in `HouseholdWorkspace`) suggests installing the app: a native install button on Chromium, Share → Add to Home Screen steps on iPhone/iPad (the only way iOS allows web push). "Not now" snoozes it for 30 days.
 
+### `POST /api/push/prayer`
+
+Cron, every minute (same `event-reminders` scheduled function). For households with prayer times and athan alerts on, sends a push when a prayer time arrives (10-minute catch-up window), once per prayer per day via `prayer_push_log`. Times are calculated locally with `adhan` in the household's `timezone` (default `APP_TIMEZONE`).
+
+### Weather and prayer times
+
+Weather comes from Open-Meteo (no key) in the browser (`useWeather`), refreshed every 30 minutes and cached on the device. The household location is set in the household dialog (Open-Meteo geocoding search). Prayer times are computed on the device (`usePrayerDay`). On a kitchen display with athan alerts on, `useAthan` shows a banner and plays `public/athan.mp3` if present, otherwise a soft chime.
+
+### Offline fallback
+
+`public/sw.js` serves `public/offline.html` when a page navigation fails. That page renders the last-known board that `OfflineSnapshotWriter` saves in localStorage (`fridgeboard.snapshot`, cleared on sign-out), read-only, and returns to `/list` when the connection is back.
+
 ### `GET /api/version`
 
 Returns `{ version }`, the build stamp `APP_VERSION` (Netlify `DEPLOY_ID`, else `COMMIT_REF`, else `"dev"`; set in `next.config.ts`). Kitchen displays poll it and reload while idle when it changes. `"dev"` never triggers a reload.
-
-### Home hub
-
-`HomeDashboard` is the default view:
-- **Clock card:** big time, season and part of day, a Live/Syncing badge, and the next event (`lib/hub.ts` `nextEventLine`, e.g. "Swimming lesson in 42 minutes (Nayla)").
-- **Weather card:** Open-Meteo forecast fetched from the browser by `hooks/useWeather.ts`. Refreshes every 30 min and caches in localStorage (`fridgeboard.weather`). Parsing, WMO codes and the advice line are in `lib/weather.ts`.
-- **Quick add:** + Event opens `AddEventModal`; + Task and + Grocery open an in-place dialog that adds several items without leaving Home.
-- **Family schedule:** Today, Tomorrow or Week tabs, plus crew chips that filter by person (whole-family events always show). Past events today are dimmed.
-- **To-Do and Groceries cards:** open items, plus items done today ("Done at 6:45 AM"). Grocery rows get a category icon from `lib/hub.ts` `groceryIcon`.
 
 ### Kitchen display mode
 
@@ -213,7 +226,8 @@ A per-device switch in the household menu (localStorage `fridgeboard.kitchen-mod
 
 - Screen Wake Lock, re-acquired after the tablet wakes.
 - After 2 minutes untouched: back to Home, dialogs closed. Overlays built on `useModalSurface` close via the `DISMISS_OVERLAYS_EVENT` window event.
-- 22:00–06:00 while idle: dim overlay that swallows the first tap.
+- When idle: a full-screen "today" view (big time, next event, list counts, weather, next prayer) that swallows the first tap; dark and low-glare 22:00–06:00. An unsaved event form is parked and restored.
+- "Who's adding?" member picker on list tabs; resets on idle.
 - Header and content shift ±3px every 10 minutes (burn-in).
 - Settings button needs a press-and-hold (keyboard still opens it directly).
 - "Live" / "Synced N min ago" badge from `useSyncStatus()` in `WorkspaceData`.
@@ -235,7 +249,7 @@ npm run test:watch    # Run tests in watch mode
 npm run test:coverage # Run tests with coverage report
 ```
 
-**Fonts:** Figtree (variable, SIL OFL) is bundled in `src/app/fonts/` and loaded with `next/font/local` as both `--font-heading` and `--font-body`, so `npm run build` needs no network access. `build:local` still works.
+**Note on `next/font/google`:** Fonts (Fraunces, Nunito) are downloaded from Google at build time and self-hosted. `npm run build` requires outbound HTTPS access to `fonts.googleapis.com`. Use `npm run build:local` in air-gapped CI. The font mock is in `test/font-mock.json`.
 
 ---
 
@@ -249,10 +263,10 @@ npm run test:coverage # Run tests with coverage report
 ### Styling
 - Tailwind CSS v4 only. No CSS modules, no inline `style` props except for dynamic values.
 - PostCSS config is in `postcss.config.mjs` using `@tailwindcss/postcss`.
-- Global styles in `src/app/globals.css`; workspace and hub layouts in `src/app/workspace.css`.
-- Look: pale sage canvas, white 24px cards, deep green primary (`--primary` / `bg-primary`, `--green`), peach accent (`--peach`). Hub tokens (`--soft`, `--sage`, `--green`, `--peach*`, `--card-*`) are on `:root` so portaled dialogs get them.
-- Event colours: `.event-{amber|blue|rose|green|purple}` set `--tone` / `--tone-soft`. Person colours: `.person-{sage|peach|sky|lilac|sand|rose}` set `--chip-bg` / `--chip-ink`.
-- Home fills the viewport at ≥1100×700 (header + grid as a flex column; cards scroll internally) so the kitchen tablet (1280×800) never scrolls. Below 1100px it's two columns, below 720px one column.
+- Global styles in `src/app/globals.css`.
+- Design system "Warm & Homely" (kitchen ambient hub): warm cream canvas `#F7F5F0`, white cards, heritage sage `#6C8273` / deep laurel `#4C6153`, soft amber `#D99B65`, ink `#2B332E`. One font: Plus Jakarta Sans (`--font-body`; `--font-heading` points to it).
+- The signed-in workspace is styled in `src/app/workspace.css`, scoped to `.household-workspace` with tokens (`--sage`, `--amber-tint`, `--radius-card`, `--shadow-1`…) defined at the top. Shared pieces: `.card`, `.pill`, `.icon-tile`, `.check-control` + `.check-ring`, `.list-row`, `event-<color>` (sets `--event` / `--event-tint`).
+- Home (`HomeDashboard`) is a three-column landscape layout (clock + glance + quick add | Family Schedule | To-Do + Groceries) that fits 1280×800 without scrolling; two columns below 1180px, one column below 760px. Touch targets are at least 48px.
 
 ### Animations
 - Use Framer Motion (`framer-motion`) for all animations. Do not use CSS transitions for interactive UI elements — Framer Motion is already a dependency and is used throughout.
@@ -291,8 +305,6 @@ Vitest is configured. Tests live alongside source files as `*.test.ts`.
 
 - `src/lib/calendar.test.ts` — covers all pure calendar utilities and recurrence expansion
 - `src/lib/suggestions.test.ts` — covers autocomplete and smartSuggest
-- `src/lib/hub.test.ts` — season/day part, next-event line, item labels, grocery icons
-- `src/lib/weather.test.ts` — location, Open-Meteo parsing, WMO codes, UV, advice line
 
 The vitest config (`vitest.config.ts`) sets up the `@/*` path alias and uses the `node` environment (no DOM needed for pure utility tests).
 

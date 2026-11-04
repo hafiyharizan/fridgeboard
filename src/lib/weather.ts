@@ -1,6 +1,5 @@
-// Weather for the Home hub, from Open-Meteo (free, no key, CORS-enabled).
-// Pure helpers live here so they can be unit tested; the fetching hook is
-// in hooks/useWeather.ts.
+// Weather from Open-Meteo (free, no API key). Pure helpers: URL, parsing and
+// WMO weather-code labels. Fetching happens in the browser (useWeather).
 
 export type WeatherKind =
   | "clear"
@@ -9,136 +8,129 @@ export type WeatherKind =
   | "fog"
   | "drizzle"
   | "rain"
-  | "storm"
-  | "snow";
+  | "snow"
+  | "storm";
 
-export type Weather = {
-  temperature: number;
-  feelsLike: number | null;
-  humidity: number | null;
-  windKmh: number | null;
-  uv: number | null;
-  uvMax: number | null;
-  high: number | null;
-  low: number | null;
-  rainChance: number | null;
+export type DayForecast = {
   code: number;
-  isDay: boolean;
-  label: string;
-  kind: WeatherKind;
+  max: number;
+  min: number;
+  rainChance: number | null;
+  uvMax: number | null;
 };
 
-export type WeatherLocation = {
-  latitude: number;
-  longitude: number;
-  label: string;
-};
-
-const num = (value: unknown, fallback: number) => {
-  const parsed = typeof value === "string" ? Number(value) : value;
-  return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : fallback;
-};
-
-/** Defaults to Perth; override with NEXT_PUBLIC_WEATHER_LAT / _LON / _LABEL. */
-export function getWeatherLocation(env: Record<string, string | undefined> = {
-  lat: process.env.NEXT_PUBLIC_WEATHER_LAT,
-  lon: process.env.NEXT_PUBLIC_WEATHER_LON,
-  label: process.env.NEXT_PUBLIC_WEATHER_LABEL,
-}): WeatherLocation {
-  const latitude = num(env.lat, -31.9523);
-  const longitude = num(env.lon, 115.8613);
-  return {
-    latitude: Math.max(-90, Math.min(90, latitude)),
-    longitude: Math.max(-180, Math.min(180, longitude)),
-    label: env.label?.trim() || "Perth, WA",
+export type Forecast = {
+  current: {
+    temperature: number;
+    apparent: number | null;
+    code: number;
+    isDay: boolean;
+    humidity: number | null;
+    wind: number | null;
   };
-}
+  today: DayForecast;
+  tomorrow: DayForecast | null;
+};
 
-export function buildForecastUrl({ latitude, longitude }: WeatherLocation) {
+export function forecastUrl(latitude: number, longitude: number): string {
   const params = new URLSearchParams({
     latitude: latitude.toFixed(4),
     longitude: longitude.toFixed(4),
     current:
-      "temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,uv_index,is_day",
-    daily: "temperature_2m_max,temperature_2m_min,uv_index_max,precipitation_probability_max",
+      "temperature_2m,apparent_temperature,weather_code,is_day,relative_humidity_2m,wind_speed_10m",
+    daily:
+      "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max",
     timezone: "auto",
-    forecast_days: "1",
-    wind_speed_unit: "kmh",
+    forecast_days: "2",
   });
   return `https://api.open-meteo.com/v1/forecast?${params}`;
 }
 
-/** WMO weather interpretation codes, as used by Open-Meteo. */
-export function describeWeatherCode(code: number): { label: string; kind: WeatherKind } {
+export function geocodeUrl(query: string): string {
+  const params = new URLSearchParams({ name: query.trim(), count: "6", language: "en", format: "json" });
+  return `https://geocoding-api.open-meteo.com/v1/search?${params}`;
+}
+
+export type Place = {
+  name: string;
+  latitude: number;
+  longitude: number;
+  timezone: string | null;
+};
+
+const num = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
+
+function at(list: unknown, index: number): number | null {
+  return Array.isArray(list) ? num(list[index]) : null;
+}
+
+/** Defensive parse: returns null if the essentials are missing. */
+export function parseForecast(data: unknown): Forecast | null {
+  if (!data || typeof data !== "object") return null;
+  const { current, daily } = data as { current?: Record<string, unknown>; daily?: Record<string, unknown> };
+  if (!current || !daily) return null;
+  const temperature = num(current.temperature_2m);
+  const code = num(current.weather_code);
+  const day = (index: number): DayForecast | null => {
+    const max = at(daily.temperature_2m_max, index);
+    const min = at(daily.temperature_2m_min, index);
+    const dayCode = at(daily.weather_code, index);
+    if (max === null || min === null || dayCode === null) return null;
+    return {
+      code: dayCode,
+      max,
+      min,
+      rainChance: at(daily.precipitation_probability_max, index),
+      uvMax: at(daily.uv_index_max, index),
+    };
+  };
+  const today = day(0);
+  if (temperature === null || code === null || !today) return null;
+  return {
+    current: {
+      temperature,
+      apparent: num(current.apparent_temperature),
+      code,
+      isDay: current.is_day !== 0,
+      humidity: num(current.relative_humidity_2m),
+      wind: num(current.wind_speed_10m),
+    },
+    today,
+    tomorrow: day(1),
+  };
+}
+
+export function parsePlaces(data: unknown): Place[] {
+  const results = (data as { results?: unknown } | null)?.results;
+  if (!Array.isArray(results)) return [];
+  return results.flatMap((entry: Record<string, unknown>) => {
+    const latitude = num(entry.latitude);
+    const longitude = num(entry.longitude);
+    if (typeof entry.name !== "string" || latitude === null || longitude === null) return [];
+    const region = [entry.admin1, entry.country].filter((part) => typeof part === "string" && part).join(", ");
+    return [
+      {
+        name: region ? `${entry.name}, ${region}` : entry.name,
+        latitude,
+        longitude,
+        timezone: typeof entry.timezone === "string" ? entry.timezone : null,
+      },
+    ];
+  });
+}
+
+/** WMO weather interpretation codes → plain words and an icon family. */
+export function describeWeather(code: number): { label: string; kind: WeatherKind } {
   if (code === 0) return { label: "Clear", kind: "clear" };
-  if (code === 1) return { label: "Mostly clear", kind: "clear" };
+  if (code === 1) return { label: "Mostly clear", kind: "partly" };
   if (code === 2) return { label: "Partly cloudy", kind: "partly" };
   if (code === 3) return { label: "Overcast", kind: "cloudy" };
-  if (code === 45 || code === 48) return { label: "Foggy", kind: "fog" };
+  if (code === 45 || code === 48) return { label: "Fog", kind: "fog" };
   if (code >= 51 && code <= 57) return { label: "Drizzle", kind: "drizzle" };
-  if (code === 61 || code === 80) return { label: "Light rain", kind: "rain" };
-  if (code === 63 || code === 81) return { label: "Rain", kind: "rain" };
-  if (code === 65 || code === 82 || code === 66 || code === 67) return { label: "Heavy rain", kind: "rain" };
+  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82))
+    return { label: code >= 80 ? "Showers" : "Rain", kind: "rain" };
   if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { label: "Snow", kind: "snow" };
   if (code >= 95) return { label: "Thunderstorms", kind: "storm" };
   return { label: "Cloudy", kind: "cloudy" };
-}
-
-const optional = (value: unknown) =>
-  typeof value === "number" && Number.isFinite(value) ? value : null;
-
-/** Turns an Open-Meteo forecast response into Weather, or null if unusable. */
-export function parseForecast(json: unknown): Weather | null {
-  if (!json || typeof json !== "object") return null;
-  const data = json as {
-    current?: Record<string, unknown>;
-    daily?: Record<string, unknown[]>;
-  };
-  const current = data.current;
-  const temperature = optional(current?.temperature_2m);
-  if (!current || temperature === null) return null;
-  const code = optional(current.weather_code) ?? 3;
-  const first = (key: string) => optional(data.daily?.[key]?.[0]);
-  const { label, kind } = describeWeatherCode(code);
-  return {
-    temperature,
-    feelsLike: optional(current.apparent_temperature),
-    humidity: optional(current.relative_humidity_2m),
-    windKmh: optional(current.wind_speed_10m),
-    uv: optional(current.uv_index),
-    uvMax: first("uv_index_max"),
-    high: first("temperature_2m_max"),
-    low: first("temperature_2m_min"),
-    rainChance: first("precipitation_probability_max"),
-    code,
-    isDay: current.is_day !== 0,
-    label,
-    kind,
-  };
-}
-
-export function uvLevel(uv: number) {
-  if (uv < 3) return "Low";
-  if (uv < 6) return "Moderate";
-  if (uv < 8) return "High";
-  if (uv < 11) return "Very high";
-  return "Extreme";
-}
-
-const round = (value: number) => Math.round(value);
-
-/** One practical line for the household, most important condition first. */
-export function weatherTip(weather: Weather): string {
-  const { kind, rainChance, uvMax, windKmh, high, low } = weather;
-  if (kind === "storm") return "Storms around today. Bring the washing in early.";
-  if (rainChance !== null && rainChance >= 60)
-    return `Rain likely today (${round(rainChance)}%). Pack an umbrella for the school run.`;
-  if (uvMax !== null && uvMax >= 8)
-    return `UV peaks at ${round(uvMax)} (${uvLevel(uvMax).toLowerCase()}). Sunscreen and hats before heading out.`;
-  if (high !== null && high >= 35) return `Hot one, up to ${round(high)}°. Keep water handy.`;
-  if (windKmh !== null && windKmh >= 30) return `Windy at ${round(windKmh)} km/h. Peg the washing well.`;
-  if (low !== null && low <= 8) return `Chilly start at ${round(low)}°. Jackets for the morning.`;
-  if (uvMax !== null && uvMax >= 6) return "High UV around midday. Sunscreen if you're out.";
-  if (high !== null && low !== null) return `Mild day ahead, ${round(low)}° to ${round(high)}°.`;
-  return "A settled day ahead.";
 }

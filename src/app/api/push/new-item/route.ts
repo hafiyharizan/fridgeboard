@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   // Read with the member's own client so RLS limits this to their household.
   const { data: item } = await client
     .from("items")
-    .select("id, list_id, text, created_by, created_at")
+    .select("id, list_id, text, created_by, added_by, created_at")
     .eq("id", itemId)
     .maybeSingle();
   if (!item || item.created_by !== user.id)
@@ -51,13 +51,16 @@ export async function POST(request: Request) {
   if (!isRecentItem(item.created_at))
     return Response.json({ sent: 0, skipped: "stale" }, { headers: noStore });
 
+  // On a shared kitchen tablet the item is credited to the member picked in
+  // "Who's adding?" (a database trigger keeps added_by inside the household).
+  const adderId = item.added_by ?? user.id;
+  const admin = createSupabaseServiceClient();
   const [{ data: list }, { data: profile }] = await Promise.all([
     client.from("lists").select("name, pin_code").eq("id", item.list_id).maybeSingle(),
-    client.from("user_profiles").select("display_name").eq("user_id", user.id).maybeSingle(),
+    admin.from("user_profiles").select("display_name").eq("user_id", adderId).maybeSingle(),
   ]);
   if (!list) return Response.json({ error: "Item not found." }, { status: 404 });
 
-  const admin = createSupabaseServiceClient();
   // Claim the announcement first so retries and replays can't send it twice.
   const { error: claimError } = await admin
     .from("item_push_log")
@@ -71,13 +74,16 @@ export async function POST(request: Request) {
   const sent = await sendPushToPin(
     list.pin_code,
     buildNewItemPush({
-      adderName: getUserDisplayName(user, profile),
+      adderName:
+        adderId === user.id
+          ? getUserDisplayName(user, profile)
+          : profile?.display_name || "Someone",
       itemText: item.text,
       listId: item.list_id,
       listName: list.name,
     }),
     admin,
-    { excludeUserId: user.id },
+    { excludeUserId: adderId },
   );
 
   return Response.json({ sent }, { headers: noStore });

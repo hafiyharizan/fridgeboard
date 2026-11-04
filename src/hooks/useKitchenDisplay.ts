@@ -40,6 +40,11 @@ function writeEnabled(on: boolean) {
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
+/** Whether this device is in kitchen display mode (read-only view of the switch). */
+export function useKitchenEnabled() {
+  return useSyncExternalStore(subscribe, readEnabled, () => false);
+}
+
 /** Keeps the screen on while the page is visible; re-asks after the tablet wakes. */
 function useWakeLock(enabled: boolean) {
   useEffect(() => {
@@ -155,8 +160,10 @@ export function useKitchenDisplay(onIdle: () => void) {
   return {
     enabled,
     setEnabled,
-    /** Dim overlay: kitchen mode, nobody around, and night time. */
-    dimmed: active && isNightTime(now),
+    /** Kitchen mode and nobody has touched the screen for a while. */
+    idle: active,
+    /** 22:00–06:00: the idle view switches to its dark, low-glare look. */
+    night: isNightTime(now),
     offset: enabled ? burnInOffset(now) : { x: 0, y: 0 },
   };
 }

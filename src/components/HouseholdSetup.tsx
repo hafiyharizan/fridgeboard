@@ -163,7 +163,7 @@ export function HouseholdSetup() {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full rounded-[1.4rem] bg-primary px-5 py-4 text-base font-bold text-white shadow-lg transition-colors hover:bg-primary-hover focus:outline-none focus:ring-4 focus:ring-amber/25 disabled:opacity-50"
+                className="w-full rounded-[1.4rem] bg-foreground px-5 py-4 text-base font-bold text-white shadow-lg transition-colors hover:bg-[#2f241b] focus:outline-none focus:ring-4 focus:ring-amber/25 disabled:opacity-50"
                 disabled={loading}
                 onClick={() => {
                   setError("");
@@ -201,7 +201,7 @@ export function HouseholdSetup() {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full rounded-[1.4rem] bg-primary px-5 py-4 text-base font-bold text-white shadow-lg transition-colors hover:bg-primary-hover focus:outline-none focus:ring-4 focus:ring-amber/25 disabled:opacity-50"
+                className="w-full rounded-[1.4rem] bg-foreground px-5 py-4 text-base font-bold text-white shadow-lg transition-colors hover:bg-[#2f241b] focus:outline-none focus:ring-4 focus:ring-amber/25 disabled:opacity-50"
                 disabled={loading}
                 onClick={handleCreateHousehold}
                 type="button"
@@ -233,7 +233,7 @@ export function HouseholdSetup() {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full rounded-[1.4rem] bg-primary px-5 py-4 text-base font-bold text-white shadow-lg transition-colors hover:bg-primary-hover focus:outline-none focus:ring-4 focus:ring-amber/25"
+                className="w-full rounded-[1.4rem] bg-foreground px-5 py-4 text-base font-bold text-white shadow-lg transition-colors hover:bg-[#2f241b] focus:outline-none focus:ring-4 focus:ring-amber/25"
                 onClick={() => {
                   setSessionPin(createdPin);
                   router.push("/list");
@@ -269,7 +269,7 @@ export function HouseholdSetup() {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full rounded-[1.4rem] bg-primary px-5 py-4 text-base font-bold text-white shadow-lg transition-colors hover:bg-primary-hover focus:outline-none focus:ring-4 focus:ring-amber/25 disabled:opacity-50"
+                className="w-full rounded-[1.4rem] bg-foreground px-5 py-4 text-base font-bold text-white shadow-lg transition-colors hover:bg-[#2f241b] focus:outline-none focus:ring-4 focus:ring-amber/25 disabled:opacity-50"
                 disabled={loading}
                 type="submit"
               >

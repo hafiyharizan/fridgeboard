@@ -1,7 +1,6 @@
 "use client";
 
 import { useModalSurface } from "@/hooks/useModalSurface";
-import { EventTags } from "@/components/People";
 
 import { motion } from "framer-motion";
 import { Bell, Check, Clock, Repeat, Trash2, X } from "lucide-react";
@@ -103,9 +102,6 @@ export function EventDetail({
           >
             {event.title}
           </h3>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <EventTags event={event} max={6} />
-          </div>
           {event.note ? (
             <p className="mt-1 text-sm leading-relaxed text-muted">
               {event.note}
@@ -148,7 +144,7 @@ export function EventDetail({
               </span>
             ) : null}
 
-            {event.source_type && event.source_type !== "manual" && event.source_label ? (
+            {event.source_type !== "manual" && event.source_label ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-border bg-white/60 px-2 py-0.5 text-[0.65rem] font-bold text-muted">
                 Imported · {event.source_label}
               </span>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useModalSurface } from "@/hooks/useModalSurface";
-import { EventTags } from "@/components/People";
 
 import { motion } from "framer-motion";
 import { Bell, Clock, Plus, Repeat, X } from "lucide-react";
@@ -156,7 +155,6 @@ export function DayDetailSheet({
                       ) : null}
 
                       <div className="mt-0.5 flex flex-wrap gap-1">
-                        <EventTags event={event} />
                         {event.recurrence !== "none" ? (
                           <span className="inline-flex items-center gap-0.5 rounded-full border border-border/60 bg-white/60 px-1.5 py-0.5 text-[0.55rem] font-bold text-muted">
                             <Repeat className="h-2 w-2" />
@@ -186,7 +184,7 @@ export function DayDetailSheet({
         <div className="shrink-0 border-t border-border/60 px-4 py-3">
           <motion.button
             whileTap={{ scale: 0.98 }}
-            className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-primary-hover"
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-foreground px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#2f241b]"
             onClick={() => {
               onClose();
               onAddEvent();

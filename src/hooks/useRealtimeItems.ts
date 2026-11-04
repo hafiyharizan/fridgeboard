@@ -174,7 +174,8 @@ export function useRealtimeItems(listId: string) {
     };
   }, [listId, supabase, revision]);
 
-  const addItem = async (text: string) => {
+  /** `addedBy`: member credited on a shared device (null = signed-in account). */
+  const addItem = async (text: string, addedBy: string | null = null) => {
     if (working.current) return false;
 
     if (!navigator.onLine) {
@@ -189,7 +190,7 @@ export function useRealtimeItems(listId: string) {
     try {
       const { data: inserted, error: insertError } = await supabase
         .from("items")
-        .insert({ list_id: listId, text })
+        .insert({ list_id: listId, text, ...(addedBy ? { added_by: addedBy } : {}) })
         .select("id")
         .single();
 

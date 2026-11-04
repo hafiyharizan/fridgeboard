@@ -20,6 +20,15 @@ describe("parseFeed", () => {
     const atom = `<feed><entry><title>Atom story</title><link rel="alternate" href="https://x.test/a"/><updated>2026-11-04T09:00:00Z</updated></entry></feed>`;
     expect(parseFeed(atom, "X")).toEqual([{ id: "https://x.test/a", title: "Atom story", link: "https://x.test/a", source: "X", publishedAt: "2026-11-04T09:00:00.000Z" }]);
   });
+  it("stays fast on a malformed feed", () => {
+    const junk = "<item ".repeat(300_000);
+    const started = Date.now();
+    expect(parseFeed(junk, "X")).toEqual([]);
+    expect(Date.now() - started).toBeLessThan(500);
+  });
+  it("ignores look-alike tags such as <itemized>", () => {
+    expect(parseFeed("<itemized><title>No</title><link>https://x.test</link></itemized>", "X")).toEqual([]);
+  });
   it("survives junk", () => {
     expect(parseFeed("not xml at all", "X")).toEqual([]);
     expect(parseFeed("<item><title>No link</title></item>", "X")).toEqual([]);

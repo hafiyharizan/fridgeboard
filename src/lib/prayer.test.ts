@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countdown, dayInZone, dayKey, duePrayer, isPrayerMethod, nextPrayer, prayerSchedule } from "@/lib/prayer";
+import { countdown, dayInZone, dayKey, duePrayer, isPrayerMethod, nextPrayer, prayerSchedule, prayerView } from "@/lib/prayer";
 
 const PERTH = { lat: -31.9523, lon: 115.8613 };
 const day = { year: 2026, month: 11, day: 3 };
@@ -56,5 +56,27 @@ describe("prayer times", () => {
   it("validates method names", () => {
     expect(isPrayerMethod("Singapore")).toBe(true);
     expect(isPrayerMethod("Made up")).toBe(false);
+  });
+});
+
+describe("prayer view", () => {
+  const today = prayerSchedule(PERTH.lat, PERTH.lon, { year: 2026, month: 11, day: 4 }, "MuslimWorldLeague");
+  const tomorrow = prayerSchedule(PERTH.lat, PERTH.lon, { year: 2026, month: 11, day: 5 }, "MuslimWorldLeague");
+
+  it("shows today's times until Isha, with the next one highlighted", () => {
+    const view = prayerView(today, tomorrow, new Date(today[2].time.getTime() - 60_000));
+    expect(view.nextIsTomorrow).toBe(false);
+    expect(view.shown).toBe(today);
+    expect(view.next?.name).toBe("asr");
+  });
+
+  it("switches to tomorrow's times once Isha has passed", () => {
+    const view = prayerView(today, tomorrow, new Date(today[4].time.getTime() + 60_000));
+    expect(view.nextIsTomorrow).toBe(true);
+    expect(view.shown).toBe(tomorrow);
+    expect(view.next).toBe(tomorrow[0]);
+    // The tile and the "next" line now come from the same day.
+    expect(view.shown).toContain(view.next);
+    expect(view.today).toBe(today);
   });
 });

@@ -103,9 +103,40 @@ function isoDate(raw: string): string | null {
   return Number.isFinite(time) ? new Date(time).toISOString() : null;
 }
 
+/**
+ * `<tag ...>...</tag>` blocks, found with a single forward scan. (A lazy
+ * regex over the whole feed can go quadratic on a malformed one.)
+ */
+function blocksOf(xml: string, tag: string, max: number): string[] {
+  const lower = xml.toLowerCase();
+  const open = `<${tag}`;
+  const close = `</${tag}>`;
+  const blocks: string[] = [];
+  let from = 0;
+  while (blocks.length < max) {
+    const start = lower.indexOf(open, from);
+    if (start === -1) break;
+    const next = lower[start + open.length];
+    if (next !== ">" && !/\s/.test(next ?? "")) {
+      from = start + open.length;
+      continue;
+    }
+    const end = lower.indexOf(close, start);
+    if (end === -1) break;
+    blocks.push(xml.slice(start, end + close.length));
+    from = end + close.length;
+  }
+  return blocks;
+}
+
+/** Field blocks are capped too, so one huge item can't dominate the work. */
+const MAX_BLOCK = 20_000;
+
 /** Parses RSS 2.0 <item>s and Atom <entry>s. */
 export function parseFeed(xml: string, source: string, limit = 20): NewsItem[] {
-  const blocks = xml.match(/<item[\s>][\s\S]*?<\/item>/gi) ?? xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) ?? [];
+  const scan = limit * 3;
+  const found = blocksOf(xml, "item", scan);
+  const blocks = (found.length ? found : blocksOf(xml, "entry", scan)).map((block) => block.slice(0, MAX_BLOCK));
   const items: NewsItem[] = [];
   for (const block of blocks) {
     const title = field(block, "title").slice(0, 220);

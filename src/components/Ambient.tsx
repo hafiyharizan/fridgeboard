@@ -110,24 +110,26 @@ export function OutsideCard({
           <dl className="weather-stats">
             <div>
               <dt>
-                <Sun size={14} aria-hidden /> UV
+                <Sun size={15} aria-hidden /> UV
               </dt>
               <dd>
                 {(() => {
                   const uv = forecast.current.uv ?? forecast.today.uvMax;
-                  return uv === null ? "—" : `${Math.round(uv)} ${uvLevel(uv).replace("Moderate", "Mod").replace("Very high", "V. high")}`;
+                  return uv === null ? "—" : `${Math.round(uv)} ${uvLevel(uv)}`;
                 })()}
               </dd>
             </div>
             <div>
               <dt>
-                <Droplets size={14} aria-hidden /> Humidity
+                <Droplets size={15} aria-hidden />
+                <span className="sr-only">Humidity</span>
               </dt>
               <dd>{forecast.current.humidity === null ? "—" : `${Math.round(forecast.current.humidity)}%`}</dd>
             </div>
             <div>
               <dt>
-                <Wind size={14} aria-hidden /> Wind
+                <Wind size={15} aria-hidden />
+                <span className="sr-only">Wind</span>
               </dt>
               <dd>{forecast.current.wind === null ? "—" : `${Math.round(forecast.current.wind)} km/h`}</dd>
             </div>
@@ -139,11 +141,13 @@ export function OutsideCard({
           {forecast.tomorrow && (
             <p className="weather-tomorrow">
               <WeatherIcon code={forecast.tomorrow.code} size={16} />
-              Tomorrow · {describeWeather(forecast.tomorrow.code).label} ·{" "}
-              {Math.round(forecast.tomorrow.max)}° / {Math.round(forecast.tomorrow.min)}°
-              {forecast.tomorrow.rainChance !== null && forecast.tomorrow.rainChance >= 20
-                ? ` · ${forecast.tomorrow.rainChance}% rain`
-                : ""}
+              <span>
+                Tomorrow {Math.round(forecast.tomorrow.max)}° / {Math.round(forecast.tomorrow.min)}° ·{" "}
+                {describeWeather(forecast.tomorrow.code).label}
+                {forecast.tomorrow.rainChance !== null && forecast.tomorrow.rainChance >= 20
+                  ? ` · ${forecast.tomorrow.rainChance}% rain`
+                  : ""}
+              </span>
             </p>
           )}
         </>
@@ -154,23 +158,21 @@ export function OutsideCard({
         <div className="prayer-strip">
           <p className="prayer-next">
             <MoonStar size={16} aria-hidden />
-            <span>
-              Next: <strong>{prayer.next.label}</strong> {clock(prayer.next.time)}
-              {prayer.nextIsTomorrow ? " tomorrow" : ""} · {countdown(prayer.next.time, now)}
+            <span className="prayer-day">{prayer.nextIsTomorrow ? "Tomorrow" : "Today"}</span>
+            <span className="prayer-countdown">
+              <strong>{prayer.next.label}</strong> {countdown(prayer.next.time, now)}
             </span>
           </p>
-          <ol className="prayer-times">
-            {prayer.today.map((slot) => (
-              <li
-                key={slot.name}
-                className={
-                  !prayer.nextIsTomorrow && slot.name === prayer.next?.name ? "is-next" : ""
-                }
-              >
-                <span>{slot.label}</span>
-                <strong>{clock(slot.time).replace(/\s?[AP]M$/i, "")}</strong>
-              </li>
-            ))}
+          <ol className="prayer-times" aria-label={`Prayer times ${prayer.nextIsTomorrow ? "tomorrow" : "today"}`}>
+            {prayer.shown.map((slot) => {
+              const next = slot.name === prayer.next?.name;
+              return (
+                <li key={slot.name} className={next ? "is-next" : ""} aria-current={next ? "time" : undefined}>
+                  <span>{slot.label}</span>
+                  <strong>{clock(slot.time).replace(/\s?[AP]M$/i, "")}</strong>
+                </li>
+              );
+            })}
           </ol>
         </div>
       )}

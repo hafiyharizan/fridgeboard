@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { watchWake } from "@/hooks/watchWake";
 import { dateKey } from "@/lib/dashboard";
-import { duePrayer, nextPrayer, prayerSchedule, type PrayerSlot } from "@/lib/prayer";
+import { duePrayer, prayerSchedule, prayerView, type PrayerSlot } from "@/lib/prayer";
 import { forecastUrl, parseForecast, type Forecast } from "@/lib/weather";
 import type { NewsItem } from "@/lib/news";
 import type { HouseholdSettings } from "@/lib/types";
@@ -91,9 +91,12 @@ export function useWeather(settings: HouseholdSettings | null) {
 }
 
 export type PrayerDay = {
+  /** Today's five prayers (the athan checks these). */
   today: PrayerSlot[];
+  /** The day to show: today's times, or tomorrow's once Isha has passed. */
+  shown: PrayerSlot[];
   next: PrayerSlot | null;
-  /** True when `next` is tomorrow's Fajr. */
+  /** True when `next` is tomorrow's Fajr (and `shown` is tomorrow). */
   nextIsTomorrow: boolean;
 };
 
@@ -125,11 +128,7 @@ export function usePrayerDay(settings: HouseholdSettings | null, now: Date): Pra
 
   return useMemo(() => {
     if (!schedules) return null;
-    const at = new Date(minute * 60_000);
-    const next = nextPrayer(schedules.today, at);
-    return next
-      ? { today: schedules.today, next, nextIsTomorrow: false }
-      : { today: schedules.today, next: schedules.tomorrow[0], nextIsTomorrow: true };
+    return prayerView(schedules.today, schedules.tomorrow, new Date(minute * 60_000));
   }, [schedules, minute]);
 }
 

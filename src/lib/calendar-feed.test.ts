@@ -26,6 +26,14 @@ function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
 }
 
 describe("buildCalendarFeed", () => {
+  it("can't be broken into extra properties by line breaks in a title", () => {
+    const feed = buildCalendarFeed([makeEvent({ title: "Dinner\rATTENDEE:mailto:x@evil.test\nX-Y:z" })]);
+    const lines = feed.split("\r\n");
+    expect(lines.some((line) => line.startsWith("ATTENDEE"))).toBe(false);
+    expect(lines.some((line) => line.startsWith("X-Y"))).toBe(false);
+    expect(feed).not.toMatch(/\r(?!\n)/);
+  });
+
   it("renders a valid all-day VEVENT", () => {
     const feed = buildCalendarFeed([makeEvent()]);
 

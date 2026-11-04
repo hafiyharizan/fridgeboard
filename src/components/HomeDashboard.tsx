@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CalendarPlus,
   Check,
+  ChevronDown,
   Clock3,
   ListChecks,
   Newspaper,
@@ -16,11 +17,15 @@ import {
   Sunrise,
 } from "lucide-react";
 import { AmbientScreen, OutsideCard } from "@/components/Ambient";
+import { Dialog } from "@/components/Dialog";
 import { useNews, useNow, type PrayerDay } from "@/hooks/useAmbient";
-import { newsAge } from "@/lib/news";
+import { useWholeRows } from "@/hooks/useWholeRows";
+import { newsAge, type NewsItem } from "@/lib/news";
 import type { Forecast } from "@/lib/weather";
 import { useCalendarData, useListData } from "@/components/WorkspaceData";
 import {
+  defaultScheduleDay,
+  eventPhase,
   nextDateKey,
   nextUpEvent,
   pendingItems,
@@ -153,42 +158,69 @@ function HeroClock({
   );
 }
 
-/** Latest headlines from /api/news (ABC News WA + national by default). */
+function NewsRow({ item, now }: { item: NewsItem; now: Date }) {
+  return (
+    <a className="news-item" href={item.link} target="_blank" rel="noopener noreferrer">
+      <span className="news-title">{item.title}</span>
+      <span className="news-meta">
+        {item.source}
+        {item.publishedAt && <> · {newsAge(item.publishedAt, now)}</>}
+      </span>
+    </a>
+  );
+}
+
+/**
+ * Two headlines from /api/news (ABC News WA + national by default); the
+ * rest open in a dialog. Lowest priority on Home, so it stays small.
+ */
 function NewsCard() {
   const news = useNews();
   const now = useNow(60_000);
+  const [open, setOpen] = useState(false);
+  const shown = news.items.slice(0, 2);
+  const [rowsRef, visibleRows] = useWholeRows<HTMLUListElement>(shown.map((item) => item.id).join());
   return (
     <section className="card news-card" aria-label="News">
       <div className="news-head">
         <p className="eyebrow">
           <Newspaper size={16} aria-hidden /> News
         </p>
-        {news.items[0] && <span className="news-source">{news.items[0].source.replace(/ WA$/, "")}</span>}
+        {news.items.length > 0 && (
+          <button className="text-button" onClick={() => setOpen(true)}>
+            More news
+          </button>
+        )}
       </div>
       {news.loading && !news.items.length ? (
         <ul className="news-list" aria-label="Loading headlines">
-          {[0, 1, 2].map((key) => (
+          {[0, 1].map((key) => (
             <li key={key}>
               <span className="news-skeleton" />
             </li>
           ))}
         </ul>
-      ) : news.items.length ? (
-        <ul className="news-list">
-          {news.items.slice(0, 6).map((item) => (
-            <li key={item.id}>
-              <a className="news-item" href={item.link} target="_blank" rel="noopener noreferrer">
-                <span className="news-title">{item.title}</span>
-                <span className="news-meta">
-                  {item.source}
-                  {item.publishedAt && <> · {newsAge(item.publishedAt, now)}</>}
-                </span>
-              </a>
+      ) : shown.length ? (
+        <ul className="news-list" ref={rowsRef}>
+          {shown.map((item, index) => (
+            <li key={item.id} data-clipped={index >= visibleRows || undefined}>
+              <NewsRow item={item} now={now} />
             </li>
           ))}
         </ul>
       ) : (
         <p className="empty-copy">Headlines aren&apos;t available right now.</p>
+      )}
+      {open && (
+        <Dialog title="News" onClose={() => setOpen(false)}>
+          <ul className="news-list is-dialog">
+            {news.items.map((item) => (
+              <li key={item.id}>
+                <NewsRow item={item} now={now} />
+              </li>
+            ))}
+          </ul>
+        </Dialog>
       )}
     </section>
   );
@@ -201,9 +233,13 @@ type ScheduleView = "today" | "tomorrow" | "week";
 function AgendaRow({
   event,
   onEvent,
+  phase,
+  clipped,
 }: {
   event: ExpandedCalendarEvent;
   onEvent: (event: ExpandedCalendarEvent) => void;
+  phase: "earlier" | "now" | "later";
+  clipped?: boolean;
 }) {
   const { time, period } = timeParts(event.event_time);
   const Icon = TYPE_ICON[event.event_type];
@@ -211,13 +247,15 @@ function AgendaRow({
     event.note?.trim() ||
     (event.recurrence !== "none" ? `Repeats ${event.recurrence}` : "");
   return (
-    <li>
+    <li data-clipped={clipped || undefined}>
       <motion.button
         layout
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         whileTap={{ scale: 0.99 }}
-        className={`agenda-row event-${event.color}${event.is_done ? " is-done" : ""}`}
+        className={`agenda-row event-${event.color}${event.is_done ? " is-done" : ""}${
+          phase === "earlier" ? " is-past" : ""
+        }`}
         onClick={() => onEvent(event)}
       >
         <span className="agenda-time">
@@ -227,6 +265,7 @@ function AgendaRow({
         <span className="agenda-bar" aria-hidden />
         <span className="agenda-main">
           <span className="agenda-title">
+            {phase === "now" && event.event_time && <span className="pill pill-now">Now</span>}
             {event.event_type !== "event" && (
               <span className="pill">{TYPE_LABEL[event.event_type]}</span>
             )}
@@ -242,6 +281,7 @@ function AgendaRow({
 
 function FamilySchedule({
   today,
+  now,
   events,
   loading,
   onDay,
@@ -250,6 +290,7 @@ function FamilySchedule({
   calendarStatus,
 }: {
   today: string;
+  now: Date;
   events: ExpandedCalendarEvent[];
   loading: boolean;
   onDay: (date: string) => void;
@@ -257,11 +298,25 @@ function FamilySchedule({
   onAddEvent: (date: string) => void;
   calendarStatus: ReactNode;
 }) {
-  const [view, setView] = useState<ScheduleView>("today");
+  // Opens on tomorrow once today is over; a tap on a tab wins for the rest
+  // of the day.
+  const [picked, setPicked] = useState<{ day: string; view: ScheduleView } | null>(null);
+  const view: ScheduleView =
+    picked?.day === today ? picked.view : defaultScheduleDay(events, now);
+  const setView = (next: ScheduleView) => setPicked({ day: today, view: next });
+  const [showEarlier, setShowEarlier] = useState(false);
   const tomorrow = nextDateKey(today);
   const days = weekDates(today);
   const shownDay = view === "tomorrow" ? tomorrow : today;
   const dayEvents = events.filter((event) => event.occurrence_date === shownDay);
+  const phased = dayEvents.map((event) => ({ event, phase: eventPhase(event, now) }));
+  const ahead = phased.filter((row) => row.phase !== "earlier");
+  const earlier = phased.filter((row) => row.phase === "earlier");
+  const shownRows = showEarlier ? [...ahead, ...earlier] : ahead;
+  const [rowsRef, visibleRows] = useWholeRows<HTMLUListElement>(
+    `${view}|${showEarlier}|${shownRows.map((row) => `${row.event.id}${row.phase}`).join()}`,
+  );
+  const hiddenRows = Math.max(0, shownRows.length - visibleRows);
   const tomorrowEvents = events.filter(
     (event) => event.occurrence_date === tomorrow,
   );
@@ -345,15 +400,41 @@ function FamilySchedule({
           })}
         </ul>
       ) : dayEvents.length ? (
-        <ul className="agenda">
-          {dayEvents.map((event) => (
-            <AgendaRow
-              key={`${event.id}-${event.occurrence_date}`}
-              event={event}
-              onEvent={onEvent}
-            />
-          ))}
-        </ul>
+        <>
+          <ul className="agenda" ref={rowsRef}>
+            {!ahead.length && !showEarlier && (
+              <li className="agenda-note">That&apos;s everything for today.</li>
+            )}
+            {shownRows.map(({ event, phase }, index) => (
+              <AgendaRow
+                key={`${event.id}-${event.occurrence_date}`}
+                event={event}
+                phase={phase}
+                onEvent={onEvent}
+                clipped={index >= visibleRows}
+              />
+            ))}
+          </ul>
+          {(earlier.length > 0 || hiddenRows > 0) && (
+            <div className="agenda-extra">
+              {earlier.length > 0 && (
+                <button
+                  className="text-button agenda-earlier"
+                  aria-expanded={showEarlier}
+                  onClick={() => setShowEarlier((value) => !value)}
+                >
+                  {showEarlier ? "Hide earlier" : `Earlier today · ${earlier.length}`}
+                  <ChevronDown size={16} aria-hidden className={showEarlier ? "is-flipped" : undefined} />
+                </button>
+              )}
+              {hiddenRows > 0 && (
+                <button className="text-button" onClick={() => onDay(shownDay)}>
+                  View all · {dayEvents.length} plans <ArrowUpRight size={16} />
+                </button>
+              )}
+            </div>
+          )}
+        </>
       ) : (
         <div className="agenda-empty">
           <span className="icon-tile">
@@ -424,7 +505,9 @@ function ListCard({
   const grocery = kind === "grocery";
   const Icon = grocery ? ShoppingBasket : ListChecks;
   const title = grocery ? "Groceries" : "To-Do";
-  const visible = items.slice(0, 8);
+  const rendered = items.slice(0, 8);
+  const [rowsRef, visibleRows] = useWholeRows<HTMLUListElement>(rendered.map((item) => item.id).join());
+  const shown = Math.min(rendered.length, visibleRows);
   return (
     <section className="card list-card" aria-label={`${title} summary`}>
       <div className="card-heading">
@@ -460,12 +543,13 @@ function ListCard({
             : "A little breathing room. Nothing left to do."}
         </p>
       )}
-      <ul className="list-rows">
-        {visible.map((item) => (
+      <ul className="list-rows" ref={rowsRef}>
+        {rendered.map((item, index) => (
           <motion.li
             layout
             key={item.id}
             className={`list-row${grocery ? " is-tinted" : ""}`}
+            data-clipped={index >= shown || undefined}
           >
             <button
               className="check-control"
@@ -481,10 +565,10 @@ function ListCard({
           </motion.li>
         ))}
       </ul>
-      {items.length > visible.length && (
+      {items.length > shown && (
         <div className="list-footer">
           <button className="text-button" onClick={onOpen}>
-            +{items.length - visible.length} more <ArrowUpRight size={16} />
+            View all · {items.length} {items.length === 1 ? "item" : "items"} <ArrowUpRight size={16} />
           </button>
         </div>
       )}
@@ -543,6 +627,7 @@ export function HomeDashboard({
 
       <FamilySchedule
         today={today}
+        now={now}
         events={events}
         loading={calendar.loading}
         onDay={onDay}

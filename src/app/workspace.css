@@ -562,105 +562,105 @@ textarea:focus-visible {
   color: var(--amber-ink);
 }
 .weather-temp {
-  font-size: 40px;
+  font-size: 44px;
   font-weight: 700;
-  line-height: 44px;
+  line-height: 48px;
   letter-spacing: -0.03em;
 }
 .weather-words {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--muted);
 }
 .weather-words b {
-  font-size: 16px;
+  font-size: 17px;
   color: var(--ink);
 }
 .weather-words svg {
   display: inline;
   vertical-align: -2px;
 }
+/* Secondary weather: one quiet line of stats, then tip and tomorrow. */
 .weather-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin: 10px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 15px;
 }
 .weather-stats > div {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   min-width: 0;
-  padding: 6px 10px;
-  border-radius: 14px;
-  background: var(--sage-tint);
 }
 .weather-stats dt {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
 }
 .weather-stats dt svg {
   flex: none;
 }
 .weather-stats dd {
-  margin: 2px 0 0;
-  overflow: hidden;
-  font-size: 15px;
-  font-weight: 700;
-  text-overflow: ellipsis;
+  margin: 0;
+  color: var(--ink);
+  font-weight: 600;
   white-space: nowrap;
 }
-.weather-tip {
+.weather-tip,
+.weather-tomorrow {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin-top: 8px;
-  padding: 8px 12px;
-  border-radius: 14px;
-  background: var(--amber-tint);
-  color: var(--ink);
-  font-size: 13px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 15px;
   line-height: 1.4;
 }
-.weather-tip svg {
-  flex: none;
-  margin-top: 1px;
-  color: var(--amber-ink);
+.weather-tip {
+  color: var(--ink);
 }
-.weather-tomorrow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  font-size: 14px;
-  color: var(--muted);
-}
+.weather-tip svg,
 .weather-tomorrow svg {
   flex: none;
+  margin-top: 2px;
+}
+.weather-tip svg {
+  color: var(--amber-ink);
+}
+.weather-tomorrow svg {
   color: var(--sage-deep);
 }
 .prayer-strip {
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid var(--line);
 }
 .prayer-next {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--muted);
 }
 .prayer-next svg {
   flex: none;
   color: var(--sage-deep);
 }
-.prayer-next strong {
+.prayer-day {
+  color: var(--ink);
+  font-weight: 700;
+}
+.prayer-countdown {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.prayer-countdown strong {
   color: var(--ink);
 }
 .prayer-times {
@@ -675,34 +675,40 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 4px 2px;
+  min-width: 0;
+  padding: 5px 2px;
   border-radius: 12px;
   background: var(--oat-soft);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.03em;
   color: var(--muted);
 }
+.prayer-times li span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .prayer-times li strong {
-  font-size: 15px;
+  font-size: 18px;
+  line-height: 24px;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 .prayer-times li.is-next {
   background: var(--sage-deep);
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
 }
 .prayer-times li.is-next strong {
   color: #fff;
 }
 
-/* News: fills whatever height is left in the side column. */
+/* News: two headlines in whatever height is left in the side column. */
 .news-card {
   display: flex;
   flex: 1;
   flex-direction: column;
-  min-height: 150px;
-  padding: 18px 22px 14px;
+  min-height: 0;
+  padding: 16px 22px 12px;
   overflow: hidden;
 }
 .news-head {
@@ -719,19 +725,19 @@ textarea:focus-visible {
 .news-head .eyebrow svg {
   color: var(--amber);
 }
-.news-source {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
+.news-head .text-button {
+  margin: -10px -4px -10px 0;
 }
 .news-list {
+  position: relative;
   flex: 1;
   min-height: 0;
-  margin: 8px -8px 0;
+  margin: 4px -8px 0;
   padding: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
   list-style: none;
+}
+.news-list.is-dialog {
+  margin: 0;
 }
 .news-list li + li {
   border-top: 1px solid var(--line);
@@ -750,14 +756,14 @@ textarea:focus-visible {
 .news-title {
   display: -webkit-box;
   overflow: hidden;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.35;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 .news-meta {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 .news-skeleton {
@@ -846,6 +852,7 @@ textarea:focus-visible {
   box-shadow: var(--shadow-1);
 }
 .agenda {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -921,6 +928,38 @@ textarea:focus-visible {
 }
 .agenda-icon {
   color: var(--muted);
+}
+.agenda-row.is-past {
+  background: var(--oat-soft);
+}
+.agenda-row.is-past > * {
+  opacity: 0.55;
+}
+.agenda-title .pill-now {
+  flex: none;
+  background: var(--sage-deep);
+  color: #fff;
+}
+.agenda-note {
+  padding: 4px 4px 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+.agenda-extra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+}
+.agenda-extra .text-button:only-child:not(.agenda-earlier) {
+  margin-left: auto;
+}
+.agenda-earlier {
+  color: var(--muted);
+}
+.agenda-earlier svg.is-flipped {
+  rotate: 180deg;
 }
 .agenda-row.is-done strong {
   text-decoration: line-through;
@@ -1057,6 +1096,7 @@ textarea:focus-visible {
   flex: none;
 }
 .list-rows {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -1100,9 +1140,9 @@ textarea:focus-visible {
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
-  padding-top: 6px;
+  padding-top: 2px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* ---------- List and calendar tabs ---------- */
@@ -1734,11 +1774,20 @@ textarea:focus-visible {
 
 /* ---------- Responsive ---------- */
 
-/* Landscape tablet and up: everything fits on one screen, no page scroll. */
+/* Landscape tablet and up: everything fits on one screen, no page scroll.
+   Lists show whole rows only (useWholeRows) plus a "View all" link. */
 @media (min-width: 1180px) and (min-height: 680px) {
   .household-workspace.is-home {
     height: 100dvh;
     overflow: hidden;
+  }
+  .is-home .agenda,
+  .is-home .list-rows,
+  .is-home .news-list {
+    overflow: hidden;
+  }
+  .is-home [data-clipped] {
+    visibility: hidden;
   }
 }
 
@@ -1775,12 +1824,9 @@ textarea:focus-visible {
   .weather-stats {
     margin-top: 8px;
   }
-  .weather-tip {
-    margin-top: 6px;
-    padding: 6px 10px;
-  }
+  .weather-tip,
   .weather-tomorrow {
-    margin-top: 6px;
+    margin-top: 4px;
   }
   .prayer-strip {
     margin-top: 8px;
@@ -1819,6 +1865,12 @@ textarea:focus-visible {
 
 /* Portrait tablet / small laptop: two columns, lists underneath. */
 @media (max-width: 1179px) {
+  .prayer-times {
+    gap: 4px;
+  }
+  .prayer-times li span {
+    font-size: 12px;
+  }
   .dashboard-header {
     flex-wrap: wrap;
   }

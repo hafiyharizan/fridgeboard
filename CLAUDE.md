@@ -44,6 +44,7 @@ src/
       push/prayer/              # Cron: athan push at prayer times
       calendar/{feed,import,sync}/  # iCal feed, holiday imports, sync links
       version/                  # Live deploy id (kitchen display self-update)
+      news/                     # Headlines for the Home news card (server-side RSS)
   components/
     ListShell.tsx               # Auth check, loads household lists
     WorkspaceData.tsx           # Realtime controllers + household context (members, settings, adder)
@@ -60,7 +61,7 @@ src/
     useRealtimeItems.ts, useRealtimeCalendar.ts   # Live data, refresh on wake
     useHouseholdInfo.ts         # Members + household_settings
     useKitchenDisplay.ts        # Wake lock, idle, night, self-update
-    useAmbient.ts               # useNow, useWeather, usePrayerDay, useAthan
+    useAmbient.ts               # useNow, useWeather, usePrayerDay, useAthan, useNews
     useModalSurface.ts, watchWake.ts
   lib/
     types.ts                    # All types + Database schema type
@@ -68,6 +69,7 @@ src/
     calendar.ts, dashboard.ts   # Recurrence expansion, Home helpers
     kitchen.ts                  # Kitchen display rules and timings
     weather.ts, prayer.ts       # Open-Meteo parsing, prayer times (adhan)
+    news.ts                     # RSS/Atom parsing for the Home news card
     push.ts, new-item-push.ts   # Web Push sending and wording
     offline-snapshot.ts         # Last-known board for public/offline.html
 supabase/migrations/            # SQL migrations (apply in filename order)
@@ -176,6 +178,7 @@ const supabase = createClient(
 | `CRON_SECRET` | Yes (cron routes) | Bearer token for `/api/notifications` and `/api/push/remind`. If unset, those routes reject every request (fail closed). |
 | `TELEGRAM_BOT_TOKEN` | Optional | For Telegram notification channel |
 | `APP_TIMEZONE` | Optional | IANA zone for event dates/times in cron routes (default `Australia/Perth`; Netlify functions run in UTC) |
+| `NEWS_FEEDS` | Optional | Home news card feeds: comma-separated `Label\|https://…` RSS/Atom URLs, max 6 (default ABC News WA + ABC Top Stories) |
 
 ---
 
@@ -210,11 +213,15 @@ Cron, every minute (same `event-reminders` scheduled function). For households w
 
 ### Weather and prayer times
 
-Weather comes from Open-Meteo (no key) in the browser (`useWeather`), refreshed every 30 minutes and cached on the device. The household location is set in the household dialog (Open-Meteo geocoding search). Prayer times are computed on the device (`usePrayerDay`). On a kitchen display with athan alerts on, `useAthan` shows a banner and plays `public/athan.mp3` if present, otherwise a soft chime.
+Weather comes from Open-Meteo (no key) in the browser (`useWeather`), refreshed every 30 minutes and cached on the device. The Outside card shows UV, humidity and wind tiles plus a one-line tip (`weatherTip`, `uvLevel` in `lib/weather.ts`). The household location is set in the household dialog (Open-Meteo geocoding search). Prayer times are computed on the device (`usePrayerDay`). On a kitchen display with athan alerts on, `useAthan` shows a banner and plays `public/athan.mp3` if present, otherwise a soft chime.
 
 ### Offline fallback
 
 `public/sw.js` serves `public/offline.html` when a page navigation fails. That page renders the last-known board that `OfflineSnapshotWriter` saves in localStorage (`fridgeboard.snapshot`, cleared on sign-out), read-only, and returns to `/list` when the connection is back.
+
+### `GET /api/news`
+
+Headlines for the Home news card. Fetches the fixed feed list from `NEWS_FEEDS` (never a URL from the client) on the server, since RSS has no CORS; 8s timeout, 2MB cap, 15-minute in-memory cache, stale copy served if every feed fails. Parsing in `lib/news.ts` (no XML dependency): tags stripped, entities decoded, only http(s) links kept, merged newest first without duplicates. `useNews` in `hooks/useAmbient.ts` caches on the device (`fridgeboard.news`) and refreshes every 15 minutes and on wake.
 
 ### `GET /api/version`
 
@@ -266,7 +273,7 @@ npm run test:coverage # Run tests with coverage report
 - Global styles in `src/app/globals.css`.
 - Design system "Warm & Homely" (kitchen ambient hub): warm cream canvas `#F7F5F0`, white cards, heritage sage `#6C8273` / deep laurel `#4C6153`, soft amber `#D99B65`, ink `#2B332E`. One font: Plus Jakarta Sans (`--font-body`; `--font-heading` points to it).
 - The signed-in workspace is styled in `src/app/workspace.css`, scoped to `.household-workspace` with tokens (`--sage`, `--amber-tint`, `--radius-card`, `--shadow-1`…) defined at the top. Shared pieces: `.card`, `.pill`, `.icon-tile`, `.check-control` + `.check-ring`, `.list-row`, `event-<color>` (sets `--event` / `--event-tint`).
-- Home (`HomeDashboard`) is a three-column landscape layout (clock + glance + quick add | Family Schedule | To-Do + Groceries) that fits 1280×800 without scrolling; two columns below 1180px, one column below 760px. Touch targets are at least 48px.
+- Home (`HomeDashboard`) is a three-column landscape layout (clock + Outside + News | Family Schedule | To-Do + Groceries) that fits 1280×800 without scrolling; the news list scrolls inside its card. Two columns below 1180px, one column below 760px (news moves last). Adding from Home uses the "+" buttons on the schedule, To-Do and Groceries cards. Touch targets are at least 48px.
 
 ### Animations
 - Use Framer Motion (`framer-motion`) for all animations. Do not use CSS transitions for interactive UI elements — Framer Motion is already a dependency and is used throughout.
@@ -305,6 +312,7 @@ Vitest is configured. Tests live alongside source files as `*.test.ts`.
 
 - `src/lib/calendar.test.ts` — covers all pure calendar utilities and recurrence expansion
 - `src/lib/suggestions.test.ts` — covers autocomplete and smartSuggest
+- `src/lib/news.test.ts` — feed parsing, merging, `NEWS_FEEDS` and story ages
 
 The vitest config (`vitest.config.ts`) sets up the `@/*` path alias and uses the `node` environment (no DOM needed for pure utility tests).
 

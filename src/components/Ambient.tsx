@@ -10,6 +10,7 @@ import {
   CloudRain,
   CloudSun,
   Droplets,
+  Lightbulb,
   ListChecks,
   MapPin,
   Moon,
@@ -18,11 +19,12 @@ import {
   ShoppingBasket,
   Snowflake,
   Sun,
+  Wind,
   X,
 } from "lucide-react";
 import { formatEventTime } from "@/lib/calendar";
 import { countdown, isPrayerMethod, PRAYER_METHODS, type PrayerSlot } from "@/lib/prayer";
-import { describeWeather, geocodeUrl, parsePlaces, type Forecast, type Place, type WeatherKind } from "@/lib/weather";
+import { describeWeather, geocodeUrl, parsePlaces, uvLevel, weatherTip, type Forecast, type Place, type WeatherKind } from "@/lib/weather";
 import type { PrayerDay } from "@/hooks/useAmbient";
 import type { SettingsPatch } from "@/hooks/useHouseholdInfo";
 import type { ExpandedCalendarEvent, HouseholdSettings } from "@/lib/types";
@@ -105,6 +107,35 @@ export function OutsideCard({
               </span>
             </span>
           </div>
+          <dl className="weather-stats">
+            <div>
+              <dt>
+                <Sun size={14} aria-hidden /> UV
+              </dt>
+              <dd>
+                {(() => {
+                  const uv = forecast.current.uv ?? forecast.today.uvMax;
+                  return uv === null ? "—" : `${Math.round(uv)} ${uvLevel(uv).replace("Moderate", "Mod").replace("Very high", "V. high")}`;
+                })()}
+              </dd>
+            </div>
+            <div>
+              <dt>
+                <Droplets size={14} aria-hidden /> Humidity
+              </dt>
+              <dd>{forecast.current.humidity === null ? "—" : `${Math.round(forecast.current.humidity)}%`}</dd>
+            </div>
+            <div>
+              <dt>
+                <Wind size={14} aria-hidden /> Wind
+              </dt>
+              <dd>{forecast.current.wind === null ? "—" : `${Math.round(forecast.current.wind)} km/h`}</dd>
+            </div>
+          </dl>
+          <p className="weather-tip">
+            <Lightbulb size={16} aria-hidden />
+            <span>{weatherTip(forecast)}</span>
+          </p>
           {forecast.tomorrow && (
             <p className="weather-tomorrow">
               <WeatherIcon code={forecast.tomorrow.code} size={16} />

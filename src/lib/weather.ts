@@ -27,6 +27,7 @@ export type Forecast = {
     isDay: boolean;
     humidity: number | null;
     wind: number | null;
+    uv: number | null;
   };
   today: DayForecast;
   tomorrow: DayForecast | null;
@@ -37,7 +38,7 @@ export function forecastUrl(latitude: number, longitude: number): string {
     latitude: latitude.toFixed(4),
     longitude: longitude.toFixed(4),
     current:
-      "temperature_2m,apparent_temperature,weather_code,is_day,relative_humidity_2m,wind_speed_10m",
+      "temperature_2m,apparent_temperature,weather_code,is_day,relative_humidity_2m,wind_speed_10m,uv_index",
     daily:
       "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max",
     timezone: "auto",
@@ -95,6 +96,7 @@ export function parseForecast(data: unknown): Forecast | null {
       isDay: current.is_day !== 0,
       humidity: num(current.relative_humidity_2m),
       wind: num(current.wind_speed_10m),
+      uv: num(current.uv_index),
     },
     today,
     tomorrow: day(1),
@@ -133,4 +135,30 @@ export function describeWeather(code: number): { label: string; kind: WeatherKin
   if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { label: "Snow", kind: "snow" };
   if (code >= 95) return { label: "Thunderstorms", kind: "storm" };
   return { label: "Cloudy", kind: "cloudy" };
+}
+
+export function uvLevel(uv: number): string {
+  if (uv < 3) return "Low";
+  if (uv < 6) return "Moderate";
+  if (uv < 8) return "High";
+  if (uv < 11) return "Very high";
+  return "Extreme";
+}
+
+/** One practical line for the household, most important condition first. */
+export function weatherTip(forecast: Forecast): string {
+  const { current, today } = forecast;
+  const kind = describeWeather(current.code).kind;
+  const round = Math.round;
+  if (kind === "storm" || describeWeather(today.code).kind === "storm")
+    return "Storms today. Bring the washing in.";
+  if (today.rainChance !== null && today.rainChance >= 60)
+    return `Rain likely (${today.rainChance}%). Take an umbrella.`;
+  if (today.uvMax !== null && today.uvMax >= 8)
+    return `UV up to ${round(today.uvMax)} today. Sunscreen and hats.`;
+  if (today.max >= 35) return `Hot, up to ${round(today.max)}°. Keep water handy.`;
+  if (current.wind !== null && current.wind >= 30) return `Windy, ${round(current.wind)} km/h. Peg the washing well.`;
+  if (today.min <= 8) return `Chilly, down to ${round(today.min)}°. Jackets on.`;
+  if (today.uvMax !== null && today.uvMax >= 6) return "High UV at midday. Pack sunscreen.";
+  return `Mild day, ${round(today.min)}° to ${round(today.max)}°.`;
 }

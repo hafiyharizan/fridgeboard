@@ -5,6 +5,7 @@ import { watchWake } from "@/hooks/watchWake";
 import { dateKey } from "@/lib/dashboard";
 import { duePrayer, nextPrayer, prayerSchedule, type PrayerSlot } from "@/lib/prayer";
 import { forecastUrl, parseForecast, type Forecast } from "@/lib/weather";
+import type { NewsItem } from "@/lib/news";
 import type { HouseholdSettings } from "@/lib/types";
 
 const WEATHER_REFRESH_MS = 30 * 60 * 1000;
@@ -204,4 +205,58 @@ function playChime() {
   } catch {
     // Audio not allowed yet (no interaction since load): the banner still shows.
   }
+}
+
+const NEWS_REFRESH_MS = 15 * 60 * 1000;
+const NEWS_CACHE_KEY = "fridgeboard.news";
+
+/** Headlines from /api/news, refreshed every 15 minutes and on wake. */
+export function useNews() {
+  const [state, setState] = useState<{ items: NewsItem[]; at: number | null; failed: boolean; loading: boolean }>({
+    items: [],
+    at: null,
+    failed: false,
+    loading: true,
+  });
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const response = await fetch("/api/news", { cache: "no-store" });
+        const body = (await response.json()) as { items?: NewsItem[] };
+        if (!alive) return;
+        if (!response.ok || !Array.isArray(body.items) || !body.items.length) throw new Error("No headlines");
+        const at = Date.now();
+        setState({ items: body.items, at, failed: false, loading: false });
+        try {
+          localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify({ at, items: body.items }));
+        } catch {
+          // No offline copy; fine.
+        }
+      } catch {
+        if (alive) setState((prev) => ({ ...prev, failed: true, loading: false }));
+      }
+    };
+    const first = window.setTimeout(() => {
+      try {
+        const cached = JSON.parse(localStorage.getItem(NEWS_CACHE_KEY) ?? "null") as { at: number; items: NewsItem[] } | null;
+        if (cached?.items?.length && alive) setState({ items: cached.items, at: cached.at, failed: false, loading: false });
+      } catch {
+        // Ignore a bad cache entry.
+      }
+      void load();
+    }, 0);
+    const timer = window.setInterval(load, NEWS_REFRESH_MS);
+    const stop = watchWake(
+      () => void load(),
+      () => void load(),
+    );
+    return () => {
+      alive = false;
+      window.clearTimeout(first);
+      window.clearInterval(timer);
+      stop();
+    };
+  }, []);
+  return state;
 }

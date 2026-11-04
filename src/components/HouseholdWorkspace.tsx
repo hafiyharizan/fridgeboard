@@ -168,10 +168,7 @@ export function HouseholdWorkspace({
               <House size={22} />
             </span>
             <span className="brand-text">
-              <span className="eyebrow">
-                Fridgeboard<span className="brand-dot" aria-hidden />
-                Household hub
-              </span>
+              <span className="eyebrow">Fridgeboard</span>
               <Greeting name={name} />
             </span>
           </button>

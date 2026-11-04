@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { describeWeather, forecastUrl, parseForecast, parsePlaces } from "@/lib/weather";
+import { describeWeather, forecastUrl, parseForecast, parsePlaces, uvLevel, weatherTip, type Forecast } from "@/lib/weather";
 
 const sample = {
-  current: { temperature_2m: 23.4, apparent_temperature: 22, weather_code: 1, is_day: 1, relative_humidity_2m: 48, wind_speed_10m: 12 },
+  current: { temperature_2m: 23.4, apparent_temperature: 22, weather_code: 1, is_day: 1, relative_humidity_2m: 48, wind_speed_10m: 12, uv_index: 6.2 },
   daily: {
     weather_code: [1, 61],
     temperature_2m_max: [27.2, 25],
@@ -59,5 +59,34 @@ describe("weather", () => {
       { name: "Cottesloe, Western Australia, Australia", latitude: -31.99, longitude: 115.75, timezone: "Australia/Perth" },
     ]);
     expect(parsePlaces({})).toEqual([]);
+  });
+});
+
+describe("weather details", () => {
+  const base = parseForecast(sample) as Forecast;
+  const tweak = (today: Partial<Forecast["today"]>, current: Partial<Forecast["current"]> = {}): Forecast => ({
+    ...base,
+    today: { ...base.today, ...today },
+    current: { ...base.current, ...current },
+  });
+  it("reads current UV, and copes without it", () => {
+    expect(base.current.uv).toBe(6.2);
+    expect(parseForecast({ ...sample, current: { ...sample.current, uv_index: undefined } })?.current.uv).toBeNull();
+    expect(new URL(forecastUrl(0, 0)).searchParams.get("current")).toContain("uv_index");
+  });
+  it("labels UV", () => {
+    expect(uvLevel(2)).toBe("Low");
+    expect(uvLevel(6.2)).toBe("High");
+    expect(uvLevel(12)).toBe("Extreme");
+  });
+  it("gives the most important tip first", () => {
+    expect(weatherTip(tweak({}, { code: 95 }))).toMatch(/^Storms/);
+    expect(weatherTip(tweak({ rainChance: 80 }))).toBe("Rain likely (80%). Take an umbrella.");
+    expect(weatherTip(base)).toBe("UV up to 8 today. Sunscreen and hats.");
+    expect(weatherTip(tweak({ uvMax: 3, max: 38 }))).toBe("Hot, up to 38°. Keep water handy.");
+    expect(weatherTip(tweak({ uvMax: 3 }, { wind: 35 }))).toBe("Windy, 35 km/h. Peg the washing well.");
+    expect(weatherTip(tweak({ uvMax: 3, min: 6 }))).toBe("Chilly, down to 6°. Jackets on.");
+    expect(weatherTip(tweak({ uvMax: 6.5 }))).toBe("High UV at midday. Pack sunscreen.");
+    expect(weatherTip(tweak({ uvMax: 2 }))).toBe("Mild day, 15° to 27°.");
   });
 });

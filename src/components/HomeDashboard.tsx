@@ -10,14 +10,14 @@ import {
   Check,
   Clock3,
   ListChecks,
-  ListPlus,
+  Newspaper,
+  Plus,
   ShoppingBasket,
-  Sun,
   Sunrise,
 } from "lucide-react";
-import { SyncBadge } from "@/components/KitchenDisplay";
 import { AmbientScreen, OutsideCard } from "@/components/Ambient";
-import { useNow, type PrayerDay } from "@/hooks/useAmbient";
+import { useNews, useNow, type PrayerDay } from "@/hooks/useAmbient";
+import { newsAge } from "@/lib/news";
 import type { Forecast } from "@/lib/weather";
 import { useCalendarData, useListData } from "@/components/WorkspaceData";
 import {
@@ -123,12 +123,6 @@ function HeroClock({
     : "";
   return (
     <section className="card hero-card" aria-label="Time and next up">
-      <div className="hero-top">
-        <p className="eyebrow">
-          <Sun size={16} aria-hidden /> Today at home
-        </p>
-        <SyncBadge />
-      </div>
       <p className="hero-time">
         <time dateTime={now.toISOString()} suppressHydrationWarning>
           {time}
@@ -159,26 +153,44 @@ function HeroClock({
   );
 }
 
-function QuickTile({
-  className,
-  icon,
-  label,
-  onClick,
-}: {
-  className: string;
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
+/** Latest headlines from /api/news (ABC News WA + national by default). */
+function NewsCard() {
+  const news = useNews();
+  const now = useNow(60_000);
   return (
-    <motion.button
-      whileTap={{ scale: 0.97 }}
-      className={`quick-tile ${className}`}
-      onClick={onClick}
-    >
-      {icon}
-      {label}
-    </motion.button>
+    <section className="card news-card" aria-label="News">
+      <div className="news-head">
+        <p className="eyebrow">
+          <Newspaper size={16} aria-hidden /> News
+        </p>
+        {news.items[0] && <span className="news-source">{news.items[0].source.replace(/ WA$/, "")}</span>}
+      </div>
+      {news.loading && !news.items.length ? (
+        <ul className="news-list" aria-label="Loading headlines">
+          {[0, 1, 2].map((key) => (
+            <li key={key}>
+              <span className="news-skeleton" />
+            </li>
+          ))}
+        </ul>
+      ) : news.items.length ? (
+        <ul className="news-list">
+          {news.items.slice(0, 6).map((item) => (
+            <li key={item.id}>
+              <a className="news-item" href={item.link} target="_blank" rel="noopener noreferrer">
+                <span className="news-title">{item.title}</span>
+                <span className="news-meta">
+                  {item.source}
+                  {item.publishedAt && <> · {newsAge(item.publishedAt, now)}</>}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="empty-copy">Headlines aren&apos;t available right now.</p>
+      )}
+    </section>
   );
 }
 
@@ -270,6 +282,13 @@ function FamilySchedule({
             <h2>Family Schedule</h2>
             <p>Shared with everyone at home</p>
           </div>
+          <button
+            className="icon-button card-add schedule-add"
+            onClick={() => onAddEvent(view === "tomorrow" ? tomorrow : today)}
+            aria-label="Add an event"
+          >
+            <Plus size={20} />
+          </button>
         </div>
         <div className="segmented" role="group" aria-label="Schedule range">
           {tabs.map((tab) => (
@@ -393,10 +412,12 @@ function ListCard({
   list,
   kind,
   onOpen,
+  onAdd,
 }: {
   list: FridgeList;
   kind: "grocery" | "todo";
   onOpen: () => void;
+  onAdd: () => void;
 }) {
   const data = useListData(list.id);
   const items = pendingItems(data.items);
@@ -416,6 +437,13 @@ function ListCard({
             {items.length} {grocery ? "needed" : "remaining"}
           </span>
         )}
+        <button
+          className="icon-button card-add"
+          onClick={onAdd}
+          aria-label={grocery ? "Add a grocery item" : "Add a task"}
+        >
+          <Plus size={20} />
+        </button>
         <button
           className="icon-button card-open"
           onClick={onOpen}
@@ -510,33 +538,7 @@ export function HomeDashboard({
           now={now}
           onSetup={onSetup}
         />
-        <section className="card quick-card" aria-label="Quick add">
-          <p className="eyebrow">Quick add</p>
-          <div className="quick-tiles">
-            <QuickTile
-              className="is-sage"
-              icon={<CalendarPlus size={22} />}
-              label="Event"
-              onClick={() => onAddEvent(today)}
-            />
-            {todo && (
-              <QuickTile
-                className="is-oat"
-                icon={<ListPlus size={22} />}
-                label="Task"
-                onClick={() => onAddToList(todo.id)}
-              />
-            )}
-            {grocery && (
-              <QuickTile
-                className="is-amber"
-                icon={<ShoppingBasket size={22} />}
-                label="Grocery"
-                onClick={() => onAddToList(grocery.id)}
-              />
-            )}
-          </div>
-        </section>
+        <NewsCard />
       </div>
 
       <FamilySchedule
@@ -551,7 +553,7 @@ export function HomeDashboard({
 
       <div className="home-lists">
         {todo ? (
-          <ListCard list={todo} kind="todo" onOpen={() => onNavigate(todo.id)} />
+          <ListCard list={todo} kind="todo" onOpen={() => onNavigate(todo.id)} onAdd={() => onAddToList(todo.id)} />
         ) : (
           <section className="card list-card">
             <h2>To-Do</h2>
@@ -563,6 +565,7 @@ export function HomeDashboard({
             list={grocery}
             kind="grocery"
             onOpen={() => onNavigate(grocery.id)}
+            onAdd={() => onAddToList(grocery.id)}
           />
         ) : (
           <section className="card list-card">

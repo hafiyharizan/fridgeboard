@@ -439,31 +439,16 @@ textarea:focus-visible {
 
 /* Hero clock */
 .hero-card {
-  padding: 24px 26px;
+  padding: 20px 24px 16px;
   border-radius: var(--radius-hero);
-}
-.hero-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.hero-top .eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.hero-top .eyebrow svg {
-  color: var(--amber);
 }
 .hero-time {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-top: 14px;
-  font-size: 76px;
+  font-size: 66px;
   font-weight: 700;
-  line-height: 80px;
+  line-height: 70px;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
 }
@@ -474,10 +459,10 @@ textarea:focus-visible {
   color: var(--muted);
 }
 .hero-date {
-  margin-top: 6px;
-  font-size: 20px;
+  margin-top: 2px;
+  font-size: 19px;
   font-weight: 500;
-  line-height: 28px;
+  line-height: 26px;
 }
 .hero-next {
   display: flex;
@@ -485,8 +470,8 @@ textarea:focus-visible {
   gap: 10px;
   width: 100%;
   min-height: 48px;
-  margin-top: 16px;
-  padding-top: 14px;
+  margin-top: 10px;
+  padding-top: 4px;
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 15px;
@@ -539,7 +524,7 @@ textarea:focus-visible {
 
 /* Outside: weather + prayer */
 .outside-card {
-  padding: 20px 22px;
+  padding: 18px 22px;
 }
 .outside-setup {
   display: flex;
@@ -568,8 +553,8 @@ textarea:focus-visible {
 }
 .weather-icon {
   flex: none;
-  width: 54px;
-  height: 54px;
+  width: 48px;
+  height: 48px;
   display: grid;
   place-items: center;
   border-radius: 16px;
@@ -577,9 +562,9 @@ textarea:focus-visible {
   color: var(--amber-ink);
 }
 .weather-temp {
-  font-size: 44px;
+  font-size: 40px;
   font-weight: 700;
-  line-height: 48px;
+  line-height: 44px;
   letter-spacing: -0.03em;
 }
 .weather-words {
@@ -597,11 +582,61 @@ textarea:focus-visible {
   display: inline;
   vertical-align: -2px;
 }
+.weather-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 0;
+}
+.weather-stats > div {
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 14px;
+  background: var(--sage-tint);
+}
+.weather-stats dt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.weather-stats dt svg {
+  flex: none;
+}
+.weather-stats dd {
+  margin: 2px 0 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weather-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--amber-tint);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.weather-tip svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--amber-ink);
+}
 .weather-tomorrow {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 8px;
   font-size: 14px;
   color: var(--muted);
 }
@@ -610,8 +645,8 @@ textarea:focus-visible {
   color: var(--sage-deep);
 }
 .prayer-strip {
-  margin-top: 14px;
-  padding-top: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--line);
 }
 .prayer-next {
@@ -632,7 +667,7 @@ textarea:focus-visible {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -640,7 +675,7 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6px 2px;
+  padding: 4px 2px;
   border-radius: 12px;
   background: var(--oat-soft);
   font-size: 11px;
@@ -661,40 +696,86 @@ textarea:focus-visible {
   color: #fff;
 }
 
-/* Quick input */
-.quick-card {
-  margin-top: auto;
-  padding: 20px 22px 22px;
+/* News: fills whatever height is left in the side column. */
+.news-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 150px;
+  padding: 18px 22px 14px;
+  overflow: hidden;
 }
-.quick-tiles {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.news-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  margin-top: 14px;
 }
-.quick-tile {
+.news-head .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.news-head .eyebrow svg {
+  color: var(--amber);
+}
+.news-source {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.news-list {
+  flex: 1;
+  min-height: 0;
+  margin: 8px -8px 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+}
+.news-list li + li {
+  border-top: 1px solid var(--line);
+}
+.news-item {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 72px;
-  padding: 10px 8px;
-  border-radius: 16px;
-  font-size: 15px;
-  font-weight: 700;
+  gap: 2px;
+  min-height: 48px;
+  padding: 9px 8px;
+  border-radius: 12px;
 }
-.quick-tile.is-sage {
-  background: var(--sage-deep);
-  color: #fff;
+.news-item:hover {
+  background: var(--sage-tint);
 }
-.quick-tile.is-oat {
-  background: var(--oat);
-  color: var(--ink);
+.news-title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
-.quick-tile.is-amber {
-  background: var(--amber-strong);
-  color: var(--amber-ink);
+.news-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+.news-skeleton {
+  display: block;
+  height: 38px;
+  margin: 8px;
+  border-radius: 10px;
+  background: var(--sage-tint);
+}
+.card-add {
+  margin: -6px 0 -6px auto;
+  color: var(--sage-deep);
+}
+.card-add + .card-open {
+  margin-left: -10px;
+}
+.schedule-add {
+  margin-right: -4px;
 }
 
 /* Family schedule */
@@ -961,9 +1042,19 @@ textarea:focus-visible {
   padding-bottom: 14px;
   border-bottom: 1px solid var(--line);
 }
+.list-card .card-heading {
+  gap: 10px;
+}
 .list-card .card-heading h2 {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
   font-size: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.list-card .card-heading .pill {
+  flex: none;
 }
 .list-rows {
   flex: 1;
@@ -1654,7 +1745,7 @@ textarea:focus-visible {
 /* Shorter landscape screens (e.g. 1280×800): tighten vertical rhythm. */
 @media (min-width: 1180px) and (max-height: 860px) {
   .household-workspace {
-    --gutter: 16px;
+    --gutter: 14px;
   }
   .dashboard-header {
     margin-top: 16px;
@@ -1662,26 +1753,44 @@ textarea:focus-visible {
     padding-block: 8px;
   }
   .hero-card {
-    padding: 18px 22px;
+    padding: 16px 20px 8px;
   }
   .hero-time {
-    font-size: 64px;
-    line-height: 68px;
-    margin-top: 8px;
+    font-size: 60px;
+    line-height: 64px;
   }
   .hero-date {
     font-size: 18px;
+    line-height: 24px;
   }
   .hero-next {
-    margin-top: 10px;
-    padding-top: 10px;
+    margin-top: 6px;
+    padding-top: 0;
   }
   .outside-card,
-  .quick-card {
-    padding: 16px 18px;
+  .news-card {
+    padding: 14px 18px;
   }
-  .quick-tile {
-    min-height: 64px;
+  .weather-now,
+  .weather-stats {
+    margin-top: 8px;
+  }
+  .weather-tip {
+    margin-top: 6px;
+    padding: 6px 10px;
+  }
+  .weather-tomorrow {
+    margin-top: 6px;
+  }
+  .prayer-strip {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+  .prayer-times {
+    margin-top: 6px;
+  }
+  .prayer-times li {
+    padding: 3px 2px;
   }
   .schedule-card {
     padding: 18px 18px 16px;
@@ -1790,6 +1899,17 @@ textarea:focus-visible {
       "schedule"
       "lists";
   }
+  /* One column: headlines go last, after the schedule and lists. */
+  .home-grid {
+    display: flex;
+    flex-direction: column;
+  }
+  .home-side {
+    display: contents;
+  }
+  .news-card {
+    order: 1;
+  }
   .home-lists {
     grid-template-columns: 1fr;
   }
@@ -1860,6 +1980,10 @@ textarea:focus-visible {
   }
   .install-actions {
     margin-left: auto;
+  }
+  /* Room for the list name: "+" already opens the list, as do the tabs. */
+  .card-add + .card-open {
+    display: none;
   }
 }
 

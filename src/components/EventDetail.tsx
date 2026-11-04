@@ -9,6 +9,7 @@ import {
   NOTIFY_BEFORE_OPTIONS,
   RECURRENCE_LABELS,
 } from "@/lib/calendar";
+import { MemberTag } from "@/components/MemberTag";
 import type { ExpandedCalendarEvent, StickyColor } from "@/lib/types";
 
 const STICKY_BG: Record<StickyColor, string> = {
@@ -117,7 +118,8 @@ export function EventDetail({
           ) : null}
 
           {/* Recurrence & notification badges */}
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <MemberTag userId={event.owner_id} label="For" />
             {event.recurrence !== "none" ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-border bg-white/60 px-2 py-0.5 text-[0.65rem] font-bold text-muted">
                 <Repeat className="h-2.5 w-2.5" />

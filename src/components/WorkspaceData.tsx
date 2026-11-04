@@ -4,8 +4,10 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useRealtimeItems } from "@/hooks/useRealtimeItems";
 import { useRealtimeCalendar } from "@/hooks/useRealtimeCalendar";
 import { useHouseholdInfo } from "@/hooks/useHouseholdInfo";
+import { useWorkShifts } from "@/hooks/useWorkShifts";
 import type { FridgeList } from "@/lib/types";
-import { upcomingEvents, weekDates } from "@/lib/dashboard";
+import { dateKey, upcomingEvents, weekDates } from "@/lib/dashboard";
+import { addDays, mondayOf } from "@/lib/work";
 import { saveSnapshot } from "@/lib/offline-snapshot";
 
 type ListController = ReturnType<typeof useRealtimeItems>;
@@ -22,6 +24,7 @@ type HouseholdValue = ReturnType<typeof useHouseholdInfo> & {
   setAdderId: (id: string | null) => void;
 };
 const HouseholdContext = createContext<HouseholdValue | null>(null);
+const WorkContext = createContext<ReturnType<typeof useWorkShifts> | null>(null);
 
 // One hook owner per list, including any additional household lists.
 function ListData({
@@ -58,10 +61,15 @@ export function WorkspaceData({
   const calendar = useRealtimeCalendar(pin);
   const info = useHouseholdInfo(pin);
   const [adderId, setAdderId] = useState<string | null>(null);
+  // Roster from last week onward; the Work tab can look one week back.
+  const [rosterFrom] = useState(() => addDays(mondayOf(dateKey(new Date())), -7));
+  const work = useWorkShifts(pin, rosterFrom);
   return (
     <HouseholdContext.Provider value={{ ...info, userId, adderId, setAdderId }}>
       <CalendarContext.Provider value={calendar}>
-        {lists.length ? <ListData lists={lists}>{children}</ListData> : children}
+        <WorkContext.Provider value={work}>
+          {lists.length ? <ListData lists={lists}>{children}</ListData> : children}
+        </WorkContext.Provider>
       </CalendarContext.Provider>
     </HouseholdContext.Provider>
   );
@@ -83,6 +91,12 @@ export function useCalendarData() {
   const calendar = useContext(CalendarContext);
   if (!calendar) throw new Error("Calendar controller is unavailable.");
   return calendar;
+}
+
+export function useWorkData() {
+  const work = useContext(WorkContext);
+  if (!work) throw new Error("Work roster is unavailable.");
+  return work;
 }
 
 /** Household-wide freshness: live only if every feed is, synced as of the oldest. */

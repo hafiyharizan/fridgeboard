@@ -5,11 +5,13 @@ import { motion } from "framer-motion";
 import {
   ArrowUpRight,
   Bell,
+  BriefcaseBusiness,
   CalendarDays,
   CalendarPlus,
   Check,
   ChevronDown,
   Clock3,
+  House,
   ListChecks,
   Newspaper,
   Plus,
@@ -22,7 +24,9 @@ import { useNews, useNow, type PrayerDay } from "@/hooks/useAmbient";
 import { useWholeRows } from "@/hooks/useWholeRows";
 import { newsAge, type NewsItem } from "@/lib/news";
 import type { Forecast } from "@/lib/weather";
-import { useCalendarData, useListData } from "@/components/WorkspaceData";
+import { useCalendarData, useListData, useWorkData } from "@/components/WorkspaceData";
+import { MemberAvatar, MemberTag, useMemberLookup } from "@/components/MemberTag";
+import { atWorkNow, formatShift, homeSummary, homeSummaryText } from "@/lib/work";
 import {
   defaultScheduleDay,
   eventPhase,
@@ -270,12 +274,56 @@ function AgendaRow({
               <span className="pill">{TYPE_LABEL[event.event_type]}</span>
             )}
             <strong>{event.title}</strong>
+            <MemberTag userId={event.owner_id} label="For" />
           </span>
           {meta && <span className="agenda-meta">{meta}</span>}
         </span>
         <Icon className="agenda-icon" size={20} aria-hidden />
       </motion.button>
     </li>
+  );
+}
+
+/**
+ * One line under the schedule tabs: who works on the shown day and when the
+ * whole household is home. Hidden when nobody has hours that day.
+ */
+function WorkStrip({
+  day,
+  today,
+  now,
+  onOpen,
+}: {
+  day: string;
+  today: string;
+  now: Date;
+  onOpen: () => void;
+}) {
+  const { shifts } = useWorkData();
+  const lookup = useMemberLookup();
+  const dayShifts = shifts.filter((shift) => shift.shift_date === day);
+  if (!dayShifts.length) return null;
+  const away = day === today ? atWorkNow(shifts, now) : new Map<string, string>();
+  return (
+    <button className="work-strip" onClick={onOpen} aria-label="Open the work schedule">
+      <BriefcaseBusiness size={18} aria-hidden className="work-strip-icon" />
+      <span className="work-strip-people">
+        {dayShifts.map((shift) => {
+          const look = lookup(shift.user_id);
+          if (!look) return null;
+          return (
+            <span key={shift.id}>
+              <MemberAvatar look={look} size="sm" />
+              <strong>{look.short}</strong> {formatShift(shift)}
+              {away.has(shift.user_id) && <em className="work-strip-now">at work now</em>}
+            </span>
+          );
+        })}
+      </span>
+      <span className="work-strip-home">
+        <House size={16} aria-hidden /> {homeSummaryText(homeSummary(shifts, day))}
+      </span>
+    </button>
   );
 }
 
@@ -287,8 +335,10 @@ function FamilySchedule({
   onDay,
   onEvent,
   onAddEvent,
+  onOpenWork,
   calendarStatus,
 }: {
+  onOpenWork: () => void;
   today: string;
   now: Date;
   events: ExpandedCalendarEvent[];
@@ -359,6 +409,7 @@ function FamilySchedule({
         </div>
       </div>
       {calendarStatus}
+      {view !== "week" && <WorkStrip day={shownDay} today={today} now={now} onOpen={onOpenWork} />}
 
       {view === "week" ? (
         <ul className="agenda">
@@ -562,6 +613,7 @@ function ListCard({
               </span>
             </button>
             <span className="item-label">{item.text}</span>
+            <MemberTag userId={item.added_by ?? item.created_by} label="Added by" />
           </motion.li>
         ))}
       </ul>
@@ -591,7 +643,9 @@ export function HomeDashboard({
   weatherFailed,
   prayer,
   onSetup,
+  onOpenWork,
 }: {
+  onOpenWork: () => void;
   today: string;
   lists: FridgeList[];
   onNavigate: (id: string) => void;
@@ -636,6 +690,7 @@ export function HomeDashboard({
         onDay={onDay}
         onEvent={onEvent}
         onAddEvent={onAddEvent}
+        onOpenWork={onOpenWork}
         calendarStatus={<DataStatus {...calendar} loading={false} />}
       />
 

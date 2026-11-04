@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { MotionConfig } from "framer-motion";
 import {
+  BriefcaseBusiness,
   CalendarDays,
   House,
   ListChecks,
@@ -22,6 +23,7 @@ import {
 import { useKitchenDisplay } from "@/hooks/useKitchenDisplay";
 import { DISMISS_OVERLAYS_EVENT } from "@/lib/kitchen";
 import { ListTab } from "@/components/ListTab";
+import { WorkTab } from "@/components/WorkTab";
 import { AmbientLayer, HomeDashboard } from "@/components/HomeDashboard";
 import { AthanBanner, PlaceSettings } from "@/components/Ambient";
 import { OfflineSnapshotWriter, useHousehold } from "@/components/WorkspaceData";
@@ -127,6 +129,7 @@ export function HouseholdWorkspace({
   const tabs = [
     { id: "home", label: "Home", Icon: House },
     { id: "calendar", label: "Calendar", Icon: CalendarDays },
+    { id: "work", label: "Work", Icon: BriefcaseBusiness },
     ...lists.map((list) => ({
       id: list.id,
       label: list.name === "Grocery" ? "Groceries" : list.name,
@@ -247,8 +250,10 @@ export function HouseholdWorkspace({
               weatherFailed={weather.failed}
               prayer={prayer}
               onSetup={() => setMenu("household")}
+              onOpenWork={() => setActive("work")}
             />
           )}
+          {active === "work" && <WorkTab today={today} />}
           <div hidden={active !== "calendar"}>
             <CalendarTab onDay={setDay} onEvent={setSelected} />
           </div>

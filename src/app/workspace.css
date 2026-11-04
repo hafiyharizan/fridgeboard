@@ -41,6 +41,103 @@
   --border: var(--line);
 }
 
+/* Automatic dark theme: HouseholdWorkspace sets <html data-theme="dark">
+   from sunset to sunrise (isDarkTime in lib/weather.ts). Warm, low-glare
+   greens so the kitchen tablet doesn't light up the room at night.
+   Deep greens stay mid-tone fills for white button text; text that used
+   them reads the lighter *-text tokens instead. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #121513;
+  --background-strong: #1b1f1c;
+  --surface: rgba(27, 31, 28, 0.78);
+  --surface-strong: #1b1f1c;
+  --foreground: #e8ece8;
+  --muted: #a3ada6;
+  --border: rgba(232, 236, 232, 0.1);
+  --shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.4);
+  --amber-deep: #e9b483;
+  --blue: #7aa8d8;
+  --blue-deep: #a9c8ea;
+  --success: #8fa898;
+  --danger: #ef8f80;
+}
+:root[data-theme="dark"] .household-workspace,
+:root[data-theme="dark"] .workspace-dialog {
+  --canvas: #121513;
+  --card: #1b1f1c;
+  --oat: #2a2f2b;
+  --oat-soft: #232825;
+  --sage: #8fa898;
+  --sage-deep: #5e7a67;
+  --sage-ink: #4f6857;
+  --sage-deep-text: #aac4b2;
+  --sage-ink-text: #c6dacd;
+  --sage-tint: #1f2a23;
+  --sage-tint-strong: #29392e;
+  --amber: #d99b65;
+  --amber-tint: #3a2b1d;
+  --amber-strong: #5a3d22;
+  --amber-ink: #f2c79c;
+  --rose-tint: #3b2421;
+  --rose-ink: #f3b0a6;
+  --ink: #e8ece8;
+  --ink-fill: #39413b;
+  --muted: #a3ada6;
+  --line: rgba(232, 236, 232, 0.09);
+  --focus: #9db8a6;
+  --shadow-1: 0 4px 16px -2px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 10px 28px -4px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 20px 40px -8px rgba(0, 0, 0, 0.6);
+}
+:root[data-theme="dark"] body {
+  background-color: #121513;
+}
+:root[data-theme="dark"] .event-amber {
+  --event: #d99b65;
+  --event-tint: #33271c;
+}
+:root[data-theme="dark"] .event-blue {
+  --event: #7ea3cf;
+  --event-tint: #1f2836;
+}
+:root[data-theme="dark"] .event-rose {
+  --event: #d98b7b;
+  --event-tint: #35221f;
+}
+:root[data-theme="dark"] .event-green {
+  --event: #8fa898;
+  --event-tint: #1f2a23;
+}
+:root[data-theme="dark"] .event-purple {
+  --event: #a895c8;
+  --event-tint: #2a2436;
+}
+/* Older components still use a few fixed light utilities. */
+:root[data-theme="dark"] :is(.bg-white, .bg-\[\#f7f5f0\]) {
+  background-color: var(--card, #1b1f1c);
+}
+:root[data-theme="dark"] :is(.bg-white\/60, .bg-white\/70, .bg-white\/90, .bg-white\/95) {
+  background-color: rgba(27, 31, 28, 0.92);
+}
+:root[data-theme="dark"] :is(.border-white\/60, .border-white\/65) {
+  border-color: var(--line, rgba(232, 236, 232, 0.09));
+}
+:root[data-theme="dark"] .bg-foreground {
+  background-color: #5e7a67;
+}
+:root[data-theme="dark"] .text-\[\#4a6e3f\] {
+  color: #b5d3a9;
+}
+/* Overlays are tinted from the ink colour, which is light at night. */
+:root[data-theme="dark"] .calendar-overlay.bg-foreground\/20,
+:root[data-theme="dark"] .bg-foreground\/20.fixed {
+  background-color: rgba(0, 0, 0, 0.55);
+}
+:root[data-theme="dark"] .workspace-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
 .household-workspace {
   min-height: 100vh;
   min-height: 100dvh;
@@ -97,7 +194,7 @@ textarea:focus-visible {
   place-items: center;
   border-radius: 14px;
   background: var(--sage-tint);
-  color: var(--sage-deep);
+  color: var(--sage-deep-text, var(--sage-deep));
 }
 .pill {
   display: inline-flex;
@@ -111,7 +208,7 @@ textarea:focus-visible {
   letter-spacing: 0.02em;
   white-space: nowrap;
   background: var(--sage-tint-strong);
-  color: var(--sage-ink);
+  color: var(--sage-ink-text, var(--sage-ink));
 }
 .pill-amber {
   background: var(--amber-tint);
@@ -169,14 +266,14 @@ textarea:focus-visible {
   align-items: center;
   gap: 4px;
   padding-inline: 4px;
-  color: var(--sage-deep);
+  color: var(--sage-deep-text, var(--sage-deep));
   font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
   border-radius: 10px;
 }
 .text-button:hover {
-  color: var(--sage-ink);
+  color: var(--sage-ink-text, var(--sage-ink));
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -189,7 +286,7 @@ textarea:focus-visible {
 .data-status {
   margin: 8px 0;
   padding: 10px 14px;
-  color: var(--sage-ink);
+  color: var(--sage-ink-text, var(--sage-ink));
   background: var(--sage-tint);
   border-radius: 12px;
   font-size: 14px;
@@ -205,7 +302,7 @@ textarea:focus-visible {
   padding: 2px 9px;
   font-size: 12px;
   font-weight: 700;
-  color: var(--sage-ink);
+  color: var(--sage-ink-text, var(--sage-ink));
 }
 
 /* Round checkbox: 26px ring inside a 48px touch target. */
@@ -234,7 +331,7 @@ textarea:focus-visible {
 }
 .check-control:hover .check-ring svg {
   opacity: 0.7;
-  color: var(--sage-deep);
+  color: var(--sage-deep-text, var(--sage-deep));
 }
 .check-ring.is-checked {
   background: var(--sage);
@@ -296,7 +393,7 @@ textarea:focus-visible {
   place-items: center;
   flex: none;
   background: var(--sage-tint);
-  color: var(--sage-deep);
+  color: var(--sage-deep-text, var(--sage-deep));
   border-radius: 14px;
 }
 .brand-text {
@@ -516,7 +613,7 @@ textarea:focus-visible {
 }
 .sync-badge.is-live {
   background: var(--sage-tint-strong);
-  color: var(--sage-ink);
+  color: var(--sage-ink-text, var(--sage-ink));
 }
 .sync-badge.is-live .sync-dot {
   background: var(--sage);
@@ -755,11 +852,11 @@ textarea:focus-visible {
 }
 .prayer-times li.is-next {
   background: rgba(255, 255, 255, 0.92);
-  color: var(--muted);
+  color: #5b655e;
   text-shadow: none;
 }
 .prayer-times li.is-next strong {
-  color: var(--ink);
+  color: #2b332e;
 }
 
 /* Sky layers. Compositor-only loops (transform/opacity). */
@@ -1015,7 +1112,7 @@ textarea:focus-visible {
 }
 .card-add {
   margin: -6px 0 -6px auto;
-  color: var(--sage-deep);
+  color: var(--sage-deep-text, var(--sage-deep));
 }
 .card-add + .card-open {
   margin-left: -10px;
@@ -1431,7 +1528,7 @@ textarea:focus-visible {
   border-radius: 8px;
 }
 .is-today .calendar-day-button {
-  color: var(--sage-deep);
+  color: var(--sage-deep-text, var(--sage-deep));
 }
 .household-workspace .note-panel .calendar-event-button {
   min-height: 32px;
@@ -1525,7 +1622,7 @@ textarea:focus-visible {
   background: var(--sage-tint-strong);
 }
 .quick-options svg {
-  color: var(--sage-deep);
+  color: var(--sage-deep-text, var(--sage-deep));
 }
 .quick-options span {
   flex: 1;
@@ -1643,7 +1740,7 @@ textarea:focus-visible {
   z-index: 30;
   padding: 8px 12px;
   border-radius: 12px;
-  background: var(--ink);
+  background: var(--ink-fill, var(--ink));
   color: #fff;
   font-size: 13px;
   font-weight: 700;
@@ -1720,7 +1817,7 @@ textarea:focus-visible {
 .member-chip[aria-checked="true"] {
   border-color: var(--sage);
   background: var(--sage-tint);
-  color: var(--sage-ink);
+  color: var(--sage-ink-text, var(--sage-ink));
 }
 .member-avatar {
   width: 34px;

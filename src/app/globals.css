@@ -89,14 +89,14 @@ textarea {
   }
 
   .fridge-card {
-    background: #ffffff;
+    background: var(--surface-strong);
     border: 1px solid var(--border);
     box-shadow: 0 10px 28px -4px rgba(43, 51, 46, 0.08);
     @apply rounded-[1.5rem];
   }
 
   .note-panel {
-    background: #ffffff;
+    background: var(--surface-strong);
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
     @apply rounded-[1.5rem];

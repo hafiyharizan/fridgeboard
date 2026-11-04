@@ -228,3 +228,18 @@ export function skyScene(forecast: Forecast | null, now: Date): SkyScene {
     weather: kind === "drizzle" ? "rain" : kind,
   };
 }
+
+/**
+ * Whole-app theme: dark from sunset to sunrise at home. Without sun times,
+ * falls back to Open-Meteo's is_day, then to 6 AM–6 PM.
+ */
+export function isDarkTime(
+  now: Date,
+  sun: { sunrise: string | null; sunset: string | null } | null,
+  isDay?: boolean,
+): boolean {
+  const clock = now.getHours() * 60 + now.getMinutes();
+  if (sun?.sunrise && sun.sunset) return clock < minutesOf(sun.sunrise) || clock >= minutesOf(sun.sunset);
+  if (isDay !== undefined) return !isDay;
+  return clock < 360 || clock >= 1080;
+}

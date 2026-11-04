@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeWeather, forecastUrl, parseForecast, parsePlaces, skyPhase, skyScene, uvLevel, weatherTip, type Forecast } from "@/lib/weather";
+import { describeWeather, forecastUrl, isDarkTime, parseForecast, parsePlaces, skyPhase, skyScene, uvLevel, weatherTip, type Forecast } from "@/lib/weather";
 
 const sample = {
   current: { temperature_2m: 23.4, apparent_temperature: 22, weather_code: 1, is_day: 1, relative_humidity_2m: 48, wind_speed_10m: 12, uv_index: 6.2 },
@@ -132,5 +132,23 @@ describe("sky scene", () => {
     expect(skyScene(withCode(53), at(22)).weather).toBe("rain");
     expect(skyScene(withCode(95), at(22))).toEqual({ phase: "night", weather: "storm" });
     expect(skyScene(null, at(22))).toEqual({ phase: "night", weather: "clear" });
+  });
+});
+
+describe("app theme", () => {
+  const at = (h: number, m = 0) => new Date(2026, 10, 4, h, m);
+  const sun = { sunrise: "05:12", sunset: "18:46" };
+  it("is dark from sunset to sunrise", () => {
+    expect(isDarkTime(at(5, 11), sun)).toBe(true);
+    expect(isDarkTime(at(5, 12), sun)).toBe(false);
+    expect(isDarkTime(at(18, 45), sun)).toBe(false);
+    expect(isDarkTime(at(18, 46), sun)).toBe(true);
+    expect(isDarkTime(at(22, 29), sun)).toBe(true);
+  });
+  it("falls back to is_day, then 6 AM–6 PM", () => {
+    expect(isDarkTime(at(12), null, false)).toBe(true);
+    expect(isDarkTime(at(12), null)).toBe(false);
+    expect(isDarkTime(at(18), null)).toBe(true);
+    expect(isDarkTime(at(5, 59), null)).toBe(true);
   });
 });

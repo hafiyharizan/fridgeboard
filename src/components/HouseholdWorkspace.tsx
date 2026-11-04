@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { MotionConfig } from "framer-motion";
 import {
   CalendarDays,
@@ -31,7 +31,28 @@ import { Dialog } from "@/components/Dialog";
 import { CalendarDialogs } from "@/components/CalendarDialogs";
 import { dateKey, greeting } from "@/lib/dashboard";
 import { shortName } from "@/lib/new-item-push";
+import { isDarkTime } from "@/lib/weather";
 import type { ExpandedCalendarEvent, FridgeList } from "@/lib/types";
+
+const THEME_COLORS = { light: "#f7f5f0", dark: "#121513" } as const;
+
+/**
+ * Light by day, dark from sunset to sunrise at home, for the whole signed-in
+ * app (dialogs included, so it lives on <html>). Applied before paint so a
+ * tablet woken at night doesn't flash white. Removed again on sign-out.
+ */
+function useAutoTheme(dark: boolean) {
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const theme = dark ? "dark" : "light";
+    root.dataset.theme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLORS[theme]);
+    return () => {
+      delete root.dataset.theme;
+      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLORS.light);
+    };
+  }, [dark]);
+}
 
 function Clock({ onDay }: { onDay: (date: string) => void }) {
   const [now, setNow] = useState<Date | null>(null);
@@ -130,6 +151,7 @@ export function HouseholdWorkspace({
   const now = useNow(20_000);
   const weather = useWeather(settings);
   const prayer = usePrayerDay(settings, now);
+  useAutoTheme(isDarkTime(now, weather.forecast?.today ?? null, weather.forecast?.current.isDay));
   const { athan, dismiss: dismissAthan } = useAthan(
     prayer,
     kitchen.enabled && Boolean(settings?.athan_enabled),

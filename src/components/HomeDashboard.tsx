@@ -588,6 +588,7 @@ export function HomeDashboard({
   onAddToList,
   settings,
   forecast,
+  weatherFailed,
   prayer,
   onSetup,
 }: {
@@ -600,6 +601,7 @@ export function HomeDashboard({
   onAddToList: (id: string) => void;
   settings: HouseholdSettings | null;
   forecast: Forecast | null;
+  weatherFailed?: boolean;
   prayer: PrayerDay | null;
   onSetup: () => void;
 }) {
@@ -618,6 +620,7 @@ export function HomeDashboard({
         <OutsideCard
           settings={settings}
           forecast={forecast}
+          weatherFailed={weatherFailed}
           prayer={prayer}
           now={now}
           onSetup={onSetup}

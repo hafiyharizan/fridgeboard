@@ -522,74 +522,135 @@ textarea:focus-visible {
   background: var(--sage);
 }
 
-/* Outside: weather + prayer */
-.outside-card {
-  padding: 18px 22px;
+/* Outside: weather + prayer on an animated sky (components/Sky.tsx).
+   White text throughout; a scrim at the bottom keeps small text readable
+   on the lighter dawn and dusk skies. */
+.outside-card.sky {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 18px 20px;
+  border: 0;
+  background: #1f2a44;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(8, 12, 28, 0.28);
 }
-.outside-setup {
+.sky-backdrop,
+.sky-scene,
+.sky-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.sky-scene {
+  overflow: hidden;
+}
+.sky-scrim {
+  background: linear-gradient(180deg, rgba(8, 12, 28, 0) 35%, rgba(8, 12, 28, 0.34) 100%);
+}
+.sky-content {
+  position: relative;
+}
+.sky-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+}
+.sky-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sky-where {
+  min-width: 0;
+}
+.sky-place {
+  margin-top: 2px;
+  color: inherit;
+  overflow: hidden;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 28px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sky-temp {
+  margin-top: -2px;
+  font-size: 64px;
+  font-weight: 200;
+  line-height: 68px;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.sky-summary {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  padding-bottom: 8px;
+  text-align: right;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.85);
+}
+.sky-summary svg {
+  margin-bottom: 4px;
+  filter: drop-shadow(0 1px 2px rgba(8, 12, 28, 0.25));
+}
+.sky-summary strong {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+}
+.sky-summary span svg {
+  display: inline;
+  margin: 0;
+  vertical-align: -2px;
+}
+.sky-waiting {
+  margin-top: 6px;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.85);
+}
+.sky-setup {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
+  min-height: 64px;
   margin-top: 12px;
-  padding: 12px;
+  padding: 12px 14px;
   border-radius: 16px;
-  background: var(--sage-tint);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
   text-align: left;
 }
-.outside-setup strong {
+.sky-setup strong {
   display: block;
   font-size: 16px;
 }
-.outside-setup span span {
-  color: var(--muted);
+.sky-setup span span {
   font-size: 14px;
+  color: rgba(255, 255, 255, 0.82);
 }
-.weather-now {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-top: 12px;
-}
-.weather-icon {
-  flex: none;
-  width: 48px;
-  height: 48px;
-  display: grid;
-  place-items: center;
-  border-radius: 16px;
-  background: var(--amber-tint);
-  color: var(--amber-ink);
-}
-.weather-temp {
-  font-size: 44px;
-  font-weight: 700;
-  line-height: 48px;
-  letter-spacing: -0.03em;
-}
-.weather-words {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  font-size: 15px;
-  color: var(--muted);
-}
-.weather-words b {
-  font-size: 17px;
-  color: var(--ink);
-}
-.weather-words svg {
-  display: inline;
-  vertical-align: -2px;
-}
+
 /* Secondary weather: one quiet line of stats, then tip and tomorrow. */
 .weather-stats {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 16px;
-  margin: 12px 0 0;
-  color: var(--muted);
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 15px;
 }
 .weather-stats > div {
@@ -608,7 +669,7 @@ textarea:focus-visible {
 }
 .weather-stats dd {
   margin: 0;
-  color: var(--ink);
+  color: #fff;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -618,12 +679,12 @@ textarea:focus-visible {
   align-items: flex-start;
   gap: 8px;
   margin-top: 6px;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 15px;
   line-height: 1.4;
 }
 .weather-tip {
-  color: var(--ink);
+  color: #fff;
 }
 .weather-tip svg,
 .weather-tomorrow svg {
@@ -631,29 +692,25 @@ textarea:focus-visible {
   margin-top: 2px;
 }
 .weather-tip svg {
-  color: var(--amber-ink);
-}
-.weather-tomorrow svg {
-  color: var(--sage-deep);
+  color: #ffd98a;
 }
 .prayer-strip {
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
 }
 .prayer-next {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 15px;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.8);
 }
 .prayer-next svg {
   flex: none;
-  color: var(--sage-deep);
 }
 .prayer-day {
-  color: var(--ink);
+  color: #fff;
   font-weight: 700;
 }
 .prayer-countdown {
@@ -661,7 +718,7 @@ textarea:focus-visible {
   white-space: nowrap;
 }
 .prayer-countdown strong {
-  color: var(--ink);
+  color: #fff;
 }
 .prayer-times {
   display: grid;
@@ -671,6 +728,8 @@ textarea:focus-visible {
   padding: 0;
   list-style: none;
 }
+/* Tiles are tinted, not blurred: backdrop-filter over animated layers
+   would re-blur every frame on the tablet. */
 .prayer-times li {
   display: flex;
   flex-direction: column;
@@ -678,10 +737,10 @@ textarea:focus-visible {
   min-width: 0;
   padding: 5px 2px;
   border-radius: 12px;
-  background: var(--oat-soft);
+  background: rgba(8, 12, 28, 0.22);
   font-size: 13px;
   font-weight: 700;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.8);
 }
 .prayer-times li span {
   max-width: 100%;
@@ -691,15 +750,196 @@ textarea:focus-visible {
 .prayer-times li strong {
   font-size: 18px;
   line-height: 24px;
-  color: var(--ink);
+  color: #fff;
   font-variant-numeric: tabular-nums;
 }
 .prayer-times li.is-next {
-  background: var(--sage-deep);
-  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--muted);
+  text-shadow: none;
 }
 .prayer-times li.is-next strong {
-  color: #fff;
+  color: var(--ink);
+}
+
+/* Sky layers. Compositor-only loops (transform/opacity). */
+.sky-star {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+  animation: sky-twinkle 3s ease-in-out infinite;
+}
+.sky-star.is-dim {
+  opacity: 0.5;
+  animation-name: sky-twinkle-dim;
+}
+.sky-moon {
+  position: absolute;
+  top: -40px;
+  right: -30px;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(220, 228, 255, 0.28) 0%, rgba(220, 228, 255, 0) 65%);
+}
+.sky-sun {
+  position: absolute;
+  top: -90px;
+  right: -70px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 236, 170, 0.55) 0%, rgba(255, 220, 140, 0.18) 38%, rgba(255, 220, 140, 0) 68%);
+  animation: sky-glow 9s ease-in-out infinite;
+}
+.sky-cloud {
+  position: absolute;
+  left: 0;
+  border-radius: 50%;
+  filter: blur(14px);
+  will-change: transform;
+  animation: sky-drift 90s linear infinite;
+}
+.sky-cloud.is-light {
+  background: rgba(255, 255, 255, 0.42);
+}
+.sky-cloud.is-grey {
+  background: rgba(225, 230, 238, 0.32);
+}
+.sky-cloud.is-dark {
+  background: rgba(150, 160, 185, 0.26);
+}
+.sky-fog {
+  position: absolute;
+  left: -40%;
+  top: 22%;
+  width: 180%;
+  height: 34%;
+  border-radius: 50%;
+  background: rgba(235, 238, 242, 0.28);
+  filter: blur(18px);
+  animation: sky-fog 26s ease-in-out infinite alternate;
+}
+.sky-fog.is-low {
+  top: 60%;
+  animation-duration: 34s;
+  animation-direction: alternate-reverse;
+}
+.sky-drop {
+  position: absolute;
+  top: -30px;
+  width: 1.5px;
+  border-radius: 1px;
+  background: linear-gradient(180deg, rgba(220, 232, 255, 0), rgba(220, 232, 255, 0.65));
+  animation: sky-fall 1s linear infinite;
+}
+.sky-flake {
+  position: absolute;
+  top: -12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  animation: sky-snow 9s linear infinite;
+}
+.sky-flash {
+  position: absolute;
+  inset: 0;
+  background: rgba(225, 232, 255, 0.9);
+  opacity: 0;
+  animation: sky-flash 11s linear infinite;
+}
+@keyframes sky-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes sky-twinkle-dim {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+@keyframes sky-glow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+@keyframes sky-drift {
+  from {
+    transform: translate3d(-300px, 0, 0);
+  }
+  to {
+    transform: translate3d(520px, 0, 0);
+  }
+}
+@keyframes sky-fog {
+  from {
+    transform: translate3d(-12%, 0, 0);
+  }
+  to {
+    transform: translate3d(12%, 0, 0);
+  }
+}
+@keyframes sky-fall {
+  from {
+    transform: translate3d(0, 0, 0) rotate(12deg);
+  }
+  to {
+    transform: translate3d(-90px, 440px, 0) rotate(12deg);
+  }
+}
+@keyframes sky-snow {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(14px, 220px, 0);
+  }
+  100% {
+    transform: translate3d(-8px, 440px, 0);
+  }
+}
+@keyframes sky-flash {
+  0%,
+  86%,
+  100% {
+    opacity: 0;
+  }
+  87% {
+    opacity: 0.5;
+  }
+  88% {
+    opacity: 0.08;
+  }
+  90% {
+    opacity: 0.38;
+  }
+  93% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sky-backdrop * {
+    animation: none !important;
+  }
+  .sky-drop,
+  .sky-flake,
+  .sky-flash {
+    display: none;
+  }
 }
 
 /* News: two headlines in whatever height is left in the side column. */
@@ -1816,13 +2056,17 @@ textarea:focus-visible {
     margin-top: 6px;
     padding-top: 0;
   }
-  .outside-card,
+  .outside-card.sky,
   .news-card {
     padding: 14px 18px;
   }
-  .weather-now,
+  .sky-temp {
+    font-size: 56px;
+    line-height: 58px;
+  }
   .weather-stats {
-    margin-top: 8px;
+    margin-top: 6px;
+    padding-top: 8px;
   }
   .weather-tip,
   .weather-tomorrow {

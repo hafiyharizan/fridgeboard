@@ -51,6 +51,7 @@ src/
     HouseholdWorkspace.tsx      # Header, tabs, dialogs, kitchen mode wiring
     HomeDashboard.tsx           # Home grid + AmbientLayer (idle "today" view data)
     Ambient.tsx                 # Outside card (weather/prayer), athan banner, idle view, place settings
+    Sky.tsx                     # Animated sky behind the Outside card
     KitchenDisplay.tsx          # Settings hold button, sync badge, kitchen switch
     WhoIsAdding.tsx             # Kitchen display member picker
     ListTab.tsx, ItemRow.tsx, AddItemInput.tsx, SuggestionPanel.tsx
@@ -214,7 +215,7 @@ Cron, every minute (same `event-reminders` scheduled function). For households w
 
 ### Weather and prayer times
 
-Weather comes from Open-Meteo (no key) in the browser (`useWeather`), refreshed every 30 minutes and cached on the device. The Outside card shows a quiet line of UV, humidity and wind plus a one-line tip and tomorrow (`weatherTip`, `uvLevel` in `lib/weather.ts`). The household location is set in the household dialog (Open-Meteo geocoding search). Prayer times are computed on the device (`usePrayerDay`). On a kitchen display with athan alerts on, `useAthan` shows a banner and plays `public/athan.mp3` if present, otherwise a soft chime.
+Weather comes from Open-Meteo (no key) in the browser (`useWeather`), refreshed every 30 minutes and cached on the device. The Outside card is styled like the iPhone Weather app: "Home" + suburb, a large thin temperature, then a quiet line of UV, humidity and wind, a one-line tip (about tonight after dark) and tomorrow (`weatherTip`, `uvLevel` in `lib/weather.ts`). Behind it, `components/Sky.tsx` draws an animated sky chosen by `skyScene` (time of day from Open-Meteo sunrise/sunset: dawn, day, dusk, night × clear, partly, cloudy, fog, rain, storm, snow). The household location is set in the household dialog (Open-Meteo geocoding search). Prayer times are computed on the device (`usePrayerDay`). On a kitchen display with athan alerts on, `useAthan` shows a banner and plays `public/athan.mp3` if present, otherwise a soft chime.
 
 ### Offline fallback
 
@@ -279,6 +280,7 @@ npm run test:coverage # Run tests with coverage report
 
 ### Animations
 - Use Framer Motion (`framer-motion`) for all animations. Do not use CSS transitions for interactive UI elements — Framer Motion is already a dependency and is used throughout.
+- Exception: the looping weather sky (`components/Sky.tsx`) uses CSS keyframes on transform/opacity, so an always-on tablet runs them on the compositor with no JavaScript per frame. Framer Motion only cross-fades between scenes. Loops stop under `prefers-reduced-motion`. Don't add `backdrop-filter` over the sky (it would re-blur every frame).
 
 ### State Management
 - No global state library (no Redux, Zustand, etc.). State lives in React component state + Supabase Realtime hooks.

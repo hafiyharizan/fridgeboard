@@ -222,6 +222,7 @@ export function HouseholdWorkspace({
               onAddToList={addToList}
               settings={settings}
               forecast={weather.forecast}
+              weatherFailed={weather.failed}
               prayer={prayer}
               onSetup={() => setMenu("household")}
             />

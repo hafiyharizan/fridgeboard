@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeWeather, forecastUrl, parseForecast, parsePlaces, uvLevel, weatherTip, type Forecast } from "@/lib/weather";
+import { describeWeather, forecastUrl, parseForecast, parsePlaces, skyPhase, skyScene, uvLevel, weatherTip, type Forecast } from "@/lib/weather";
 
 const sample = {
   current: { temperature_2m: 23.4, apparent_temperature: 22, weather_code: 1, is_day: 1, relative_humidity_2m: 48, wind_speed_10m: 12, uv_index: 6.2 },
@@ -9,6 +9,8 @@ const sample = {
     temperature_2m_min: [15.1, 14],
     precipitation_probability_max: [5, 70],
     uv_index_max: [8.1, 6],
+    sunrise: ["2026-11-04T05:12", "2026-11-05T05:11"],
+    sunset: ["2026-11-04T18:46", "2026-11-05T18:47"],
   },
 };
 
@@ -25,7 +27,7 @@ describe("weather", () => {
     const forecast = parseForecast(sample);
     expect(forecast?.current.temperature).toBe(23.4);
     expect(forecast?.current.isDay).toBe(true);
-    expect(forecast?.today).toEqual({ code: 1, max: 27.2, min: 15.1, rainChance: 5, uvMax: 8.1 });
+    expect(forecast?.today).toEqual({ code: 1, max: 27.2, min: 15.1, rainChance: 5, uvMax: 8.1, sunrise: "05:12", sunset: "18:46" });
     expect(forecast?.tomorrow?.rainChance).toBe(70);
   });
 
@@ -88,5 +90,47 @@ describe("weather details", () => {
     expect(weatherTip(tweak({ uvMax: 3, min: 6 }))).toBe("Chilly, down to 6°. Jackets on.");
     expect(weatherTip(tweak({ uvMax: 6.5 }))).toBe("High UV at midday. Pack sunscreen.");
     expect(weatherTip(tweak({ uvMax: 2 }))).toBe("Mild day, 15° to 27°.");
+  });
+
+  it("talks about tonight after dark", () => {
+    expect(weatherTip(tweak({}, { code: 0 }), true)).toBe("Clear tonight, down to 14°.");
+    expect(weatherTip(tweak({}, { code: 61 }), true)).toBe("Rain tonight, down to 14°.");
+    expect(weatherTip(tweak({}, { code: 95 }), true)).toBe("Storms tonight. Bring the washing in.");
+    expect(weatherTip(tweak({}, { code: 0, wind: 40 }), true)).toBe("Windy tonight at 40 km/h.");
+    expect(weatherTip({ ...base, tomorrow: { ...base.today, min: 5 } }, true)).toBe(
+      "Cold night, down to 5°. Extra blanket.",
+    );
+  });
+});
+
+describe("sky scene", () => {
+  const at = (h: number, m = 0) => new Date(2026, 10, 4, h, m);
+  const sun = { sunrise: "05:12", sunset: "18:46" };
+
+  it("follows sunrise and sunset", () => {
+    expect(skyPhase(at(4, 0), sun)).toBe("night");
+    expect(skyPhase(at(4, 40), sun)).toBe("dawn");
+    expect(skyPhase(at(5, 50), sun)).toBe("dawn");
+    expect(skyPhase(at(5, 52), sun)).toBe("day");
+    expect(skyPhase(at(17, 56), sun)).toBe("dusk");
+    expect(skyPhase(at(19, 15), sun)).toBe("dusk");
+    expect(skyPhase(at(19, 16), sun)).toBe("night");
+    expect(skyPhase(at(22, 16), sun)).toBe("night");
+  });
+
+  it("falls back to is_day, then the clock", () => {
+    expect(skyPhase(at(12), null, false)).toBe("night");
+    expect(skyPhase(at(3), { sunrise: null, sunset: null }, true)).toBe("day");
+    expect(skyPhase(at(12), null)).toBe("day");
+    expect(skyPhase(at(21), null)).toBe("night");
+  });
+
+  it("matches the weather", () => {
+    const forecast = parseForecast(sample) as Forecast;
+    const withCode = (code: number): Forecast => ({ ...forecast, current: { ...forecast.current, code } });
+    expect(skyScene(forecast, at(12))).toEqual({ phase: "day", weather: "partly" });
+    expect(skyScene(withCode(53), at(22)).weather).toBe("rain");
+    expect(skyScene(withCode(95), at(22))).toEqual({ phase: "night", weather: "storm" });
+    expect(skyScene(null, at(22))).toEqual({ phase: "night", weather: "clear" });
   });
 });

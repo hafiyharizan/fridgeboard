@@ -15,6 +15,7 @@ import {
   MapPin,
   Moon,
   MoonStar,
+  Navigation,
   Search,
   ShoppingBasket,
   Snowflake,
@@ -24,7 +25,8 @@ import {
 } from "lucide-react";
 import { formatEventTime } from "@/lib/calendar";
 import { countdown, isPrayerMethod, PRAYER_METHODS, type PrayerSlot } from "@/lib/prayer";
-import { describeWeather, geocodeUrl, parsePlaces, uvLevel, weatherTip, type Forecast, type Place, type WeatherKind } from "@/lib/weather";
+import { describeWeather, geocodeUrl, parsePlaces, skyScene, uvLevel, weatherTip, type Forecast, type Place, type WeatherKind } from "@/lib/weather";
+import { SkyBackdrop } from "@/components/Sky";
 import type { PrayerDay } from "@/hooks/useAmbient";
 import type { SettingsPatch } from "@/hooks/useHouseholdInfo";
 import type { ExpandedCalendarEvent, HouseholdSettings } from "@/lib/types";
@@ -51,131 +53,152 @@ const clock = (date: Date) =>
 
 /* ---------- Home: weather + prayer card ---------- */
 
+/** "Southern River, Western Australia, Australia" → "Southern River". */
+const placeName = (name: string | null | undefined) => name?.split(",")[0]?.trim() || "Home";
+
+function HomeLabel() {
+  return (
+    <span className="sky-home">
+      <Navigation size={12} fill="currentColor" aria-hidden /> Home
+    </span>
+  );
+}
+
 export function OutsideCard({
   settings,
   forecast,
+  weatherFailed,
   prayer,
   now,
   onSetup,
 }: {
   settings: HouseholdSettings | null;
   forecast: Forecast | null;
+  weatherFailed?: boolean;
   prayer: PrayerDay | null;
   now: Date;
   onSetup: () => void;
 }) {
-  if (!settings?.latitude || !settings.longitude) {
-    return (
-      <section className="card outside-card" aria-label="Weather and prayer times">
-        <p className="eyebrow">Outside</p>
-        <button className="outside-setup" onClick={onSetup}>
-          <span className="icon-tile">
-            <MapPin size={22} />
-          </span>
-          <span>
-            <strong>Add your location</strong>
-            <span>For weather and, if you like, prayer times.</span>
-          </span>
-        </button>
-      </section>
-    );
-  }
-  const place = settings.location_name?.split(",")[0] ?? "Home";
+  const scene = skyScene(forecast, now);
+  const located = Boolean(settings?.latitude && settings.longitude);
   const today = forecast ? describeWeather(forecast.current.code) : null;
   return (
-    <section className="card outside-card" aria-label="Weather and prayer times">
-      <p className="eyebrow">
-        Outside · {place}
-      </p>
-      {forecast && today ? (
-        <>
-          <div className="weather-now">
-            <span className="weather-icon">
-              <WeatherIcon code={forecast.current.code} night={!forecast.current.isDay} size={30} />
-            </span>
-            <strong className="weather-temp">{Math.round(forecast.current.temperature)}°</strong>
-            <span className="weather-words">
-              <b>{today.label}</b>
+    <section
+      className={`card outside-card sky is-${scene.phase} is-${scene.weather}`}
+      aria-label="Weather and prayer times"
+    >
+      <SkyBackdrop scene={scene} />
+      <div className="sky-content">
+        {!located ? (
+          <>
+            <HomeLabel />
+            <button className="sky-setup" onClick={onSetup}>
+              <MapPin size={20} aria-hidden />
               <span>
-                H {Math.round(forecast.today.max)}° · L {Math.round(forecast.today.min)}°
-                {forecast.today.rainChance !== null && forecast.today.rainChance >= 20 && (
-                  <>
-                    {" "}
-                    · <Droplets size={13} aria-hidden /> {forecast.today.rainChance}%
-                  </>
-                )}
+                <strong>Add your home location</strong>
+                <span>For weather and, if you like, prayer times.</span>
               </span>
-            </span>
+            </button>
+          </>
+        ) : forecast && today ? (
+          <>
+            <div className="sky-head">
+              <div className="sky-where">
+                <HomeLabel />
+                <h2 className="sky-place">{placeName(settings?.location_name)}</h2>
+                <p className="sky-temp">
+                  {Math.round(forecast.current.temperature)}°
+                </p>
+              </div>
+              <div className="sky-summary">
+                <WeatherIcon code={forecast.current.code} night={scene.phase === "night"} size={30} />
+                <strong>{today.label}</strong>
+                <span>
+                  H:{Math.round(forecast.today.max)}° L:{Math.round(forecast.today.min)}°
+                </span>
+                {forecast.today.rainChance !== null && forecast.today.rainChance >= 20 && (
+                  <span>
+                    <Droplets size={13} aria-hidden /> {forecast.today.rainChance}% rain
+                  </span>
+                )}
+              </div>
+            </div>
+            <dl className="weather-stats">
+              <div>
+                <dt>
+                  <Sun size={15} aria-hidden /> UV
+                </dt>
+                <dd>
+                  {(() => {
+                    const uv = forecast.current.uv ?? forecast.today.uvMax;
+                    return uv === null ? "—" : `${Math.round(uv)} ${uvLevel(uv)}`;
+                  })()}
+                </dd>
+              </div>
+              <div>
+                <dt>
+                  <Droplets size={15} aria-hidden />
+                  <span className="sr-only">Humidity</span>
+                </dt>
+                <dd>{forecast.current.humidity === null ? "—" : `${Math.round(forecast.current.humidity)}%`}</dd>
+              </div>
+              <div>
+                <dt>
+                  <Wind size={15} aria-hidden />
+                  <span className="sr-only">Wind</span>
+                </dt>
+                <dd>{forecast.current.wind === null ? "—" : `${Math.round(forecast.current.wind)} km/h`}</dd>
+              </div>
+            </dl>
+            <p className="weather-tip">
+              <Lightbulb size={16} aria-hidden />
+              <span>{weatherTip(forecast, scene.phase === "night")}</span>
+            </p>
+            {forecast.tomorrow && (
+              <p className="weather-tomorrow">
+                <WeatherIcon code={forecast.tomorrow.code} size={16} />
+                <span>
+                  Tomorrow {Math.round(forecast.tomorrow.max)}° / {Math.round(forecast.tomorrow.min)}° ·{" "}
+                  {describeWeather(forecast.tomorrow.code).label}
+                  {forecast.tomorrow.rainChance !== null && forecast.tomorrow.rainChance >= 20
+                    ? ` · ${forecast.tomorrow.rainChance}% rain`
+                    : ""}
+                </span>
+              </p>
+            )}
+          </>
+        ) : (
+          <div className="sky-where">
+            <HomeLabel />
+            <h2 className="sky-place">{placeName(settings?.location_name)}</h2>
+            <p className="sky-waiting">
+              {weatherFailed ? "Weather isn\u2019t available right now." : "Checking the weather…"}
+            </p>
           </div>
-          <dl className="weather-stats">
-            <div>
-              <dt>
-                <Sun size={15} aria-hidden /> UV
-              </dt>
-              <dd>
-                {(() => {
-                  const uv = forecast.current.uv ?? forecast.today.uvMax;
-                  return uv === null ? "—" : `${Math.round(uv)} ${uvLevel(uv)}`;
-                })()}
-              </dd>
-            </div>
-            <div>
-              <dt>
-                <Droplets size={15} aria-hidden />
-                <span className="sr-only">Humidity</span>
-              </dt>
-              <dd>{forecast.current.humidity === null ? "—" : `${Math.round(forecast.current.humidity)}%`}</dd>
-            </div>
-            <div>
-              <dt>
-                <Wind size={15} aria-hidden />
-                <span className="sr-only">Wind</span>
-              </dt>
-              <dd>{forecast.current.wind === null ? "—" : `${Math.round(forecast.current.wind)} km/h`}</dd>
-            </div>
-          </dl>
-          <p className="weather-tip">
-            <Lightbulb size={16} aria-hidden />
-            <span>{weatherTip(forecast)}</span>
-          </p>
-          {forecast.tomorrow && (
-            <p className="weather-tomorrow">
-              <WeatherIcon code={forecast.tomorrow.code} size={16} />
-              <span>
-                Tomorrow {Math.round(forecast.tomorrow.max)}° / {Math.round(forecast.tomorrow.min)}° ·{" "}
-                {describeWeather(forecast.tomorrow.code).label}
-                {forecast.tomorrow.rainChance !== null && forecast.tomorrow.rainChance >= 20
-                  ? ` · ${forecast.tomorrow.rainChance}% rain`
-                  : ""}
+        )}
+        {prayer?.next && (
+          <div className="prayer-strip">
+            <p className="prayer-next">
+              <MoonStar size={16} aria-hidden />
+              <span className="prayer-day">{prayer.nextIsTomorrow ? "Tomorrow" : "Today"}</span>
+              <span className="prayer-countdown">
+                <strong>{prayer.next.label}</strong> {countdown(prayer.next.time, now)}
               </span>
             </p>
-          )}
-        </>
-      ) : (
-        <p className="empty-copy">Checking the weather…</p>
-      )}
-      {prayer?.next && (
-        <div className="prayer-strip">
-          <p className="prayer-next">
-            <MoonStar size={16} aria-hidden />
-            <span className="prayer-day">{prayer.nextIsTomorrow ? "Tomorrow" : "Today"}</span>
-            <span className="prayer-countdown">
-              <strong>{prayer.next.label}</strong> {countdown(prayer.next.time, now)}
-            </span>
-          </p>
-          <ol className="prayer-times" aria-label={`Prayer times ${prayer.nextIsTomorrow ? "tomorrow" : "today"}`}>
-            {prayer.shown.map((slot) => {
-              const next = slot.name === prayer.next?.name;
-              return (
-                <li key={slot.name} className={next ? "is-next" : ""} aria-current={next ? "time" : undefined}>
-                  <span>{slot.label}</span>
-                  <strong>{clock(slot.time).replace(/\s?[AP]M$/i, "")}</strong>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-      )}
+            <ol className="prayer-times" aria-label={`Prayer times ${prayer.nextIsTomorrow ? "tomorrow" : "today"}`}>
+              {prayer.shown.map((slot) => {
+                const next = slot.name === prayer.next?.name;
+                return (
+                  <li key={slot.name} className={next ? "is-next" : ""} aria-current={next ? "time" : undefined}>
+                    <span>{slot.label}</span>
+                    <strong>{clock(slot.time).replace(/\s?[AP]M$/i, "")}</strong>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

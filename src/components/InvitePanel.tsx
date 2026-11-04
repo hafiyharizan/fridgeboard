@@ -89,7 +89,7 @@ export function InvitePanel() {
       <div className="flex gap-2">
         <motion.button
           whileTap={{ scale: 0.98 }}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-[1.2rem] bg-foreground px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-[1.2rem] bg-primary px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
           disabled={!invite || loading}
           onClick={canShare ? handleShare : handleCopy}
           type="button"

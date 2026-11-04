@@ -192,6 +192,8 @@ export function useRealtimeCalendar(pinCode: string) {
     notify_before: number;
 
     notify_channels: NotifyChannel[];
+
+    person_ids?: string[];
   }) => {
     if (working.current) return false;
 
@@ -229,6 +231,10 @@ export function useRealtimeCalendar(pinCode: string) {
           notify_before: data.notify_before,
 
           notify_channels: data.notify_channels,
+
+          // Only sent when set, so adding events still works before the
+          // household_people migration has been applied.
+          ...(data.person_ids?.length ? { person_ids: data.person_ids } : {}),
         });
 
       if (insertError) {

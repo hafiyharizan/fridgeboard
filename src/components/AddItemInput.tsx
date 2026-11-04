@@ -7,6 +7,8 @@ import { autocomplete } from "@/lib/suggestions";
 type AddItemInputProps = {
   busy: boolean;
   inputId?: string;
+  /** Focus the field when shown inside a dialog. */
+  autoFocusField?: boolean;
   buttonLabel: string;
   existingItems: string[];
   listName: string;
@@ -17,6 +19,7 @@ type AddItemInputProps = {
 export function AddItemInput({
   busy,
   inputId,
+  autoFocusField = false,
   buttonLabel,
   existingItems,
   listName,
@@ -103,6 +106,7 @@ export function AddItemInput({
       <form className="flex gap-3" onSubmit={handleSubmit}>
         <input
           id={inputId}
+          data-autofocus={autoFocusField || undefined}
           aria-label={buttonLabel}
           disabled={busy}
           className="min-w-0 flex-1 rounded-[1.2rem] border border-border bg-white px-4 py-3 text-base text-foreground outline-none transition placeholder:text-muted/55 focus:border-amber-deep focus:ring-4 focus:ring-amber/20"
@@ -121,7 +125,7 @@ export function AddItemInput({
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className="shrink-0 cursor-pointer rounded-[1.2rem] bg-foreground px-4 py-3 text-sm font-bold text-white shadow-md transition-all duration-200 hover:bg-[#2f241b] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+          className="shrink-0 cursor-pointer rounded-[1.2rem] bg-primary px-4 py-3 text-sm font-bold text-white shadow-md transition-all duration-200 hover:bg-primary-hover hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
           disabled={busy}
           type="submit"
         >

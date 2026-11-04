@@ -148,7 +148,7 @@ export function ListShell() {
               boxShadow: "0 8px 24px rgba(60, 40, 20, 0.16)",
             }}
             whileTap={{ scale: 0.98 }}
-            className="cursor-pointer rounded-full bg-foreground px-5 py-3 text-sm font-bold text-white shadow-sm transition-all duration-200 hover:bg-[#2f241b]"
+            className="cursor-pointer rounded-full bg-primary px-5 py-3 text-sm font-bold text-white shadow-sm transition-all duration-200 hover:bg-primary-hover"
             onClick={handleResetPin}
             type="button"
           >

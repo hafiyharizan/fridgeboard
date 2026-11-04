@@ -2,20 +2,25 @@
 @import "./workspace.css";
 
 :root {
-  --background: #faf8f5;
-  --background-strong: #f0eadd;
-  --surface: rgba(255, 255, 255, 0.5);
-  --surface-strong: rgba(255, 255, 255, 0.8);
-  --foreground: #2d241c;
-  --muted: #857564;
-  --border: rgba(140, 115, 90, 0.15);
-  --shadow: 0 24px 64px rgba(60, 40, 20, 0.08);
-  --amber: #f0b458;
-  --amber-deep: #c8871a;
-  --blue: #7aa8d8;
-  --blue-deep: #4077b7;
-  --success: #7da76f;
-  --danger: #c96c58;
+  /* Hub palette: pale sage canvas, white cards, deep green ink, peach accent. */
+  --font-heading: var(--font-figtree);
+  --font-body: var(--font-figtree);
+  --background: #eef4ee;
+  --background-strong: #e2ebe2;
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-strong: #ffffff;
+  --foreground: #1f2d25;
+  --muted: #627168;
+  --border: rgba(52, 82, 62, 0.13);
+  --shadow: 0 1px 2px rgba(31, 45, 37, 0.04), 0 18px 40px -18px rgba(31, 45, 37, 0.16);
+  --amber: #f6ae78;
+  --amber-deep: #c46a2e;
+  --blue: #8fb0d6;
+  --blue-deep: #3f6f9f;
+  --success: #5f9a6b;
+  --danger: #d0574d;
+  --primary: #3d5a48;
+  --primary-hover: #2f4839;
 }
 
 * {
@@ -32,12 +37,6 @@ body {
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
   background-color: var(--background);
-  background-image:
-    radial-gradient(circle at 15% 20%, rgba(240, 180, 88, 0.18) 0%, transparent 45%),
-    radial-gradient(circle at 85% 30%, rgba(122, 168, 216, 0.15) 0%, transparent 45%),
-    radial-gradient(circle at 50% 85%, rgba(201, 108, 88, 0.1) 0%, transparent 50%),
-    linear-gradient(180deg, #fffdfa 0%, rgba(250, 248, 245, 0.6) 100%);
-  background-attachment: fixed;
 }
 
 a {
@@ -52,7 +51,7 @@ textarea {
 }
 
 ::selection {
-  background: rgba(240, 180, 88, 0.35);
+  background: rgba(246, 174, 120, 0.35);
 }
 
 @theme inline {
@@ -70,6 +69,8 @@ textarea {
   --color-blue-deep: var(--blue-deep);
   --color-success: var(--success);
   --color-danger: var(--danger);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
 }
 
 @utility text-balance {
@@ -81,8 +82,9 @@ textarea {
   h2,
   h3,
   h4 {
-    font-family: var(--font-heading), serif;
-    letter-spacing: -0.03em;
+    font-family: var(--font-heading), sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 }
 
@@ -92,12 +94,10 @@ textarea {
   }
 
   .fridge-card {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.45));
-    border: 1px solid rgba(255, 255, 255, 0.7);
-    box-shadow: 
-      var(--shadow),
-      inset 0 1px 1px rgba(255, 255, 255, 0.9);
-    @apply rounded-[2rem] backdrop-blur-2xl;
+    background: #fff;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    @apply rounded-[1.75rem];
   }
 
   .note-panel {

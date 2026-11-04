@@ -3,6 +3,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { useRealtimeItems } from "@/hooks/useRealtimeItems";
 import { useRealtimeCalendar } from "@/hooks/useRealtimeCalendar";
+import { useHouseholdPeople } from "@/hooks/useHouseholdPeople";
 import type { FridgeList } from "@/lib/types";
 
 type ListController = ReturnType<typeof useRealtimeItems>;
@@ -10,6 +11,7 @@ const ListsContext = createContext<Record<string, ListController>>({});
 const CalendarContext = createContext<ReturnType<
   typeof useRealtimeCalendar
 > | null>(null);
+const PeopleContext = createContext<ReturnType<typeof useHouseholdPeople> | null>(null);
 
 // One hook owner per list, including any additional household lists.
 function ListData({
@@ -42,9 +44,12 @@ export function WorkspaceData({
   children: ReactNode;
 }) {
   const calendar = useRealtimeCalendar(pin);
+  const people = useHouseholdPeople(pin);
   return (
     <CalendarContext.Provider value={calendar}>
-      {lists.length ? <ListData lists={lists}>{children}</ListData> : children}
+      <PeopleContext.Provider value={people}>
+        {lists.length ? <ListData lists={lists}>{children}</ListData> : children}
+      </PeopleContext.Provider>
     </CalendarContext.Provider>
   );
 }
@@ -53,6 +58,17 @@ export function useListData(id: string) {
   const lists = useContext(ListsContext);
   if (!lists[id]) throw new Error("List controller is unavailable.");
   return lists[id];
+}
+
+/** Every list controller, keyed by list id (for household-wide summaries). */
+export function useAllListData() {
+  return useContext(ListsContext);
+}
+
+export function usePeople() {
+  const people = useContext(PeopleContext);
+  if (!people) throw new Error("People controller is unavailable.");
+  return people;
 }
 
 export function useCalendarData() {

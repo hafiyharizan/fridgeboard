@@ -16,7 +16,7 @@ export function ItemRow({ busy, item, onDelete, onToggle }: ItemRowProps) {
       initial={{ opacity: 0, y: 15, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-      className={`group flex items-center gap-3 rounded-[1.4rem] border border-border bg-white/85 px-4 py-3 shadow-[0_10px_24px_rgba(95,65,36,0.06)] transition ${
+      className={`group flex items-center gap-3 rounded-2xl bg-[#f4f8f4] px-4 py-2.5 transition hover:bg-[#eaf1ea] ${
         item.is_checked ? "opacity-70" : ""
       }`}
     >
@@ -24,14 +24,14 @@ export function ItemRow({ busy, item, onDelete, onToggle }: ItemRowProps) {
         aria-label={item.is_checked ? `Uncheck ${item.text}` : `Check ${item.text}`}
         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition ${
           item.is_checked
-            ? "border-success bg-success text-white"
-            : "border-muted/35 bg-transparent text-transparent hover:border-amber-deep"
+            ? "border-[#7fa886] bg-[#7fa886] text-white"
+            : "border-2 border-[#b6c4b9] bg-white text-transparent hover:border-primary hover:text-primary/50"
         }`}
         disabled={busy}
         onClick={() => onToggle(item)}
         type="button"
       >
-        {item.is_checked ? <Check className="h-4 w-4" strokeWidth={3} /> : null}
+        <Check className="h-4 w-4" strokeWidth={3} />
       </button>
 
       <div className="min-w-0 flex-1">

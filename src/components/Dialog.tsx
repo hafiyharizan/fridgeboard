@@ -18,6 +18,8 @@ export function Dialog({
     const previous = document.activeElement as HTMLElement | null;
     const dialog = ref.current;
     dialog?.showModal();
+    // showModal focuses the close button; prefer a field marked data-autofocus.
+    dialog?.querySelector<HTMLElement>("[data-autofocus]")?.focus();
     return () => {
       dialog?.close();
       previous?.focus();

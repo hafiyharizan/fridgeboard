@@ -190,7 +190,7 @@ export function CalendarSettings({
                       </p>
                     </div>
                     <button
-                      className="w-full rounded-xl bg-foreground px-3 py-2.5 text-sm font-bold text-white transition hover:bg-[#2f241b] disabled:opacity-60"
+                      className="w-full rounded-xl bg-primary px-3 py-2.5 text-sm font-bold text-white transition hover:bg-primary-hover disabled:opacity-60"
                       disabled={busy}
                       onClick={handleCreateSyncLink}
                       type="button"

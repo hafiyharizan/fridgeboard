@@ -79,6 +79,25 @@ export type CalendarEvent = {
   source_type: CalendarSourceType;
   source_label: string | null;
   source_event_id: string | null;
+  /** Member who added the event; null for imports and older events. */
+  created_by?: string | null;
+  /** Whose event it is; null = the whole household. */
+  owner_id?: string | null;
+};
+
+/** One member's work hours on one day. End at or before start = overnight. */
+export type WorkShift = {
+  id: string;
+  pin_code: string;
+  user_id: string;
+  /** YYYY-MM-DD */
+  shift_date: string;
+  /** HH:MM (24-hour) */
+  start_time: string;
+  /** HH:MM (24-hour) */
+  end_time: string;
+  note: string | null;
+  created_at: string;
 };
 
 /** A virtual occurrence of a recurring event expanded onto a specific date. */
@@ -163,6 +182,7 @@ export type Database = {
           source_type?: CalendarSourceType;
           source_label?: string | null;
           source_event_id?: string | null;
+          owner_id?: string | null;
         };
         Update: {
           id?: string;
@@ -182,7 +202,23 @@ export type Database = {
           source_type?: CalendarSourceType;
           source_label?: string | null;
           source_event_id?: string | null;
+          owner_id?: string | null;
         };
+        Relationships: [];
+      };
+      work_shifts: {
+        Row: WorkShift;
+        Insert: {
+          id?: string;
+          pin_code: string;
+          user_id: string;
+          shift_date: string;
+          start_time: string;
+          end_time: string;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Omit<WorkShift, "id" | "created_at">>;
         Relationships: [];
       };
       calendar_sync_tokens: {

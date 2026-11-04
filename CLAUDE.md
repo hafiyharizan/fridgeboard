@@ -50,6 +50,8 @@ src/
     WorkspaceData.tsx           # Realtime controllers + household context (members, settings, adder)
     HouseholdWorkspace.tsx      # Header, tabs, dialogs, kitchen mode wiring
     HomeDashboard.tsx           # Home grid + AmbientLayer (idle "today" view data)
+    WorkTab.tsx                 # Weekly work roster (Work tab) + shift editor
+    MemberTag.tsx               # Owner tag, member avatar/tint helpers
     Ambient.tsx                 # Outside card (weather/prayer), athan banner, idle view, place settings
     Sky.tsx                     # Animated sky behind the Outside card
     KitchenDisplay.tsx          # Settings hold button, sync badge, kitchen switch
@@ -61,6 +63,7 @@ src/
   hooks/
     useRealtimeItems.ts, useRealtimeCalendar.ts   # Live data, refresh on wake
     useHouseholdInfo.ts         # Members + household_settings
+    useWorkShifts.ts            # Live work roster (work_shifts)
     useKitchenDisplay.ts        # Wake lock, idle, night, self-update
     useAmbient.ts               # useNow, useWeather, usePrayerDay, useAthan, useNews
     useModalSurface.ts, watchWake.ts
@@ -72,6 +75,7 @@ src/
     kitchen.ts                  # Kitchen display rules and timings
     weather.ts, prayer.ts       # Open-Meteo parsing, prayer times (adhan)
     news.ts                     # RSS/Atom parsing for the Home news card
+    work.ts                     # Work roster: weeks, overnight shifts, "everyone home" summary
     push.ts, new-item-push.ts   # Web Push sending and wording
     offline-snapshot.ts         # Last-known board for public/offline.html
 supabase/migrations/            # SQL migrations (apply in filename order)
@@ -134,6 +138,10 @@ Managed via SQL migrations in `supabase/migrations/`. Apply in filename timestam
 - `prayer_enabled`, `prayer_method` (adhan method name), `prayer_madhab` (`shafi`/`hanafi`), `athan_enabled`
 
 **`items.added_by`** — member credited when an item is typed on a shared kitchen tablet ("who's adding?"); a trigger clears it unless that member is in the list's household. **`household_members()`** RPC returns name/avatar of the caller's household members.
+
+**Owner tags** — list items show who added them (`added_by ?? created_by`). `calendar_events.owner_id` is whose plan it is (null = everyone), chosen with "Whose is it?" in the add form (defaults to the adder; on a kitchen display, the "Who's adding?" pick); a trigger clears it unless that member is in the event's household. `calendar_events.created_by` defaults to `auth.uid()`. `MemberTag` hides itself in one-person households.
+
+**`work_shifts`** — weekly work roster: one row per member per day (`unique (user_id, shift_date)`), `start_time`/`end_time` as `HH:MM` (end at or before start = overnight), optional `note`. Any household member can edit it; a trigger keeps `user_id` inside the household. Realtime enabled. Shown in the **Work** tab (Mon–Sun grid, "All home" column, copy last week) and as a line on Home's schedule (who works that day, when everyone is home).
 
 **`prayer_push_log`**, **`item_push_log`** — single-use logs for athan and new-item pushes (service role only).
 
@@ -317,6 +325,7 @@ Vitest is configured. Tests live alongside source files as `*.test.ts`.
 
 - `src/lib/calendar.test.ts` — covers all pure calendar utilities and recurrence expansion
 - `src/lib/suggestions.test.ts` — covers autocomplete and smartSuggest
+- `src/lib/work.test.ts` — week helpers, overnight shifts, "everyone home" summary
 - `src/lib/news.test.ts` — feed parsing, merging, `NEWS_FEEDS` and story ages
 - `src/app/api/news/route.test.ts` — redirect, size-cap and caching rules for `/api/news`
 

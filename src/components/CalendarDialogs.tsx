@@ -4,7 +4,8 @@ import { createPortal } from "react-dom";
 import { AddEventModal } from "@/components/AddEventModal";
 import { DayDetailSheet } from "@/components/DayDetailSheet";
 import { EventDetail } from "@/components/EventDetail";
-import { useCalendarData } from "@/components/WorkspaceData";
+import { useCalendarData, useHousehold } from "@/components/WorkspaceData";
+import { useKitchenEnabled } from "@/hooks/useKitchenDisplay";
 import { expandRecurrences } from "@/lib/calendar";
 import type { ExpandedCalendarEvent } from "@/lib/types";
 
@@ -24,6 +25,9 @@ export function CalendarDialogs({
   setSelected: (event: ExpandedCalendarEvent | null) => void;
 }) {
   const data = useCalendarData();
+  const { userId, adderId } = useHousehold();
+  // On the kitchen display, plans default to whoever is picked in "Who's adding?".
+  const kitchen = useKitchenEnabled();
   if (!day && !adding && !selected) return null;
   // Outside the animated/hidden panels: overlays remain viewport-relative.
   return createPortal(
@@ -46,6 +50,7 @@ export function CalendarDialogs({
       {adding && (
         <AddEventModal
           dateKey={adding}
+          defaultOwner={kitchen ? (adderId ?? userId) : userId}
           busy={data.isWorking}
           error={data.error}
           onAdd={data.addEvent}

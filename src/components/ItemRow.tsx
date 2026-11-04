@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Check, Trash2 } from "lucide-react";
+import { MemberTag } from "@/components/MemberTag";
 import type { Item } from "@/lib/types";
 
 type ItemRowProps = {
@@ -30,7 +31,7 @@ export function ItemRow({ busy, item, onDelete, onToggle }: ItemRowProps) {
         </span>
       </button>
 
-      <div className="min-w-0 flex-1">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
         <p
           className={`text-[1.0625rem] font-semibold leading-6 ${
             item.is_checked ? "text-muted line-through" : "text-foreground"
@@ -38,6 +39,7 @@ export function ItemRow({ busy, item, onDelete, onToggle }: ItemRowProps) {
         >
           {item.text}
         </p>
+        <MemberTag userId={item.added_by ?? item.created_by} label="Added by" />
       </div>
 
       <button

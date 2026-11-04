@@ -6,7 +6,8 @@
  */
 
 .household-workspace,
-.workspace-dialog {
+.workspace-dialog,
+.calendar-overlay {
   /* Palette */
   --canvas: #f7f5f0;
   --card: #ffffff;
@@ -63,7 +64,8 @@
   --danger: #ef8f80;
 }
 :root[data-theme="dark"] .household-workspace,
-:root[data-theme="dark"] .workspace-dialog {
+:root[data-theme="dark"] .workspace-dialog,
+:root[data-theme="dark"] .calendar-overlay {
   --canvas: #121513;
   --card: #1b1f1c;
   --oat: #2a2f2b;
@@ -1820,6 +1822,7 @@ textarea:focus-visible {
   color: var(--sage-ink-text, var(--sage-ink));
 }
 .member-avatar {
+  flex: none;
   width: 34px;
   height: 34px;
   display: grid;
@@ -1827,6 +1830,43 @@ textarea:focus-visible {
   border-radius: 50%;
   font-size: 13px;
   font-weight: 800;
+  /* Tints are pastel in both themes, so the initials stay dark. */
+  color: #2b332e;
+}
+.member-avatar.is-small {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+  letter-spacing: -0.02em;
+}
+.member-avatar.is-everyone {
+  background: var(--oat);
+  color: var(--ink);
+  font-size: 11px;
+}
+
+/* Owner tag on items and events ("HH Hafiy"). */
+.member-tag {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 2px 10px 2px 2px;
+  border-radius: 999px;
+  background: var(--oat-soft);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.owner-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.owner-picker .member-chip {
   color: var(--ink);
 }
 
@@ -2387,5 +2427,331 @@ textarea:focus-visible {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Work schedule ---------- */
+
+.work-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px;
+}
+.work-card .schedule-head {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.work-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.work-week {
+  min-height: 48px;
+  min-width: 132px;
+  padding: 4px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--oat-soft);
+  line-height: 18px;
+}
+.work-week strong {
+  font-size: 15px;
+}
+.work-week small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.work-grid {
+  display: grid;
+  gap: 8px;
+}
+.work-row {
+  display: grid;
+  grid-template-columns: 76px repeat(var(--members, 2), minmax(0, 1fr)) minmax(118px, 0.8fr);
+  align-items: stretch;
+  gap: 8px;
+}
+.work-row.is-head {
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.work-row.is-head > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.work-person {
+  color: var(--ink);
+  font-size: 15px;
+}
+.work-person .pill {
+  min-height: 22px;
+  padding: 1px 8px;
+  font-size: 11px;
+}
+.work-day {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 18px;
+}
+.work-day strong {
+  font-size: 20px;
+  line-height: 26px;
+  color: var(--ink);
+}
+.work-row.is-today .work-day {
+  color: var(--sage-deep-text, var(--sage-deep));
+}
+.work-row > [role="cell"] {
+  display: flex;
+  min-width: 0;
+}
+.work-cell {
+  flex: 1;
+  min-width: 0;
+  min-height: 56px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 14px;
+  border: 1px dashed var(--line);
+  background: transparent;
+  text-align: left;
+}
+.work-cell:hover {
+  background: var(--oat-soft);
+}
+.work-cell.is-working {
+  border: 1px solid transparent;
+  background: var(--amber-tint);
+  color: var(--amber-ink);
+}
+.work-row.is-today .work-cell {
+  border-color: var(--sage);
+}
+.work-cell-who {
+  display: none;
+}
+.work-time {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 20px;
+}
+.work-time small {
+  font-size: 11px;
+  font-weight: 700;
+}
+.work-note {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  opacity: 0.85;
+}
+.work-off {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.work-home {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--sage-tint);
+  color: var(--sage-ink-text, var(--sage-ink));
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 19px;
+}
+.work-footnote {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.shift-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+.shift-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.shift-form label,
+.shift-days legend {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.shift-form input {
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--oat-soft);
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 600;
+}
+.shift-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: -6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.shift-days {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.shift-days legend {
+  margin-bottom: 6px;
+}
+.shift-days > div {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.shift-days button {
+  min-height: 48px;
+  border-radius: 12px;
+  background: var(--oat-soft);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.shift-days button[aria-pressed="true"] {
+  background: var(--sage-deep);
+  color: #fff;
+}
+.shift-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.shift-actions > * {
+  flex: 1;
+}
+
+/* Home: who works on the shown day, and when everyone is home. */
+.work-strip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 6px 12px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: var(--oat-soft);
+  text-align: left;
+  font-size: 14px;
+  line-height: 20px;
+}
+.work-strip-icon {
+  grid-row: span 2;
+  margin-top: 1px;
+  color: var(--muted);
+}
+.work-strip-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.work-strip-people > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+.work-strip-people strong {
+  color: var(--ink);
+}
+.work-strip-now {
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--amber-tint);
+  color: var(--amber-ink);
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 700;
+}
+.work-strip-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--sage-ink-text, var(--sage-ink));
+}
+
+/* Phones: one block per day, members stacked. */
+@media (max-width: 760px) {
+  .work-row.is-head {
+    display: none;
+  }
+  .work-row {
+    grid-template-columns: 1fr 1fr;
+    padding: 10px;
+    border-radius: 16px;
+    background: var(--oat-soft);
+  }
+  .work-day {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+    padding-left: 2px;
+  }
+  .work-row > [role="cell"]:last-child {
+    grid-column: 1 / -1;
+  }
+  .work-cell {
+    background: var(--card);
+  }
+  .work-cell-who {
+    display: block;
+  }
+  .work-home {
+    flex-direction: row;
+    gap: 10px;
+  }
+}
+
+/* Five tabs plus the clock: drop the date in the header on narrower
+   landscape screens so the greeting keeps its room. */
+@media (min-width: 1180px) and (max-width: 1399px) {
+  .header-status .dashboard-clock span {
+    display: none;
+  }
+  .workspace-nav button {
+    padding: 0 14px;
   }
 }

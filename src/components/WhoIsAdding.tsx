@@ -2,18 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useHousehold } from "@/components/WorkspaceData";
-import { shortName } from "@/lib/new-item-push";
-
-const TINTS = ["#dfe8e1", "#fbe3cc", "#e3e9f4", "#f6e0dc", "#ebe4f3"];
-
-function initials(name: string) {
-  return name
-    .split(/[\s@]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-}
+import { MemberAvatar, memberLook } from "@/components/MemberTag";
 
 /**
  * Kitchen display only: pick who is typing, so items (and the alerts other
@@ -29,7 +18,7 @@ export function WhoIsAdding() {
       <span className="eyebrow">Who&apos;s adding?</span>
       <div className="who-adding-row">
         {members.map((member, index) => {
-          const name = member.display_name || "Member";
+          const look = memberLook(member, index);
           const selected = member.user_id === current;
           return (
             <motion.button
@@ -41,14 +30,8 @@ export function WhoIsAdding() {
               className="member-chip"
               onClick={() => setAdderId(member.user_id === userId ? null : member.user_id)}
             >
-              <span
-                className="member-avatar"
-                aria-hidden
-                style={{ background: TINTS[index % TINTS.length] }}
-              >
-                {initials(name)}
-              </span>
-              {shortName(name)}
+              <MemberAvatar look={look} />
+              {look.short}
             </motion.button>
           );
         })}

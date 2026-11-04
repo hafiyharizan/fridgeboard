@@ -192,6 +192,9 @@ export function useRealtimeCalendar(pinCode: string) {
     notify_before: number;
 
     notify_channels: NotifyChannel[];
+
+    /** Whose event it is; null = the whole household. */
+    owner_id?: string | null;
   }) => {
     if (working.current) return false;
 
@@ -229,6 +232,8 @@ export function useRealtimeCalendar(pinCode: string) {
           notify_before: data.notify_before,
 
           notify_channels: data.notify_channels,
+
+          owner_id: data.owner_id ?? null,
         });
 
       if (insertError) {

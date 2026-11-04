@@ -7,6 +7,8 @@ import { DISMISS_OVERLAYS_EVENT } from "@/lib/kitchen";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, Clock, Repeat, X } from "lucide-react";
 import { NOTIFY_BEFORE_OPTIONS, RECURRENCE_LABELS } from "@/lib/calendar";
+import { MemberAvatar, memberLook } from "@/components/MemberTag";
+import { useHousehold } from "@/components/WorkspaceData";
 import type {
   CalendarEventType,
   NotifyChannel,
@@ -48,6 +50,8 @@ const RECURRENCE_OPTIONS = Object.entries(RECURRENCE_LABELS) as [
 
 type AddEventModalProps = {
   dateKey: string;
+  /** Pre-selected owner (the person adding); null = everyone. */
+  defaultOwner: string | null;
   busy: boolean;
   error?: string;
   onClose: () => void;
@@ -62,6 +66,7 @@ type AddEventModalProps = {
     recurrence_end?: string;
     notify_before: number;
     notify_channels: NotifyChannel[];
+    owner_id: string | null;
   }) => Promise<boolean>;
 };
 
@@ -75,6 +80,7 @@ type Draft = {
   recurrenceEnd: string;
   eventTime: string;
   notifyBefore: number;
+  owner: string | null;
 };
 
 // A form closed by the kitchen display's idle reset (not by the person) is
@@ -83,6 +89,7 @@ let parkedDraft: Draft | null = null;
 
 export function AddEventModal({
   dateKey,
+  defaultOwner,
   busy,
   error,
   onClose: closeModal,
@@ -105,10 +112,14 @@ export function AddEventModal({
   const [recurrenceEnd, setRecurrenceEnd] = useState(initial?.recurrenceEnd ?? "");
   const [eventTime, setEventTime] = useState(initial?.eventTime ?? "");
   const [notifyBefore, setNotifyBefore] = useState(initial?.notifyBefore ?? -1);
+  const { members } = useHousehold();
+  const [owner, setOwner] = useState<string | null>(
+    initial ? initial.owner : members.length > 1 ? defaultOwner : null,
+  );
 
   const draft = useRef<Draft | null>(null);
   useEffect(() => {
-    draft.current = { dateKey, title, note, eventType, color, recurrence, recurrenceEnd, eventTime, notifyBefore };
+    draft.current = { dateKey, title, note, eventType, color, recurrence, recurrenceEnd, eventTime, notifyBefore, owner };
   });
   // Runs after useModalSurface's own dismiss handler (registered first), so
   // the draft is parked after that handler's discard.
@@ -151,6 +162,7 @@ export function AddEventModal({
         recurrence !== "none" && recurrenceEnd ? recurrenceEnd : undefined,
       notify_before: canSetReminder ? notifyBefore : -1,
       notify_channels: [] as NotifyChannel[],
+      owner_id: owner,
     });
 
     if (saved) onClose();
@@ -225,6 +237,45 @@ export function AddEventModal({
                   rows={2}
                   value={note}
                 />
+
+                {/* Owner — whose plan this is */}
+                {members.length > 1 && (
+                  <div className="space-y-2">
+                    <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-muted">
+                      Whose is it?
+                    </p>
+                    <div className="owner-picker" role="radiogroup" aria-label="Whose is it?">
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={owner === null}
+                        className="member-chip"
+                        onClick={() => setOwner(null)}
+                      >
+                        <span className="member-avatar is-everyone" aria-hidden>
+                          All
+                        </span>
+                        Everyone
+                      </button>
+                      {members.map((member, index) => {
+                        const look = memberLook(member, index);
+                        return (
+                          <button
+                            key={member.user_id}
+                            type="button"
+                            role="radio"
+                            aria-checked={owner === member.user_id}
+                            className="member-chip"
+                            onClick={() => setOwner(member.user_id)}
+                          >
+                            <MemberAvatar look={look} />
+                            {look.short}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Type — event / reminder only */}
                 <div className="space-y-2">

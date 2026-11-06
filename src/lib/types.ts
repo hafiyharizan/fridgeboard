@@ -18,6 +18,12 @@ export type Item = {
   created_by?: string | null;
   /** Member credited on a shared device ("who's adding?"); null = created_by. */
   added_by?: string | null;
+  /** A to-do that comes back: ticking it records last_done_at instead of checking it off. */
+  is_routine?: boolean;
+  /** Optional "every N days" for a routine; null = just track when it was last done. */
+  repeat_days?: number | null;
+  last_done_at?: string | null;
+  last_done_by?: string | null;
 };
 
 export type PrayerMethod =
@@ -326,6 +332,10 @@ export type Database = {
           text: string;
           created_by?: string | null;
           added_by?: string | null;
+          is_routine?: boolean;
+          repeat_days?: number | null;
+          last_done_at?: string | null;
+          last_done_by?: string | null;
         };
         Update: {
           checked_at?: string | null;
@@ -334,6 +344,10 @@ export type Database = {
           is_checked?: boolean;
           list_id?: string;
           text?: string;
+          is_routine?: boolean;
+          repeat_days?: number | null;
+          last_done_at?: string | null;
+          last_done_by?: string | null;
         };
         Relationships: [
           {

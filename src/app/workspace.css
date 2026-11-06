@@ -1506,6 +1506,11 @@ textarea:focus-visible {
   border-color: transparent;
   background: var(--sage-tint);
 }
+/* A routine past its "every N days". */
+.list-row.is-overdue {
+  border-color: var(--rose-tint);
+  box-shadow: inset 3px 0 0 var(--rose-ink);
+}
 .item-label {
   flex: 1;
   min-width: 0;

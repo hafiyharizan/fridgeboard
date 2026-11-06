@@ -130,7 +130,7 @@ export function OfflineSnapshotWriter({ lists, today }: { lists: FridgeList[]; t
         lists: lists.map((list) => ({
           name: list.name,
           items: (controllers[list.id]?.items ?? [])
-            .filter((item) => !item.is_checked)
+            .filter((item) => !item.is_checked && !item.is_routine)
             .map((item) => item.text),
         })),
         events: upcomingEvents(calendar.rawEvents, today, weekDates(today)[6]).map((event) => ({

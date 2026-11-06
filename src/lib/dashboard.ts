@@ -28,8 +28,9 @@ export function upcomingEvents(
     );
 }
 
+/** Open one-off items; routines are never "pending", they have their own section. */
 export function pendingItems(items: Item[]) {
-  return items.filter((item) => !item.is_checked);
+  return items.filter((item) => !item.is_checked && !item.is_routine);
 }
 
 /** "Good morning" (5–11), "Good afternoon" (12–16), "Good evening" (17–21), "Good night". */

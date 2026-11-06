@@ -315,3 +315,8 @@ drop trigger if exists calendar_events_check_owner_person on public.calendar_eve
 create trigger calendar_events_check_owner_person
   before insert or update of owner_person_id, pin_code on public.calendar_events
   for each row execute function public.check_event_owner_person();
+
+-- Trigger functions aren't meant to be called through the API. (EXECUTE is
+-- only checked when a trigger is created, so the triggers still fire.)
+revoke all on function public.check_household_person() from public, anon, authenticated;
+revoke all on function public.check_event_owner_person() from public, anon, authenticated;

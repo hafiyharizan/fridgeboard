@@ -7,7 +7,9 @@ import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import { watchWake } from "@/hooks/watchWake";
 
-import type { Item } from "@/lib/types";
+import type { Database, Item } from "@/lib/types";
+
+type ItemUpdate = Database["public"]["Tables"]["items"]["Update"];
 
 const sortItems = (items: Item[]) =>
   [...items].sort((left, right) => {
@@ -174,8 +176,71 @@ export function useRealtimeItems(listId: string) {
     };
   }, [listId, supabase, revision]);
 
-  /** `addedBy`: member credited on a shared device (null = signed-in account). */
-  const addItem = async (text: string, addedBy: string | null = null) => {
+  /** Runs one update on an item with the shared busy/offline/error handling. */
+  const updateItem = async (itemId: string, patch: ItemUpdate) => {
+    if (working.current) return false;
+
+    if (!navigator.onLine) {
+      setError("You’re offline. Reconnect and try again.");
+      return false;
+    }
+
+    working.current = true;
+    setIsWorking(true);
+
+    try {
+      const { error: updateError } = await supabase
+        .from("items")
+        .update(patch)
+        .eq("id", itemId);
+
+      if (updateError) {
+        setError(updateError.message);
+        return false;
+      }
+
+      setError("");
+      return true;
+    } catch {
+      setError("Could not save your change. Please try again.");
+      return false;
+    } finally {
+      working.current = false;
+      setIsWorking(false);
+    }
+  };
+
+  /** Routine done now. `doneBy`: member picked on a shared device (null = signed-in account). */
+  const markDone = (item: Item, doneBy: string | null) =>
+    updateItem(item.id, {
+      last_done_at: new Date().toISOString(),
+      last_done_by: doneBy,
+    });
+
+  /** Puts back the previous "last done" (undo a mistaken tap). */
+  const restoreDone = (
+    item: Item,
+    previous: { at: string | null; by: string | null },
+  ) => updateItem(item.id, { last_done_at: previous.at, last_done_by: previous.by });
+
+  /** Turns a to-do into a routine (or changes its schedule), or back into a one-off. */
+  const setRoutine = (item: Item, routine: { repeatDays: number | null } | null) =>
+    updateItem(
+      item.id,
+      routine
+        ? { is_routine: true, repeat_days: routine.repeatDays, is_checked: false, checked_at: null }
+        : { is_routine: false, repeat_days: null },
+    );
+
+  /**
+   * `addedBy`: member credited on a shared device (null = signed-in account).
+   * `routine`: add it as a routine ("last done" tracker) with an optional schedule.
+   */
+  const addItem = async (
+    text: string,
+    addedBy: string | null = null,
+    routine: { repeatDays: number | null } | null = null,
+  ) => {
     if (working.current) return false;
 
     if (!navigator.onLine) {
@@ -190,7 +255,12 @@ export function useRealtimeItems(listId: string) {
     try {
       const { data: inserted, error: insertError } = await supabase
         .from("items")
-        .insert({ list_id: listId, text, ...(addedBy ? { added_by: addedBy } : {}) })
+        .insert({
+          list_id: listId,
+          text,
+          ...(addedBy ? { added_by: addedBy } : {}),
+          ...(routine ? { is_routine: true, repeat_days: routine.repeatDays } : {}),
+        })
         .select("id")
         .single();
 
@@ -319,5 +389,11 @@ export function useRealtimeItems(listId: string) {
     removeItem,
 
     toggleItem,
+
+    markDone,
+
+    restoreDone,
+
+    setRoutine,
   };
 }

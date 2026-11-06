@@ -51,6 +51,7 @@ src/
     WorkspaceData.tsx           # Realtime controllers + household context (members, settings, adder)
     HouseholdWorkspace.tsx      # Header, tabs, dialogs, kitchen mode wiring
     HomeDashboard.tsx           # Home grid + AmbientLayer (idle "today" view data)
+    RoutineRow.tsx              # A routine to-do: "last done 9 days ago", schedule, undo
     VoiceAdd.tsx                # "Say it": add groceries, to-dos, events, reminders by voice
     WorkTab.tsx                 # Weekly work roster (Work tab) + shift editor
     MemberTag.tsx               # Owner tag, person colours, useEveryone / lookup helpers
@@ -80,6 +81,7 @@ src/
     weather.ts, prayer.ts       # Open-Meteo parsing, prayer times (adhan)
     news.ts                     # RSS/Atom parsing + Perth filter for the Home news card
     stocks.ts                   # STOCK_SYMBOLS, Yahoo chart parsing, price formatting
+    routine.ts                  # Routines: days since last done, due/overdue, chore guesses
     voice.ts                    # Spoken sentence → grocery / to-do / event / reminder (rule-based)
     work.ts                     # Work roster: weeks, overnight shifts, "everyone home" summary
     push.ts, new-item-push.ts   # Web Push sending and wording
@@ -142,6 +144,8 @@ Managed via SQL migrations in `supabase/migrations/`. Apply in filename timestam
 **`household_settings`** — one row per household (members read/write their own)
 - `pin_code` PK, `location_name`, `latitude`, `longitude`, `timezone`
 - `prayer_enabled`, `prayer_method` (adhan method name), `prayer_madhab` (`shafi`/`hanafi`), `athan_enabled`
+
+**Routines ("last done")** — a To-Do item with `items.is_routine` is never checked off: ticking it sets `last_done_at` / `last_done_by` (a trigger keeps `last_done_by` inside the household), and the row shows "9 days ago". Optional `repeat_days` ("Every week"…) makes it Due / overdue. The add form switches "Track when it was last done" on for typical chores (`guessRoutine`); one-off to-dos can be turned into routines with the repeat button. Routines sit in their own section under the to-dos (`RoutineRow`), are left out of `pendingItems`, and show on Home's To-Do card only once due. Helpers in `lib/routine.ts`.
 
 **`items.added_by`** — member credited when an item is typed on a shared kitchen tablet ("who's adding?"); a trigger clears it unless that member is in the list's household. **`household_members()`** RPC returns name/avatar of the caller's household members.
 
@@ -344,6 +348,7 @@ Vitest is configured. Tests live alongside source files as `*.test.ts`.
 
 - `src/lib/calendar.test.ts` — covers all pure calendar utilities and recurrence expansion
 - `src/lib/suggestions.test.ts` — covers autocomplete and smartSuggest
+- `src/lib/routine.test.ts` — "days ago" labels, due/overdue, sorting, chore detection
 - `src/lib/voice.test.ts` — spoken groceries, to-dos, reminders, events, dates, times and repeats
 - `src/lib/work.test.ts` — week helpers, overnight shifts, "everyone home" summary
 - `src/lib/news.test.ts` — feed parsing, merging, `NEWS_FEEDS`, Perth filter and story ages

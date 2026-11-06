@@ -74,6 +74,13 @@ describe("Home summaries", () => {
     expect(pendingItems(items).map((item) => item.id)).toEqual(["new", "old"]);
     expect(items).toHaveLength(3);
   });
+  it("leaves routines out of the pending to-dos", () => {
+    const items = [
+      { id: "task", is_checked: false },
+      { id: "sheets", is_checked: false, is_routine: true },
+    ] as Item[];
+    expect(pendingItems(items).map((item) => item.id)).toEqual(["task"]);
+  });
 });
 
 describe("home helpers", () => {

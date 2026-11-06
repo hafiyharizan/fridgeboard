@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Check, Trash2 } from "lucide-react";
+import { Check, Repeat, Trash2 } from "lucide-react";
 import { MemberTag } from "@/components/MemberTag";
 import type { Item } from "@/lib/types";
 
@@ -8,9 +8,11 @@ type ItemRowProps = {
   item: Item;
   onDelete: (itemId: string) => Promise<boolean>;
   onToggle: (item: Item) => Promise<boolean>;
+  /** To-Do only: keep it as a routine that tracks when it was last done. */
+  onMakeRoutine?: (item: Item) => Promise<boolean>;
 };
 
-export function ItemRow({ busy, item, onDelete, onToggle }: ItemRowProps) {
+export function ItemRow({ busy, item, onDelete, onToggle, onMakeRoutine }: ItemRowProps) {
   return (
     <motion.div
       layout
@@ -41,6 +43,19 @@ export function ItemRow({ busy, item, onDelete, onToggle }: ItemRowProps) {
         </p>
         <MemberTag userId={item.added_by ?? item.created_by} label="Added by" />
       </div>
+
+      {onMakeRoutine && (
+        <button
+          aria-label={`Track ${item.text} as a routine`}
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-muted hover:bg-success/10 hover:text-foreground"
+          disabled={busy}
+          onClick={() => onMakeRoutine(item)}
+          title="Track when it was last done"
+          type="button"
+        >
+          <Repeat className="h-[18px] w-[18px]" />
+        </button>
+      )}
 
       <button
         aria-label={`Delete ${item.text}`}

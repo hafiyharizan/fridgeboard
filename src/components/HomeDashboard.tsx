@@ -15,6 +15,7 @@ import {
   ListChecks,
   Newspaper,
   Plus,
+  Repeat,
   ShoppingBasket,
   Sunrise,
 } from "lucide-react";
@@ -25,7 +26,9 @@ import { formatChange, formatPrice, type StockQuote } from "@/lib/stocks";
 import { useWholeRows } from "@/hooks/useWholeRows";
 import { newsAge, type NewsItem } from "@/lib/news";
 import type { Forecast } from "@/lib/weather";
-import { useCalendarData, useListData, useWorkData } from "@/components/WorkspaceData";
+import { useCalendarData, useHousehold, useListData, useWorkData } from "@/components/WorkspaceData";
+import { useKitchenEnabled } from "@/hooks/useKitchenDisplay";
+import { daysSince, lastDoneLabel, needsDoing, sortRoutines } from "@/lib/routine";
 import { MemberAvatar, MemberTag, useMemberLookup } from "@/components/MemberTag";
 import { atWorkNow, formatShift, homeSummary, homeSummaryText } from "@/lib/work";
 import {
@@ -554,7 +557,15 @@ function ListCard({
   const grocery = kind === "grocery";
   const Icon = grocery ? ShoppingBasket : ListChecks;
   const title = grocery ? "Groceries" : "To-Do";
-  const rendered = items.slice(0, 8);
+  const now = useNow(60_000);
+  const kitchen = useKitchenEnabled();
+  const { adderId } = useHousehold();
+  // Routines show up here only once they're due ("Change bed sheets · 9 days ago").
+  const dueRoutines = grocery
+    ? []
+    : sortRoutines(data.items.filter((item) => item.is_routine && needsDoing(item, now)), now);
+  const rendered = [...items, ...dueRoutines].slice(0, 8);
+  const total = items.length + dueRoutines.length;
   const [rowsRef, visibleRows] = useWholeRows<HTMLUListElement>(rendered.map((item) => item.id).join());
   const shown = Math.min(rendered.length, visibleRows);
   return (
@@ -585,7 +596,7 @@ function ListCard({
         </button>
       </div>
       <DataStatus {...data} />
-      {!data.loading && !data.error && !items.length && (
+      {!data.loading && !data.error && !total && (
         <p className="empty-copy">
           {grocery
             ? "Everything on the list is picked up."
@@ -593,32 +604,47 @@ function ListCard({
         </p>
       )}
       <ul className="list-rows" ref={rowsRef}>
-        {rendered.map((item, index) => (
-          <motion.li
-            layout
-            key={item.id}
-            className={`list-row${grocery ? " is-tinted" : ""}`}
-            data-clipped={index >= shown || undefined}
-          >
-            <button
-              className="check-control"
-              disabled={data.isWorking}
-              aria-label={`Check ${item.text}`}
-              onClick={() => void data.toggleItem(item)}
+        {rendered.map((item, index) => {
+          const routine = item.is_routine === true;
+          return (
+            <motion.li
+              layout
+              key={item.id}
+              className={`list-row${grocery ? " is-tinted" : ""}`}
+              data-clipped={index >= shown || undefined}
             >
-              <span className="check-ring">
-                <Check size={15} strokeWidth={3} />
-              </span>
-            </button>
-            <span className="item-label">{item.text}</span>
-            <MemberTag userId={item.added_by ?? item.created_by} label="Added by" />
-          </motion.li>
-        ))}
+              <button
+                className="check-control"
+                disabled={data.isWorking}
+                aria-label={routine ? `Done ${item.text} today` : `Check ${item.text}`}
+                onClick={() =>
+                  void (routine
+                    ? data.markDone(item, kitchen ? adderId : null)
+                    : data.toggleItem(item))
+                }
+              >
+                <span className="check-ring">
+                  <Check size={15} strokeWidth={3} />
+                </span>
+              </button>
+              <span className="item-label">{item.text}</span>
+              {routine ? (
+                <span className="pill pill-rose" title="Last done">
+                  <Repeat size={13} aria-hidden />
+                  <span className="sr-only">Last done </span>
+                  {lastDoneLabel(daysSince(item.last_done_at, now))}
+                </span>
+              ) : (
+                <MemberTag userId={item.added_by ?? item.created_by} label="Added by" />
+              )}
+            </motion.li>
+          );
+        })}
       </ul>
-      {items.length > shown && (
+      {total > shown && (
         <div className="list-footer">
           <button className="text-button" onClick={onOpen}>
-            View all · {items.length} {items.length === 1 ? "item" : "items"} <ArrowUpRight size={16} />
+            View all · {total} {total === 1 ? "item" : "items"} <ArrowUpRight size={16} />
           </button>
         </div>
       )}

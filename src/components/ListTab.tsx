@@ -2,12 +2,15 @@
 
 import { useMemo } from "react";
 import { AnimatePresence } from "framer-motion";
-import { AddItemInput } from "@/components/AddItemInput";
+import { AddItemInput, type RoutineChoice } from "@/components/AddItemInput";
 import { ItemRow } from "@/components/ItemRow";
+import { RoutineRow } from "@/components/RoutineRow";
 import { SuggestionPanel } from "@/components/SuggestionPanel";
 import { useHousehold, useListData } from "@/components/WorkspaceData";
 import { WhoIsAdding } from "@/components/WhoIsAdding";
 import { useKitchenEnabled } from "@/hooks/useKitchenDisplay";
+import { useNow } from "@/hooks/useAmbient";
+import { guessRoutine, sortRoutines } from "@/lib/routine";
 import { DataStatus } from "@/components/HomeDashboard";
 import type { FridgeList } from "@/lib/types";
 
@@ -24,6 +27,9 @@ export function ListTab({ list }: ListTabProps) {
     loading,
     removeItem,
     toggleItem,
+    markDone,
+    restoreDone,
+    setRoutine,
     connected,
     retry,
   } = useListData(list.id);
@@ -31,7 +37,17 @@ export function ListTab({ list }: ListTabProps) {
   const kitchen = useKitchenEnabled();
   const { adderId } = useHousehold();
   // On the kitchen display, credit the member picked in "Who's adding?".
-  const add = (text: string) => addItem(text, kitchen ? adderId : null);
+  const credit = kitchen ? adderId : null;
+  const add = (text: string, routine: RoutineChoice = null) => addItem(text, credit, routine);
+  const isGrocery = list.name === "Grocery";
+  // Re-render each minute so "Today" turns into "Yesterday" overnight.
+  const now = useNow(60_000);
+
+  const oneOffs = useMemo(() => items.filter((i) => !i.is_routine), [items]);
+  const routines = useMemo(
+    () => sortRoutines(items.filter((i) => i.is_routine), now),
+    [items, now],
+  );
 
   const existingItemTexts = useMemo(
     () => items.filter((i) => !i.is_checked).map((i) => i.text),
@@ -58,6 +74,7 @@ export function ListTab({ list }: ListTabProps) {
         <div className="mt-4">
           <AddItemInput
             inputId={`list-input-${list.id}`}
+            allowRoutine={!isGrocery}
             busy={isWorking}
             buttonLabel={list.name === "Grocery" ? "Add item" : "Add task"}
             existingItems={existingItemTexts}
@@ -105,17 +122,55 @@ export function ListTab({ list }: ListTabProps) {
 
         <div className="flex flex-col gap-2.5">
           <AnimatePresence initial={false}>
-            {items.map((item) => (
+            {oneOffs.map((item) => (
               <ItemRow
                 busy={isWorking}
                 item={item}
                 key={item.id}
                 onDelete={removeItem}
                 onToggle={toggleItem}
+                onMakeRoutine={
+                  isGrocery || item.is_checked
+                    ? undefined
+                    : (target) =>
+                        setRoutine(target, { repeatDays: guessRoutine(target.text)?.days ?? null })
+                }
               />
             ))}
           </AnimatePresence>
         </div>
+
+        {routines.length > 0 && (
+          <section aria-labelledby={`routines-${list.id}`} className="mt-6">
+            <div className="mb-2.5 px-1">
+              <h3
+                className="text-xs font-bold uppercase tracking-[0.22em] text-muted"
+                id={`routines-${list.id}`}
+              >
+                Routines
+              </h3>
+              <p className="text-sm text-muted">
+                When was it last done? Tick it each time it&rsquo;s done again.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              <AnimatePresence initial={false}>
+                {routines.map((item) => (
+                  <RoutineRow
+                    busy={isWorking}
+                    item={item}
+                    key={item.id}
+                    now={now}
+                    onDelete={removeItem}
+                    onDone={(target) => markDone(target, credit)}
+                    onRestore={restoreDone}
+                    onSchedule={setRoutine}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
+          </section>
+        )}
       </div>
     </section>
   );

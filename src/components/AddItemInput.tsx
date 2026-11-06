@@ -2,7 +2,11 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { Repeat } from "lucide-react";
 import { autocomplete } from "@/lib/suggestions";
+import { guessRoutine, REPEAT_CHOICES } from "@/lib/routine";
+
+export type RoutineChoice = { repeatDays: number | null } | null;
 
 type AddItemInputProps = {
   busy: boolean;
@@ -10,8 +14,11 @@ type AddItemInputProps = {
   buttonLabel: string;
   existingItems: string[];
   listName: string;
-  onAdd: (text: string) => Promise<boolean>;
+  /** `routine` is set when "Track when it was last done" is on. */
+  onAdd: (text: string, routine: RoutineChoice) => Promise<boolean>;
   placeholder: string;
+  /** Offer the routine ("last done" tracker) switch. To-Do only. */
+  allowRoutine?: boolean;
 };
 
 export function AddItemInput({
@@ -22,8 +29,13 @@ export function AddItemInput({
   listName,
   onAdd,
   placeholder,
+  allowRoutine = false,
 }: AddItemInputProps) {
   const [value, setValue] = useState("");
+  // The member's own choice; until they touch it, a known chore switches it on.
+  const [manualRoutine, setManualRoutine] = useState<{ on: boolean; days: number | null } | null>(
+    null,
+  );
   const [open, setOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -36,6 +48,10 @@ export function AddItemInput({
   }, [value, listName, existingItems]);
 
   const showDropdown = open && matches.length > 0;
+
+  const guess = allowRoutine ? guessRoutine(value) : undefined;
+  const routine = manualRoutine ?? (guess ? { on: true, days: guess.days } : { on: false, days: null });
+  const routineGuessed = !manualRoutine && Boolean(guess);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -55,7 +71,11 @@ export function AddItemInput({
     const trimmed = text.trim();
     if (!trimmed || busy) return;
     setOpen(false);
-    if (await onAdd(trimmed)) setValue("");
+    const choice = allowRoutine && routine.on ? { repeatDays: routine.days } : null;
+    if (await onAdd(trimmed, choice)) {
+      setValue("");
+      setManualRoutine(null);
+    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -128,6 +148,48 @@ export function AddItemInput({
           {buttonLabel}
         </motion.button>
       </form>
+
+      {allowRoutine && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            aria-pressed={routine.on}
+            className={`inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-full border px-4 text-sm font-bold ${
+              routine.on
+                ? "border-success bg-success/15 text-foreground"
+                : "border-border text-muted hover:text-foreground"
+            }`}
+            disabled={busy}
+            onClick={() => setManualRoutine({ on: !routine.on, days: routine.days ?? 7 })}
+            type="button"
+          >
+            <Repeat className="h-4 w-4" />
+            Track when it was last done
+          </button>
+          {routine.on && (
+            <select
+              aria-label="How often"
+              className="min-h-12 cursor-pointer rounded-full border border-border bg-transparent px-4 text-sm font-semibold text-foreground"
+              disabled={busy}
+              onChange={(event) =>
+                setManualRoutine({
+                  on: true,
+                  days: event.target.value ? Number(event.target.value) : null,
+                })
+              }
+              value={routine.days ?? ""}
+            >
+              {REPEAT_CHOICES.map((choice) => (
+                <option key={choice.label} value={choice.days ?? ""}>
+                  {choice.label}
+                </option>
+              ))}
+            </select>
+          )}
+          {routineGuessed && (
+            <span className="text-xs font-semibold text-muted">Looks like a routine</span>
+          )}
+        </div>
+      )}
 
       <AnimatePresence>
         {showDropdown && matches.length > 0 ? (

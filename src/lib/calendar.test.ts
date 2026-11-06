@@ -7,10 +7,13 @@ import {
   getMonthName,
   getMonthRange,
   expandRecurrences,
+  normalizeEndDate,
+  findNextEvent,
+  describeNextEvent,
   RECURRENCE_LABELS,
   WEEKDAYS,
 } from "@/lib/calendar";
-import type { CalendarEvent } from "@/lib/types";
+import type { CalendarEvent, ExpandedCalendarEvent } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -29,6 +32,7 @@ function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     is_done: false,
     recurrence: "none",
     recurrence_end: null,
+    end_date: null,
     notify_before: -1,
     notify_channels: [],
     created_at: "2026-01-01T00:00:00Z",
@@ -253,5 +257,112 @@ describe("expandRecurrences — output ordering", () => {
       "2026-03-10",
       "2026-03-20",
     ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Multi-day events
+// ---------------------------------------------------------------------------
+
+describe("expandRecurrences multi-day", () => {
+  it("expands a 13–16 Nov event into four days", () => {
+    const e = makeEvent({ event_date: "2026-11-13", end_date: "2026-11-16" });
+    const r = expandRecurrences([e], "2026-11-01", "2026-11-30");
+    expect(r.map((x) => x.occurrence_date)).toEqual([
+      "2026-11-13", "2026-11-14", "2026-11-15", "2026-11-16",
+    ]);
+    expect(r.map((x) => x.day_index)).toEqual([1, 2, 3, 4]);
+    expect(r.every((x) => x.day_count === 4)).toBe(true);
+  });
+
+  it("includes a multi-day event that started before the range", () => {
+    const e = makeEvent({ event_date: "2026-10-29", end_date: "2026-11-02" });
+    const r = expandRecurrences([e], "2026-11-01", "2026-11-30");
+    expect(r.map((x) => x.occurrence_date)).toEqual(["2026-11-01", "2026-11-02"]);
+    expect(r.map((x) => x.day_index)).toEqual([4, 5]);
+    expect(r.every((x) => x.day_count === 5)).toBe(true);
+  });
+
+  it("crosses a year boundary", () => {
+    const e = makeEvent({ event_date: "2026-12-30", end_date: "2027-01-02" });
+    const r = expandRecurrences([e], "2026-12-01", "2027-01-31");
+    expect(r).toHaveLength(4);
+    expect(r[3].occurrence_date).toBe("2027-01-02");
+  });
+
+  it("gives single-day events day_index 1 and day_count 1", () => {
+    const r = expandRecurrences([makeEvent()], "2026-03-01", "2026-03-31");
+    expect(r[0].day_index).toBe(1);
+    expect(r[0].day_count).toBe(1);
+  });
+});
+
+describe("normalizeEndDate", () => {
+  it("returns null for empty, undefined, equal and earlier", () => {
+    expect(normalizeEndDate("2026-11-13", "")).toBeNull();
+    expect(normalizeEndDate("2026-11-13", undefined)).toBeNull();
+    expect(normalizeEndDate("2026-11-13", null)).toBeNull();
+    expect(normalizeEndDate("2026-11-13", "2026-11-13")).toBeNull();
+    expect(normalizeEndDate("2026-11-13", "2026-11-12")).toBeNull();
+  });
+  it("returns the end otherwise", () => {
+    expect(normalizeEndDate("2026-11-13", "2026-11-16")).toBe("2026-11-16");
+  });
+});
+
+function occ(overrides: Partial<ExpandedCalendarEvent>): ExpandedCalendarEvent {
+  return {
+    ...makeEvent(),
+    occurrence_date: overrides.event_date ?? "2026-11-07",
+    is_recurrence: false,
+    day_index: 1,
+    day_count: 1,
+    ...overrides,
+  };
+}
+
+describe("findNextEvent", () => {
+  const now = new Date(2026, 10, 7, 14, 0);
+  it("returns null for empty", () => expect(findNextEvent([], now)).toBeNull());
+  it("returns null when only done", () => {
+    expect(findNextEvent([occ({ occurrence_date: "2026-11-08", is_done: true })], now)).toBeNull();
+  });
+  it("returns null when only past", () => {
+    expect(findNextEvent([occ({ occurrence_date: "2026-11-06" })], now)).toBeNull();
+  });
+  it("prefers today at a later time over tomorrow", () => {
+    const tomorrow = occ({ id: "t", occurrence_date: "2026-11-08", event_time: "09:00" });
+    const today = occ({ id: "d", occurrence_date: "2026-11-07", event_time: "15:00" });
+    expect(findNextEvent([tomorrow, today], now)?.id).toBe("d");
+  });
+  it("still returns a timed event earlier today", () => {
+    const e = occ({ id: "p", occurrence_date: "2026-11-07", event_time: "08:00" });
+    expect(findNextEvent([e], now)?.id).toBe("p");
+  });
+  it("returns a running multi-day event for today", () => {
+    const base = makeEvent({ id: "c", event_date: "2026-11-06", end_date: "2026-11-08" });
+    const entries = expandRecurrences([base], "2026-11-01", "2026-11-30");
+    const r = findNextEvent(entries, now);
+    expect(r?.occurrence_date).toBe("2026-11-07");
+    expect(r?.day_index).toBe(2);
+  });
+});
+
+describe("describeNextEvent", () => {
+  const now = new Date(2026, 10, 7, 14, 0);
+  it("timed today", () => {
+    expect(describeNextEvent(occ({ occurrence_date: "2026-11-07", event_time: "15:00" }), now)).toBe("Today 3:00 PM");
+  });
+  it("all day today", () => {
+    expect(describeNextEvent(occ({ occurrence_date: "2026-11-07" }), now)).toBe("Today · all day");
+  });
+  it("tomorrow", () => {
+    expect(describeNextEvent(occ({ occurrence_date: "2026-11-08" }), now)).toBe("Tomorrow");
+  });
+  it("in N days", () => {
+    expect(describeNextEvent(occ({ occurrence_date: "2026-11-13" }), now)).toBe("In 6 days");
+  });
+  it("running multi-day", () => {
+    expect(describeNextEvent(occ({ occurrence_date: "2026-11-07", day_index: 2, day_count: 4 }), now)).toBe("Day 2 of 4");
   });
 });

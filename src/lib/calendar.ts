@@ -100,6 +100,60 @@ function toDateKey(d: Date): string {
   return formatDateKey(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+/** Parse YYYY-MM-DD as local noon so DST shifts never change the date. */
+function parseDateKey(key: string): Date {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y!, m! - 1, d!, 12);
+}
+
+/** Whole calendar days from a to b (YYYY-MM-DD), DST-safe. */
+function daysBetween(a: string, b: string): number {
+  return Math.round((parseDateKey(b).getTime() - parseDateKey(a).getTime()) / 86400000);
+}
+
+/** The end date to store: null when empty or not after the start. */
+export function normalizeEndDate(start: string, end: string | null | undefined): string | null {
+  if (!end || end <= start) return null;
+  return end;
+}
+
+/**
+ * First not-done entry whose last covered day is today or later. Today counts
+ * until midnight, so a timed event earlier today is still returned.
+ */
+export function findNextEvent(
+  events: ExpandedCalendarEvent[],
+  now: Date,
+): ExpandedCalendarEvent | null {
+  const today = toDateKey(now);
+  let best: ExpandedCalendarEvent | null = null;
+  for (const e of events) {
+    if (e.is_done || e.occurrence_date < today) continue;
+    if (
+      !best ||
+      e.occurrence_date < best.occurrence_date ||
+      (e.occurrence_date === best.occurrence_date &&
+        (e.event_time ?? "") < (best.event_time ?? ""))
+    ) {
+      best = e;
+    }
+  }
+  return best;
+}
+
+/** Short label for when an event happens, relative to now (local calendar days). */
+export function describeNextEvent(event: ExpandedCalendarEvent, now: Date): string {
+  const diff = daysBetween(toDateKey(now), event.occurrence_date);
+  if (diff === 0) {
+    if (event.day_count > 1) return `Day ${event.day_index} of ${event.day_count}`;
+    return event.event_time
+      ? `Today ${formatEventTime(event.event_time)}`
+      : "Today · all day";
+  }
+  if (diff === 1) return "Tomorrow";
+  return `In ${diff} days`;
+}
+
 /**
  * Expand all recurring events into virtual occurrences within [rangeStart, rangeEnd].
  * Non-recurring events pass through as-is.
@@ -112,10 +166,26 @@ export function expandRecurrences(
   const result: ExpandedCalendarEvent[] = [];
 
   for (const event of events) {
-    // Non-recurring: just wrap it
+    // Non-recurring: one entry per covered day inside the range
     if (event.recurrence === "none") {
-      if (event.event_date >= rangeStart && event.event_date <= rangeEnd) {
-        result.push({ ...event, occurrence_date: event.event_date, is_recurrence: false });
+      const last = normalizeEndDate(event.event_date, event.end_date) ?? event.event_date;
+      const dayCount = daysBetween(event.event_date, last) + 1;
+      const first = event.event_date > rangeStart ? event.event_date : rangeStart;
+      const stop = last < rangeEnd ? last : rangeEnd;
+      let day = parseDateKey(first);
+      const stopDate = parseDateKey(stop);
+      let guard = 0;
+      while (day <= stopDate && guard < 3660) {
+        const key = toDateKey(day);
+        result.push({
+          ...event,
+          occurrence_date: key,
+          is_recurrence: false,
+          day_index: daysBetween(event.event_date, key) + 1,
+          day_count: dayCount,
+        });
+        day = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1, 12);
+        guard++;
       }
       continue;
     }
@@ -142,6 +212,8 @@ export function expandRecurrences(
         ...event,
         occurrence_date: dateKey,
         is_recurrence: !isOriginal,
+        day_index: 1,
+        day_count: 1,
       });
       current = addInterval(current, event.recurrence);
       safety++;

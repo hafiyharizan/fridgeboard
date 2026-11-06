@@ -15,6 +15,7 @@ function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     is_done: false,
     recurrence: "none",
     recurrence_end: null,
+    end_date: null,
     notify_before: -1,
     notify_channels: [],
     created_at: "2026-01-01T00:00:00.000Z",

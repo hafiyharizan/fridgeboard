@@ -101,6 +101,8 @@ export type CalendarEvent = {
   is_done: boolean;
   recurrence: Recurrence;
   recurrence_end: string | null;
+  /** Last day of a multi-day event (YYYY-MM-DD); null = single day. */
+  end_date: string | null;
   notify_before: number;
   notify_channels: NotifyChannel[];
   created_at: string;
@@ -136,6 +138,10 @@ export type ExpandedCalendarEvent = CalendarEvent & {
   occurrence_date: string;
   /** True if this is a generated occurrence, not the original row. */
   is_recurrence: boolean;
+  /** 1-based day of a multi-day event this entry falls on (1 for single-day). */
+  day_index: number;
+  /** Total days the event spans (1 for single-day). */
+  day_count: number;
 };
 
 export type NotificationChannelConfig = {
@@ -206,6 +212,7 @@ export type Database = {
           is_done?: boolean;
           recurrence?: Recurrence;
           recurrence_end?: string | null;
+          end_date?: string | null;
           notify_before?: number;
           notify_channels?: NotifyChannel[];
           created_at?: string;
@@ -227,6 +234,7 @@ export type Database = {
           is_done?: boolean;
           recurrence?: Recurrence;
           recurrence_end?: string | null;
+          end_date?: string | null;
           notify_before?: number;
           notify_channels?: NotifyChannel[];
           created_at?: string;

@@ -3,15 +3,14 @@
 import { useState, type FormEvent } from "react";
 import { Plus, X } from "lucide-react";
 import { useHousehold } from "@/components/WorkspaceData";
-import { COLOR_ORDER, PERSON_COLORS, useEveryone, type MemberLook } from "@/components/MemberTag";
+import { COLOR_ORDER, MemberAvatar, PERSON_COLORS, useEveryone, type MemberLook } from "@/components/MemberTag";
 import type { PersonColor } from "@/lib/types";
 
-function PersonChip({ look, you }: { look: MemberLook; you?: boolean }) {
+function PersonChip({ look }: { look: MemberLook }) {
   return (
     <span className="person-chip" style={{ background: look.tint, color: look.ink, borderColor: look.ink }}>
       <span className="person-dot" aria-hidden style={{ background: look.ink }} />
       <span className="person-chip-name">{look.name}</span>
-      {you && <span className="person-you">you</span>}
     </span>
   );
 }
@@ -52,15 +51,26 @@ function ColorPicker({
   );
 }
 
+function joinedLabel(joinedAt: string | null | undefined) {
+  if (!joinedAt) return null;
+  const date = new Date(joinedAt);
+  if (Number.isNaN(date.getTime())) return null;
+  return `Joined ${date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`;
+}
+
 /**
- * "People" in the household dialog: everyone the household plans around.
- * Account members are listed automatically (they can change colour, but
- * leave the household by other means); people without an account, such as
- * kids, can be added and removed here.
+ * Household dialog: "Members" lists everyone who signed up and joined;
+ * "Without an account" lists babies and kids the admin added so events can
+ * be tagged for them. Only the admin (who created the household) adds or
+ * removes people; members can change their own colour, the admin anyone's.
  */
 export function HouseholdPeople() {
-  const { userId, addPerson, setPersonColor, removePerson } = useHousehold();
+  const { members, userId, addPerson, setPersonColor, removePerson } = useHousehold();
   const everyone = useEveryone();
+  const isAdmin = members.some((member) => member.user_id === userId && member.is_admin);
+  const admin = members.find((member) => member.is_admin);
+  const accounts = everyone.filter((entry) => entry.userId);
+  const others = everyone.filter((entry) => entry.personId);
   const used = new Set(everyone.map((entry) => entry.look.color));
   const [name, setName] = useState("");
   const [color, setColor] = useState<PersonColor | null>(null);
@@ -86,56 +96,88 @@ export function HouseholdPeople() {
 
   return (
     <section className="household-sharing people-settings">
-      <h3>People</h3>
-      <p>Everyone you plan around, including kids. Tag events with who they&apos;re for.</p>
+      <h3>Members</h3>
+      <p>Everyone who has signed in and joined this household.</p>
       <ul className="people-list">
-        {everyone.map((entry) => (
-          <li key={entry.key} className="people-row">
-            <PersonChip look={entry.look} you={entry.userId === userId} />
-            <ColorPicker
-              value={entry.look.color}
-              label={`Colour for ${entry.look.name}`}
-              onChange={async (next) =>
-                report(
-                  await setPersonColor(
-                    entry.personId
-                      ? { personId: entry.personId }
-                      : { userId: entry.userId ?? "", name: entry.look.name },
-                    next,
-                  ),
-                )
-              }
-            />
-            {entry.personId ? (
-              <button
-                type="button"
-                className="icon-button people-remove"
-                aria-label={`Remove ${entry.look.name}`}
-                onClick={async () => report(await removePerson(entry.personId ?? ""))}
-              >
-                <X size={18} />
-              </button>
-            ) : (
-              <span className="people-remove" aria-hidden />
-            )}
-          </li>
-        ))}
+        {accounts.map((entry) => {
+          const member = members.find((m) => m.user_id === entry.userId);
+          const you = entry.userId === userId;
+          const joined = joinedLabel(member?.joined_at);
+          return (
+            <li key={entry.key} className="people-row is-member">
+              <MemberAvatar look={entry.look} />
+              <span className="people-member">
+                <strong className="people-name">{entry.look.name}</strong>
+                <span className="people-meta">
+                  {member?.is_admin && <span className="people-badge is-admin">Admin</span>}
+                  {you && <span className="people-badge">You</span>}
+                  {joined && <span>{joined}</span>}
+                </span>
+              </span>
+              {(you || isAdmin) && (
+                <ColorPicker
+                  value={entry.look.color}
+                  label={`Colour for ${entry.look.name}`}
+                  onChange={async (next) =>
+                    report(await setPersonColor({ userId: entry.userId ?? "", name: entry.look.name }, next))
+                  }
+                />
+              )}
+            </li>
+          );
+        })}
       </ul>
-      <form className="people-add" onSubmit={add}>
-        <div className="people-add-row">
-          <input
-            aria-label="Name"
-            placeholder="Name, e.g. Nayla"
-            maxLength={40}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-          <ColorPicker value={newColor} label="Colour for the new person" onChange={setColor} />
-        </div>
-        <button className="text-button people-add-button" type="submit" disabled={!name.trim() || busy}>
-          <Plus size={18} aria-hidden /> {busy ? "Adding…" : "Add"}
-        </button>
-      </form>
+
+      <h4 className="people-subhead">Without an account</h4>
+      <p>
+        Babies and kids who can&apos;t sign up. Tag events with who they&apos;re for.
+        {!isAdmin && admin && <> Ask {admin.display_name || "the admin"} to add someone.</>}
+      </p>
+      {others.length > 0 ? (
+        <ul className="people-list">
+          {others.map((entry) => (
+            <li key={entry.key} className="people-row">
+              <PersonChip look={entry.look} />
+              {isAdmin && (
+                <>
+                  <ColorPicker
+                    value={entry.look.color}
+                    label={`Colour for ${entry.look.name}`}
+                    onChange={async (next) => report(await setPersonColor({ personId: entry.personId ?? "" }, next))}
+                  />
+                  <button
+                    type="button"
+                    className="icon-button people-remove"
+                    aria-label={`Remove ${entry.look.name}`}
+                    onClick={async () => report(await removePerson(entry.personId ?? ""))}
+                  >
+                    <X size={18} />
+                  </button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        !isAdmin && <p className="people-empty">No one added yet.</p>
+      )}
+      {isAdmin && (
+        <form className="people-add" onSubmit={add}>
+          <div className="people-add-row">
+            <input
+              aria-label="Name"
+              placeholder="Name, e.g. Nayla"
+              maxLength={40}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+            <ColorPicker value={newColor} label="Colour for the new person" onChange={setColor} />
+          </div>
+          <button className="text-button people-add-button" type="submit" disabled={!name.trim() || busy}>
+            <Plus size={18} aria-hidden /> {busy ? "Adding…" : "Add"}
+          </button>
+        </form>
+      )}
       {error && (
         <p className="data-status error" role="alert">
           {error}

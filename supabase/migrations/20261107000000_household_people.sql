@@ -1,13 +1,75 @@
--- People: everyone the household plans around, including kids and others
--- without an account, each with a colour.
+-- Household members and people without an account.
 --
--- 1. household_people — one row per person. A row with user_id set holds an
+-- 1. is_household_admin(): the household's admin is whoever created it
+--    (households.created_by); for older households with no creator saved,
+--    the member who joined first.
+-- 2. household_members() also returns joined_at and is_admin, so the
+--    household dialog can list who signed up and who the admin is.
+-- 3. household_people — one row per person. A row with user_id set holds an
 --    account member's colour (their name still comes from their profile);
---    a row without user_id is a person with no account (e.g. a child).
---    Any member can add, recolour or remove people in their own household.
--- 2. calendar_events.owner_person_id — "Whose is it?" for someone without an
+--    a row without user_id is someone who can't sign up (a baby, a child).
+--    Only the admin adds or removes people; members may recolour themselves,
+--    the admin anyone.
+-- 4. calendar_events.owner_person_id — "Whose is it?" for someone without an
 --    account. owner_id still names account members. A trigger clears it
 --    unless that person belongs to the event's household.
+
+create or replace function public.household_admin_id(target_pin text)
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select h.created_by
+       from public.households h
+       join public.user_profiles p on p.user_id = h.created_by and p.pin_code = h.pin_code
+      where h.pin_code = target_pin),
+    (select p.user_id
+       from public.user_profiles p
+      where p.pin_code = target_pin
+      order by p.created_at, p.user_id
+      limit 1)
+  )
+$$;
+
+revoke all on function public.household_admin_id(text) from public, anon, authenticated;
+
+create or replace function public.is_household_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select auth.uid() is not null
+    and public.current_user_pin() is not null
+    and public.household_admin_id(public.current_user_pin()) = auth.uid()
+$$;
+
+revoke all on function public.is_household_admin() from public, anon;
+grant execute on function public.is_household_admin() to authenticated;
+
+-- The return type changes, so the function has to be dropped first.
+drop function if exists public.household_members();
+create function public.household_members()
+returns table (user_id uuid, display_name text, avatar_url text, joined_at timestamptz, is_admin boolean)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.user_id, p.display_name, p.avatar_url, p.created_at,
+         p.user_id = public.household_admin_id(p.pin_code)
+  from public.user_profiles p
+  where p.pin_code is not null
+    and p.pin_code = public.current_user_pin()
+  order by p.created_at
+$$;
+
+revoke all on function public.household_members() from public, anon;
+grant execute on function public.household_members() to authenticated;
 
 create table if not exists public.household_people (
   id          uuid primary key default gen_random_uuid(),
@@ -52,19 +114,30 @@ drop policy if exists "Members read people" on public.household_people;
 drop policy if exists "Members insert people" on public.household_people;
 drop policy if exists "Members update people" on public.household_people;
 drop policy if exists "Members delete people" on public.household_people;
+drop policy if exists "Admin deletes people" on public.household_people;
 create policy "Members read people"
   on public.household_people for select to authenticated
   using (pin_code = public.current_user_pin());
+-- Admin: anyone in the household. Others: only their own colour row.
 create policy "Members insert people"
   on public.household_people for insert to authenticated
-  with check (pin_code = public.current_user_pin());
+  with check (
+    pin_code = public.current_user_pin()
+    and (public.is_household_admin() or user_id = auth.uid())
+  );
 create policy "Members update people"
   on public.household_people for update to authenticated
-  using (pin_code = public.current_user_pin())
-  with check (pin_code = public.current_user_pin());
-create policy "Members delete people"
+  using (
+    pin_code = public.current_user_pin()
+    and (public.is_household_admin() or user_id = auth.uid())
+  )
+  with check (
+    pin_code = public.current_user_pin()
+    and (public.is_household_admin() or user_id = auth.uid())
+  );
+create policy "Admin deletes people"
   on public.household_people for delete to authenticated
-  using (pin_code = public.current_user_pin());
+  using (pin_code = public.current_user_pin() and public.is_household_admin());
 
 alter table public.calendar_events
   add column if not exists owner_person_id uuid

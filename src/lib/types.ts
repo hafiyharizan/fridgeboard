@@ -47,10 +47,15 @@ export type HouseholdSettings = {
   updated_at: string;
 };
 
+/** Someone who signed up and joined the household (household_members()). */
 export type HouseholdMember = {
   user_id: string;
   display_name: string | null;
   avatar_url: string | null;
+  /** When they joined (missing before the household_people migration). */
+  joined_at?: string | null;
+  /** Created the household; adds and removes people without an account. */
+  is_admin?: boolean;
 };
 
 /** Colour a person is shown in (tags, chips, avatars). */

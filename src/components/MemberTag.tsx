@@ -70,9 +70,14 @@ export function personKey(userId: string | null | undefined, personId: string | 
 
 /** Accounts first (join order), then people without an account. */
 export function buildEveryone(members: HouseholdMember[], people: HouseholdPerson[]): PersonEntry[] {
+  // Members who haven't picked a colour get the next one nobody has chosen.
+  const chosen = new Set(people.map((person) => person.color));
+  const spare = COLOR_ORDER.filter((color) => !chosen.has(color));
+  let nextSpare = 0;
   const accounts = members.map((member, index): PersonEntry => {
     const row = people.find((person) => person.user_id === member.user_id) ?? null;
-    const color = row?.color ?? COLOR_ORDER[index % COLOR_ORDER.length];
+    const color =
+      row?.color ?? (spare.length ? spare[nextSpare++ % spare.length] : COLOR_ORDER[index % COLOR_ORDER.length]);
     return { key: member.user_id, userId: member.user_id, personId: null, row, look: lookFor(member.display_name, color) };
   });
   const others = people

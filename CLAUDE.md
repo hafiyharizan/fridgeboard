@@ -129,7 +129,7 @@ Managed via SQL migrations in `supabase/migrations/`. Apply in filename timestam
 - `event_type`: `"event" | "reminder" | "todo"`
 - `color`: `"amber" | "blue" | "rose" | "green" | "purple"`
 - `is_done` bool, `recurrence`: `"none" | "daily" | "weekly" | "biweekly" | "monthly" | "yearly"`
-- `recurrence_end` text|null (YYYY-MM-DD), `notify_before` int (minutes), `notify_channels` text[]
+- `recurrence_end` text|null (YYYY-MM-DD), `end_date` text|null (last day of a multi-day event, YYYY-MM-DD; null = single day; not before `event_date`), `notify_before` int (minutes), `notify_channels` text[]
 - Realtime enabled
 
 **`notification_channels`** — per-PIN notification endpoints
@@ -270,6 +270,7 @@ A per-device switch in the household menu (localStorage `fridgeboard.kitchen-mod
 - When idle: a full-screen "today" view (big time, next event, list counts, weather, next prayer) that swallows the first tap; dark and low-glare 22:00–06:00. An unsaved event form is parked and restored.
 - "Who's adding?" member picker on list tabs; resets on idle.
 - Header and content shift ±3px every 10 minutes (burn-in).
+- Idle options in the household menu (kitchen mode only, per device; localStorage `fridgeboard.idle-dim` default on, `fridgeboard.idle-slideshow` default off). **Dim** is a black `.ambient-dim` overlay at `idleDimOpacity(night)` (0.55 day, 0.75 night), because browsers can't change hardware brightness; it is `pointer-events: none` so the first tap still wakes the screen. **Slideshow** (`components/IdleSlideshow.tsx`) covers the today view with this device's photos, cross-fading every `SLIDE_SECONDS` (30) with a small corner clock that follows the burn-in shift; no photos, or none that load, leaves the normal today view. Photos are chosen in `KitchenIdleSettings` (max 30, downscaled to 1920px JPEG) and live only on the device, in IndexedDB `fridgeboard`/`photos` (`lib/photo-store.ts`); they are never uploaded or synced.
 - Settings button needs a press-and-hold (keyboard still opens it directly).
 - "Live" / "Synced N min ago" badge from `useSyncStatus()` in `WorkspaceData`.
 

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSyncStatus } from "@/components/WorkspaceData";
 import { describeSync, SETTINGS_HOLD_MS } from "@/lib/kitchen";
+import { addPhotos, clearPhotos, listPhotos, MAX_PHOTOS, roomForPhotos } from "@/lib/photo-store";
 
 /**
  * Settings button. Normally a plain button; in kitchen mode a touch must be
@@ -148,6 +149,91 @@ export function KitchenModeSetting({
   );
 }
 
+/** Pick, count and remove the slideshow photos stored on this device. */
+function PhotoPicker() {
+  const [count, setCount] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    void listPhotos().then((photos) => {
+      if (!cancelled) setCount(photos.length);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const choose = async (files: File[]) => {
+    if (files.length === 0) return;
+    const before = count ?? 0;
+    setBusy(true);
+    setMessage("");
+    const { accepted, skipped } = roomForPhotos(before, files.length);
+    if (accepted > 0) await addPhotos(files.slice(0, accepted));
+    const after = (await listPhotos()).length;
+    setCount(after);
+    setBusy(false);
+    if (skipped > 0) {
+      setMessage(
+        `Only ${MAX_PHOTOS} photos fit. ${skipped} ${skipped === 1 ? "was" : "were"} left out. Remove all to start again.`,
+      );
+    } else if (after < before + accepted) {
+      setMessage("Some photos could not be read and were skipped.");
+    }
+  };
+
+  const removeAll = async () => {
+    setBusy(true);
+    setMessage("");
+    await clearPhotos();
+    setCount(0);
+    setBusy(false);
+  };
+
+  return (
+    <section className="kitchen-setting photo-picker">
+      <div>
+        <h3>Slideshow photos</h3>
+        <p>
+          {count === null
+            ? "Checking this device…"
+            : count === 0
+              ? "No photos yet. They stay on this device only."
+              : `${count} ${count === 1 ? "photo" : "photos"} on this device.`}
+        </p>
+        {message && (
+          <p className="photo-picker-note" role="status">
+            {message}
+          </p>
+        )}
+        <div className="photo-picker-actions">
+          <label className={`secondary-button photo-picker-choose${busy ? " is-busy" : ""}`}>
+            {busy ? "Working…" : "Choose photos"}
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              disabled={busy}
+              onChange={(event) => {
+                const files = Array.from(event.target.files ?? []);
+                event.target.value = "";
+                void choose(files);
+              }}
+            />
+          </label>
+          {!!count && (
+            <button className="secondary-button" type="button" disabled={busy} onClick={() => void removeAll()}>
+              Remove all
+            </button>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /** Idle-view options; shown only while kitchen mode is on. */
 export function KitchenIdleSettings({
   idleDim,
@@ -200,6 +286,7 @@ export function KitchenIdleSettings({
           </button>
         </section>
       ))}
+      <PhotoPicker />
     </>
   );
 }

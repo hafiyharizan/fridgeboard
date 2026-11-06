@@ -27,6 +27,8 @@ import { formatEventTime } from "@/lib/calendar";
 import { countdown, isPrayerMethod, PRAYER_METHODS, type PrayerSlot } from "@/lib/prayer";
 import { describeWeather, geocodeUrl, parsePlaces, skyScene, uvLevel, weatherTip, type Forecast, type Place, type WeatherKind } from "@/lib/weather";
 import { SkyBackdrop } from "@/components/Sky";
+import { IdleSlideshow } from "@/components/IdleSlideshow";
+import { idleDimOpacity } from "@/lib/kitchen";
 import type { PrayerDay } from "@/hooks/useAmbient";
 import type { SettingsPatch } from "@/hooks/useHouseholdInfo";
 import type { ExpandedCalendarEvent, HouseholdSettings } from "@/lib/types";
@@ -268,6 +270,8 @@ export function AmbientScreen({
   night,
   now,
   offset,
+  dim,
+  slideshow,
   forecast,
   prayer,
   nextUp,
@@ -278,6 +282,10 @@ export function AmbientScreen({
   night: boolean;
   now: Date;
   offset: { x: number; y: number };
+  /** Dark overlay (a browser can't change real brightness). */
+  dim: boolean;
+  /** Cover the today view with this device's photos, when it has any. */
+  slideshow: boolean;
   forecast: Forecast | null;
   prayer: PrayerDay | null;
   nextUp: ExpandedCalendarEvent | null;
@@ -368,6 +376,14 @@ export function AmbientScreen({
             </div>
             <p className="ambient-hint">Tap anywhere to open Fridgeboard</p>
           </div>
+          {slideshow && <IdleSlideshow night={night} now={now} offset={offset} />}
+          {dim && (
+            <div
+              className="ambient-dim"
+              aria-hidden
+              style={{ opacity: idleDimOpacity(night) }}
+            />
+          )}
         </motion.div>
       )}
     </AnimatePresence>

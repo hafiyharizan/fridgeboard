@@ -381,6 +381,8 @@ export function HouseholdWorkspace({
           visible={kitchen.idle}
           night={kitchen.night}
           offset={kitchen.offset}
+          dim={kitchen.idleDim}
+          slideshow={kitchen.slideshow}
           lists={lists}
           today={today}
           forecast={weather.forecast}

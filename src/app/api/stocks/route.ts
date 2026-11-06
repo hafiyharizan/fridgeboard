@@ -1,5 +1,5 @@
-// GET /api/stocks — market numbers for the Home news card (ASX 200 and
-// AUD/USD by default). Only the configured symbols are fetched, from one
+// GET /api/stocks — market numbers for the Home news card (SPUS, ASX 200,
+// AUD/MYR and MYR/USD by default). Only the configured symbols are fetched, from one
 // fixed host, with no redirects and a small body cap. Cached 5 minutes per
 // server instance; concurrent requests share one refresh, and the last good
 // numbers are served if the source is down.

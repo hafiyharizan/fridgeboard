@@ -16,10 +16,12 @@ export type StockQuote = {
   at: string | null;
 };
 
-/** ASX 200 and the Aussie dollar. */
+/** SPUS, the ASX 200, and the Aussie dollar and ringgit pairs. */
 export const DEFAULT_STOCKS: StockSymbol[] = [
+  { symbol: "SPUS", label: "SPUS" },
   { symbol: "^AXJO", label: "ASX 200" },
-  { symbol: "AUDUSD=X", label: "AUD/USD" },
+  { symbol: "AUDMYR=X", label: "AUD/MYR" },
+  { symbol: "MYRUSD=X", label: "MYR/USD" },
 ];
 
 const SYMBOL = /^[A-Za-z0-9^=.\-]{1,15}$/;

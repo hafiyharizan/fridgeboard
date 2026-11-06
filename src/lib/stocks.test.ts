@@ -3,6 +3,23 @@ import { DEFAULT_STOCKS, formatChange, formatPrice, parseChart, stocksFromEnv, s
 
 const chart = (meta: Record<string, unknown>) => ({ chart: { result: [{ meta }], error: null } });
 
+describe("defaults", () => {
+  it("are SPUS, ASX 200, AUD/MYR and MYR/USD in order", () => {
+    expect(DEFAULT_STOCKS).toEqual([
+      { symbol: "SPUS", label: "SPUS" },
+      { symbol: "^AXJO", label: "ASX 200" },
+      { symbol: "AUDMYR=X", label: "AUD/MYR" },
+      { symbol: "MYRUSD=X", label: "MYR/USD" },
+    ]);
+    expect(DEFAULT_STOCKS.length).toBeLessThanOrEqual(4);
+  });
+  it("formats the default prices", () => {
+    expect(formatPrice({ symbol: "MYRUSD=X", price: 0.2381 })).toBe("0.2381");
+    expect(formatPrice({ symbol: "AUDMYR=X", price: 2.8 })).toBe("2.8000");
+    expect(formatPrice({ symbol: "SPUS", price: 49.5 })).toBe("49.50");
+  });
+});
+
 describe("stocksFromEnv", () => {
   it("uses the defaults when unset or invalid", () => {
     expect(stocksFromEnv(undefined)).toBe(DEFAULT_STOCKS);
@@ -22,7 +39,7 @@ describe("stocksFromEnv", () => {
 });
 
 describe("parseChart", () => {
-  const asx = DEFAULT_STOCKS[0];
+  const asx = DEFAULT_STOCKS[1];
   it("reads price and change from the previous close", () => {
     const quote = parseChart(
       chart({ regularMarketPrice: 8800, chartPreviousClose: 8750, currency: "AUD", regularMarketTime: 1_762_400_000 }),

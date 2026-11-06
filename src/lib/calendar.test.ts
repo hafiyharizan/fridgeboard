@@ -9,6 +9,8 @@ import {
   expandRecurrences,
   normalizeEndDate,
   findNextEvent,
+  findUpcomingEvent,
+  addDaysToKey,
   describeNextEvent,
   RECURRENCE_LABELS,
   WEEKDAYS,
@@ -364,5 +366,29 @@ describe("describeNextEvent", () => {
   });
   it("running multi-day", () => {
     expect(describeNextEvent(occ({ occurrence_date: "2026-11-07", day_index: 2, day_count: 4 }), now)).toBe("Day 2 of 4");
+  });
+});
+
+describe("findUpcomingEvent", () => {
+  const now = new Date(2026, 10, 7, 14, 0);
+  it("skips a timed event already past today", () => {
+    const past = occ({ id: "p", occurrence_date: "2026-11-07", event_time: "08:00" });
+    const tomorrow = occ({ id: "t", occurrence_date: "2026-11-08" });
+    expect(findUpcomingEvent([past, tomorrow], now)?.id).toBe("t");
+  });
+  it("keeps a later timed event and all-day events today", () => {
+    expect(findUpcomingEvent([occ({ id: "l", occurrence_date: "2026-11-07", event_time: "15:00" })], now)?.id).toBe("l");
+    expect(findUpcomingEvent([occ({ id: "a", occurrence_date: "2026-11-07" })], now)?.id).toBe("a");
+  });
+  it("keeps a running multi-day event even with a past start time", () => {
+    const e = occ({ id: "m", occurrence_date: "2026-11-07", event_time: "08:00", day_index: 2, day_count: 3 });
+    expect(findUpcomingEvent([e], now)?.id).toBe("m");
+  });
+});
+
+describe("addDaysToKey", () => {
+  it("crosses month and year ends", () => {
+    expect(addDaysToKey("2026-12-31", 1)).toBe("2027-01-01");
+    expect(addDaysToKey("2026-11-07", 60)).toBe("2027-01-06");
   });
 });

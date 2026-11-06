@@ -6,7 +6,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { DISMISS_OVERLAYS_EVENT } from "@/lib/kitchen";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, CalendarRange, Clock, Repeat, X } from "lucide-react";
-import { NOTIFY_BEFORE_OPTIONS, normalizeEndDate, RECURRENCE_LABELS } from "@/lib/calendar";
+import { addDaysToKey, NOTIFY_BEFORE_OPTIONS, normalizeEndDate, RECURRENCE_LABELS } from "@/lib/calendar";
 import { MemberAvatar, useEveryone } from "@/components/MemberTag";
 import type {
   CalendarEventType,
@@ -149,11 +149,9 @@ export function AddEventModal({
   );
 
   // "Ends on" must be after the start day; it only applies to one-off events.
-  const nextDay = (() => {
-    const [y, m, d] = dateKey.split("-").map(Number);
-    const next = new Date(y!, m! - 1, d! + 1, 12);
-    return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`;
-  })();
+  const nextDay = addDaysToKey(dateKey, 1);
+  const endBeforeStart =
+    recurrence === "none" && endDate !== "" && endDate <= dateKey;
 
   // Reminder only makes sense when a specific time is set
   const canSetReminder = eventTime !== "";
@@ -161,7 +159,7 @@ export function AddEventModal({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const trimmed = title.trim();
-    if (!trimmed || busy) return;
+    if (!trimmed || busy || endBeforeStart) return;
 
     const validEnd =
       recurrence === "none" ? normalizeEndDate(dateKey, endDate) : null;
@@ -363,6 +361,11 @@ export function AddEventModal({
                       type="date"
                       value={endDate}
                     />
+                    {endBeforeStart ? (
+                      <p className="text-[0.65rem] font-bold text-danger" role="alert">
+                        End date must be after the start date
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -477,7 +480,7 @@ export function AddEventModal({
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   className="w-full rounded-xl bg-foreground px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#2f241b] disabled:opacity-60"
-                  disabled={busy || !title.trim()}
+                  disabled={busy || !title.trim() || endBeforeStart}
                   type="submit"
                 >
                   Pin to calendar

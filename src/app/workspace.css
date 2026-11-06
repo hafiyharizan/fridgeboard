@@ -1562,17 +1562,29 @@ textarea:focus-visible {
   font-size: 17px;
 }
 .calendar-month-cell {
+  position: relative;
   min-height: 112px;
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--card);
 }
+.calendar-month-cell.is-weekend {
+  background: color-mix(in srgb, var(--oat-soft) 60%, var(--card));
+}
 .calendar-month-cell.is-today {
   background: var(--sage-tint);
   border-color: var(--sage-tint-strong);
 }
+/* Pure CSS hover for the grid (allowed: colour/shadow only, no motion). */
+.calendar-month-cell:hover,
+.calendar-month-cell:focus-within {
+  border-color: var(--sage-tint-strong);
+  box-shadow: var(--shadow-2);
+}
 .calendar-day-button {
+  display: flex;
+  align-items: center;
   width: 100%;
   min-height: 36px;
   text-align: left;
@@ -1580,8 +1592,49 @@ textarea:focus-visible {
   font-weight: 700;
   border-radius: 8px;
 }
-.is-today .calendar-day-button {
+.calendar-day-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  border-radius: 999px;
+}
+.is-today .calendar-day-number {
+  background: var(--sage-deep);
+  color: #fff;
+}
+.calendar-add-button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
   color: var(--sage-deep-text, var(--sage-deep));
+  background: var(--card);
+  border: 1px solid var(--sage-tint-strong);
+}
+.household-workspace .note-panel .calendar-add-button {
+  min-height: 32px;
+}
+.calendar-add-button:hover {
+  background: var(--sage-tint);
+}
+/* Touch has no hover; the day number already opens the day (48px target). */
+@media (pointer: coarse) {
+  .calendar-add-button {
+    display: none;
+  }
+}
+.calendar-day-button:focus-visible,
+.calendar-event-button:focus-visible,
+.calendar-add-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 .household-workspace .note-panel .calendar-event-button {
   min-height: 32px;
@@ -1600,6 +1653,57 @@ textarea:focus-visible {
   border-left: 3px solid var(--event, var(--sage));
   border-radius: 6px;
   background: var(--event-tint, var(--sage-tint));
+}
+.calendar-event-button:hover {
+  box-shadow: inset 0 0 0 1px var(--event, var(--sage));
+}
+/* Multi-day run: square off the joins and bleed across the cell gap. */
+.calendar-event-button.is-multi {
+  border-left-width: 0;
+  border-radius: 0;
+}
+.calendar-event-button.is-multi.is-start {
+  border-left-width: 3px;
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+.calendar-event-button.is-multi.is-end {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+/* A run broken by a week edge or the month edge rounds off like a new bar. */
+.calendar-event-button.is-multi.is-edge-l {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+.calendar-event-button.is-multi.is-edge-r {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+.calendar-event-button.bleed-l {
+  margin-left: -11px;
+  width: calc(100% + 11px);
+}
+.calendar-event-button.bleed-r {
+  margin-right: -11px;
+  width: calc(100% + 11px);
+}
+.calendar-event-button.bleed-l.bleed-r {
+  width: calc(100% + 22px);
+}
+/* Next-up header */
+.calendar-next-up {
+  display: block;
+  text-align: left;
+  max-width: 100%;
+  border-radius: 12px;
+}
+.calendar-next-up:hover h2 {
+  color: var(--sage-deep-text, var(--sage-deep));
+}
+.calendar-next-up:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
 }
 
 /* Calendar overlays (sheets and forms) */
@@ -2646,9 +2750,23 @@ textarea:focus-visible {
     padding: 3px;
     border-radius: 10px;
   }
+  .calendar-day-button {
+    font-size: 15px;
+  }
   .calendar-event-button {
     font-size: 11px;
     padding: 3px 4px;
+  }
+  .calendar-event-button.bleed-l {
+    margin-left: -6px;
+    width: calc(100% + 6px);
+  }
+  .calendar-event-button.bleed-r {
+    margin-right: -6px;
+    width: calc(100% + 6px);
+  }
+  .calendar-event-button.bleed-l.bleed-r {
+    width: calc(100% + 12px);
   }
 }
 

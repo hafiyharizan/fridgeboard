@@ -150,6 +150,37 @@ export function findNextEvent(
   return best;
 }
 
+/** The date key n days after (or before) a YYYY-MM-DD key, DST-safe. */
+export function addDaysToKey(key: string, n: number): string {
+  const d = parseDateKey(key);
+  return toDateKey(new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, 12));
+}
+
+/**
+ * Like findNextEvent, but for a "Next up" headline: a timed event whose time
+ * has already passed today is skipped, unless it is a multi-day event that is
+ * running today.
+ */
+export function findUpcomingEvent(
+  events: ExpandedCalendarEvent[],
+  now: Date,
+): ExpandedCalendarEvent | null {
+  const today = toDateKey(now);
+  const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  return findNextEvent(
+    events.filter(
+      (e) =>
+        !(
+          e.occurrence_date === today &&
+          e.event_time &&
+          e.event_time < hhmm &&
+          e.day_count <= 1
+        ),
+    ),
+    now,
+  );
+}
+
 /** Short label for when an event happens, relative to now (local calendar days). */
 export function describeNextEvent(event: ExpandedCalendarEvent, now: Date): string {
   const diff = daysBetween(toDateKey(now), event.occurrence_date);

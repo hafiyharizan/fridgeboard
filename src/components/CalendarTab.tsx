@@ -1,14 +1,21 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CalendarGrid } from "@/components/CalendarGrid";
 import { CalendarSettings } from "@/components/CalendarSettings";
 import { PushNotificationButton } from "@/components/PushNotificationButton";
 import { useCalendarData } from "@/components/WorkspaceData";
 import { DataStatus } from "@/components/HomeDashboard";
-import { getMonthName } from "@/lib/calendar";
+import {
+  addDaysToKey,
+  describeNextEvent,
+  expandRecurrences,
+  findUpcomingEvent,
+  formatDateKey,
+  getMonthName,
+} from "@/lib/calendar";
 import type { CalendarImportSource, ExpandedCalendarEvent } from "@/lib/types";
 
 type CalendarTabProps = {
@@ -23,6 +30,7 @@ export function CalendarTab({ onDay, onEvent }: CalendarTabProps) {
 
   const {
     getMonthEvents,
+    rawEvents,
     loading,
     isWorking,
     error,
@@ -36,6 +44,16 @@ export function CalendarTab({ onDay, onEvent }: CalendarTabProps) {
     () => getMonthEvents(year, month),
     [getMonthEvents, year, month],
   );
+
+  // Next event within 60 days; past-time events today are skipped.
+  const nextEvent = useMemo(() => {
+    const today = formatDateKey(now.getFullYear(), now.getMonth(), now.getDate());
+    return findUpcomingEvent(
+      expandRecurrences(rawEvents, today, addDaysToKey(today, 60)),
+      now,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `now` is re-read each render; rawEvents drives changes
+  }, [rawEvents]);
 
   const goToPrevMonth = () => {
     if (month === 0) {
@@ -69,14 +87,43 @@ export function CalendarTab({ onDay, onEvent }: CalendarTabProps) {
       {/* Header */}
       <div className="border-b border-border/80 px-4 pb-4 pt-4 sm:px-5">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted">
-              Calendar
-            </p>
-            <h2 className="text-3xl text-foreground sm:text-[2.2rem]">
-              What&apos;s coming up?
-            </h2>
-          </div>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={nextEvent ? `${nextEvent.id}-${nextEvent.occurrence_date}` : "none"}
+              className="min-w-0"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
+              {nextEvent ? (
+                <button
+                  className="calendar-next-up"
+                  type="button"
+                  onClick={() => onEvent(nextEvent)}
+                >
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted">
+                    Next up
+                  </p>
+                  <h2 className="truncate text-3xl text-foreground sm:text-[2.2rem]">
+                    {nextEvent.title}
+                  </h2>
+                  <p className="text-sm font-semibold text-muted">
+                    {describeNextEvent(nextEvent, now)}
+                  </p>
+                </button>
+              ) : (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted">
+                    Next up
+                  </p>
+                  <h2 className="text-3xl text-foreground sm:text-[2.2rem]">
+                    Nothing coming up
+                  </h2>
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
           <div className="flex items-center gap-2">
             <CalendarSettings
               busy={isWorking}

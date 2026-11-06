@@ -116,7 +116,20 @@ export function useHouseholdInfo(pin: string) {
     [people, supabase],
   );
 
+  /** Hands admin to another member (current admin only). */
+  const makeAdmin = useCallback(
+    async (newAdmin: string) => {
+      const { error } = await supabase.rpc("transfer_household_admin", { new_admin: newAdmin });
+      if (error) return error.message;
+      setMembers((prev) => prev.map((member) => ({ ...member, is_admin: member.user_id === newAdmin })));
+      setRevision((value) => value + 1);
+      return null;
+    },
+    [supabase],
+  );
+
   return {
+    makeAdmin,
     members,
     people,
     addPerson,

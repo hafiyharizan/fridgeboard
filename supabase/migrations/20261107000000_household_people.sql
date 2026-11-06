@@ -3,6 +3,7 @@
 -- 1. is_household_admin(): the household's admin is whoever created it
 --    (households.created_by); for older households with no creator saved,
 --    the member who joined first.
+--    transfer_household_admin() lets the admin hand this to another member.
 -- 2. household_members() also returns joined_at and is_admin, so the
 --    household dialog can list who signed up and who the admin is.
 -- 3. household_people — one row per person. A row with user_id set holds an
@@ -50,6 +51,38 @@ $$;
 
 revoke all on function public.is_household_admin() from public, anon;
 grant execute on function public.is_household_admin() to authenticated;
+
+-- Hands admin to another member of the caller's household. Only the
+-- current admin can do this; they become a regular member.
+create or replace function public.transfer_household_admin(new_admin uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  member_pin text := public.current_user_pin();
+begin
+  if auth.uid() is null or member_pin is null then
+    raise exception 'Join a household first.';
+  end if;
+  if not public.is_household_admin() then
+    raise exception 'Only the household admin can do that.';
+  end if;
+  if not exists (
+    select 1 from public.user_profiles p
+    where p.user_id = new_admin and p.pin_code = member_pin
+  ) then
+    raise exception 'That person is not in this household.';
+  end if;
+  insert into public.households (pin_code, created_by)
+  values (member_pin, new_admin)
+  on conflict (pin_code) do update set created_by = excluded.created_by;
+end;
+$$;
+
+revoke all on function public.transfer_household_admin(uuid) from public, anon;
+grant execute on function public.transfer_household_admin(uuid) to authenticated;
 
 -- The return type changes, so the function has to be dropped first.
 drop function if exists public.household_members();

@@ -457,6 +457,10 @@ export type Database = {
         Args: Record<string, never>;
         Returns: string | null;
       };
+      transfer_household_admin: {
+        Args: { new_admin: string };
+        Returns: undefined;
+      };
       household_members: {
         Args: Record<string, never>;
         Returns: HouseholdMember[];

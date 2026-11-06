@@ -1780,6 +1780,35 @@ textarea:focus-visible {
   background: var(--amber-tint);
   color: var(--amber-ink);
 }
+.people-row.is-confirming {
+  flex-wrap: wrap;
+}
+.household-sharing .people-make-admin {
+  min-height: 32px;
+  margin: -6px 0;
+  padding-inline: 2px;
+  font-size: 13px;
+}
+.people-confirm {
+  flex: 1 0 100%;
+  margin: 4px 4px 6px 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--amber-tint);
+}
+.household-sharing .people-confirm p {
+  margin: 0 0 10px;
+  color: var(--ink);
+}
+.people-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.people-confirm-actions button {
+  min-height: 44px;
+  padding: 8px 16px;
+}
 .people-subhead {
   margin-top: 18px;
   font-size: 17px;

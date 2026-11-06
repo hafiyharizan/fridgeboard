@@ -65,7 +65,7 @@ function joinedLabel(joinedAt: string | null | undefined) {
  * removes people; members can change their own colour, the admin anyone's.
  */
 export function HouseholdPeople() {
-  const { members, userId, addPerson, setPersonColor, removePerson } = useHousehold();
+  const { members, userId, addPerson, setPersonColor, removePerson, makeAdmin } = useHousehold();
   const everyone = useEveryone();
   const isAdmin = members.some((member) => member.user_id === userId && member.is_admin);
   const admin = members.find((member) => member.is_admin);
@@ -76,6 +76,18 @@ export function HouseholdPeople() {
   const [color, setColor] = useState<PersonColor | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Member the admin is about to hand admin to (asks before doing it).
+  const [handingTo, setHandingTo] = useState<string | null>(null);
+  const [handing, setHanding] = useState(false);
+
+  const confirmHandOver = async (target: string) => {
+    if (handing) return;
+    setHanding(true);
+    const message = await makeAdmin(target);
+    setHanding(false);
+    setHandingTo(null);
+    report(message);
+  };
   const newColor = color ?? COLOR_ORDER.find((c) => !used.has(c)) ?? "sage";
 
   const report = (message: string | null) => setError(message ? "Couldn't save that. Please try again." : "");
@@ -104,7 +116,7 @@ export function HouseholdPeople() {
           const you = entry.userId === userId;
           const joined = joinedLabel(member?.joined_at);
           return (
-            <li key={entry.key} className="people-row is-member">
+            <li key={entry.key} className={`people-row is-member${handingTo === entry.userId ? " is-confirming" : ""}`}>
               <MemberAvatar look={entry.look} />
               <span className="people-member">
                 <strong className="people-name">{entry.look.name}</strong>
@@ -112,6 +124,15 @@ export function HouseholdPeople() {
                   {member?.is_admin && <span className="people-badge is-admin">Admin</span>}
                   {you && <span className="people-badge">You</span>}
                   {joined && <span>{joined}</span>}
+                  {isAdmin && !you && handingTo !== entry.userId && (
+                    <button
+                      type="button"
+                      className="text-button people-make-admin"
+                      onClick={() => setHandingTo(entry.userId)}
+                    >
+                      Make admin
+                    </button>
+                  )}
                 </span>
               </span>
               {(you || isAdmin) && (
@@ -122,6 +143,27 @@ export function HouseholdPeople() {
                     report(await setPersonColor({ userId: entry.userId ?? "", name: entry.look.name }, next))
                   }
                 />
+              )}
+              {isAdmin && handingTo === entry.userId && (
+                <div className="people-confirm" role="group" aria-label={`Make ${entry.look.name} admin`}>
+                  <p>
+                    Make <strong>{entry.look.name}</strong> the admin? They&apos;ll add and remove people, and
+                    you&apos;ll become a regular member.
+                  </p>
+                  <div className="people-confirm-actions">
+                    <button type="button" className="secondary-button" onClick={() => setHandingTo(null)}>
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="primary-button"
+                      disabled={handing}
+                      onClick={() => void confirmHandOver(entry.userId ?? "")}
+                    >
+                      {handing ? "Saving…" : "Make admin"}
+                    </button>
+                  </div>
+                </div>
               )}
             </li>
           );

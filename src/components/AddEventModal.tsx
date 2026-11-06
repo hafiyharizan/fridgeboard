@@ -7,8 +7,7 @@ import { DISMISS_OVERLAYS_EVENT } from "@/lib/kitchen";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, Clock, Repeat, X } from "lucide-react";
 import { NOTIFY_BEFORE_OPTIONS, RECURRENCE_LABELS } from "@/lib/calendar";
-import { MemberAvatar, memberLook } from "@/components/MemberTag";
-import { useHousehold } from "@/components/WorkspaceData";
+import { MemberAvatar, useEveryone } from "@/components/MemberTag";
 import type {
   CalendarEventType,
   NotifyChannel,
@@ -67,6 +66,7 @@ type AddEventModalProps = {
     notify_before: number;
     notify_channels: NotifyChannel[];
     owner_id: string | null;
+    owner_person_id: string | null;
   }) => Promise<boolean>;
 };
 
@@ -112,10 +112,13 @@ export function AddEventModal({
   const [recurrenceEnd, setRecurrenceEnd] = useState(initial?.recurrenceEnd ?? "");
   const [eventTime, setEventTime] = useState(initial?.eventTime ?? "");
   const [notifyBefore, setNotifyBefore] = useState(initial?.notifyBefore ?? -1);
-  const { members } = useHousehold();
+  const everyone = useEveryone();
+  // Owner key: a member's user id, "p:<id>" for someone without an account,
+  // or null for everyone.
   const [owner, setOwner] = useState<string | null>(
-    initial ? initial.owner : members.length > 1 ? defaultOwner : null,
+    initial ? initial.owner : everyone.length > 1 ? defaultOwner : null,
   );
+  const ownerEntry = everyone.find((entry) => entry.key === owner) ?? null;
 
   const draft = useRef<Draft | null>(null);
   useEffect(() => {
@@ -162,7 +165,8 @@ export function AddEventModal({
         recurrence !== "none" && recurrenceEnd ? recurrenceEnd : undefined,
       notify_before: canSetReminder ? notifyBefore : -1,
       notify_channels: [] as NotifyChannel[],
-      owner_id: owner,
+      owner_id: ownerEntry?.userId ?? null,
+      owner_person_id: ownerEntry?.personId ?? null,
     });
 
     if (saved) onClose();
@@ -239,7 +243,7 @@ export function AddEventModal({
                 />
 
                 {/* Owner — whose plan this is */}
-                {members.length > 1 && (
+                {everyone.length > 1 && (
                   <div className="space-y-2">
                     <p className="text-[0.62rem] font-bold uppercase tracking-[0.2em] text-muted">
                       Whose is it?
@@ -257,22 +261,19 @@ export function AddEventModal({
                         </span>
                         Everyone
                       </button>
-                      {members.map((member, index) => {
-                        const look = memberLook(member, index);
-                        return (
-                          <button
-                            key={member.user_id}
-                            type="button"
-                            role="radio"
-                            aria-checked={owner === member.user_id}
-                            className="member-chip"
-                            onClick={() => setOwner(member.user_id)}
-                          >
-                            <MemberAvatar look={look} />
-                            {look.short}
-                          </button>
-                        );
-                      })}
+                      {everyone.map(({ key, look }) => (
+                        <button
+                          key={key}
+                          type="button"
+                          role="radio"
+                          aria-checked={owner === key}
+                          className="member-chip"
+                          onClick={() => setOwner(key)}
+                        >
+                          <MemberAvatar look={look} />
+                          {look.short}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}

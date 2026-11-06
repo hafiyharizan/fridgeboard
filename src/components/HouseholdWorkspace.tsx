@@ -29,6 +29,7 @@ import { AthanBanner, PlaceSettings } from "@/components/Ambient";
 import { OfflineSnapshotWriter, useHousehold } from "@/components/WorkspaceData";
 import { useAthan, useNow, usePrayerDay, useWeather } from "@/hooks/useAmbient";
 import { InvitePanel } from "@/components/InvitePanel";
+import { HouseholdPeople } from "@/components/HouseholdPeople";
 import { Dialog } from "@/components/Dialog";
 import { CalendarDialogs } from "@/components/CalendarDialogs";
 import { dateKey, greeting } from "@/lib/dashboard";
@@ -311,8 +312,13 @@ export function HouseholdWorkspace({
             <p className="dialog-copy">
               Signed in as <strong>{name}</strong>
             </p>
-            <section className="household-sharing"><h3>Invite your household</h3><p>Each invite code works once and expires after seven days.</p><InvitePanel /></section>
-          {accountError && (
+            <HouseholdPeople />
+            <section className="household-sharing">
+              <h3>Invite your household</h3>
+              <p>Each invite code works once and expires after seven days.</p>
+              <InvitePanel />
+            </section>
+            {accountError && (
               <p className="data-status error" role="alert">
                 {accountError}
               </p>

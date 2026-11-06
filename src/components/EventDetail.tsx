@@ -119,7 +119,7 @@ export function EventDetail({
 
           {/* Recurrence & notification badges */}
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <MemberTag userId={event.owner_id} label="For" />
+            <MemberTag userId={event.owner_id} personId={event.owner_person_id} label="For" />
             {event.recurrence !== "none" ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-border bg-white/60 px-2 py-0.5 text-[0.65rem] font-bold text-muted">
                 <Repeat className="h-2.5 w-2.5" />

@@ -195,6 +195,9 @@ export function useRealtimeCalendar(pinCode: string) {
 
     /** Whose event it is; null = the whole household. */
     owner_id?: string | null;
+
+    /** Whose event it is, for someone without an account. */
+    owner_person_id?: string | null;
   }) => {
     if (working.current) return false;
 
@@ -234,6 +237,8 @@ export function useRealtimeCalendar(pinCode: string) {
           notify_channels: data.notify_channels,
 
           owner_id: data.owner_id ?? null,
+
+          ...(data.owner_person_id ? { owner_person_id: data.owner_person_id } : {}),
         });
 
       if (insertError) {

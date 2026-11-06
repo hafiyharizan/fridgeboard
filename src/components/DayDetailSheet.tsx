@@ -156,7 +156,7 @@ export function DayDetailSheet({
                       ) : null}
 
                       <div className="mt-0.5 flex flex-wrap items-center gap-1">
-                        <MemberTag userId={event.owner_id} label="For" />
+                        <MemberTag userId={event.owner_id} personId={event.owner_person_id} label="For" />
                         {event.recurrence !== "none" ? (
                           <span className="inline-flex items-center gap-0.5 rounded-full border border-border/60 bg-white/60 px-1.5 py-0.5 text-[0.55rem] font-bold text-muted">
                             <Repeat className="h-2 w-2" />

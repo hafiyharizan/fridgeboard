@@ -6,6 +6,7 @@ import { dateKey } from "@/lib/dashboard";
 import { duePrayer, prayerSchedule, prayerView, type PrayerSlot } from "@/lib/prayer";
 import { forecastUrl, parseForecast, type Forecast } from "@/lib/weather";
 import type { NewsItem } from "@/lib/news";
+import type { StockQuote } from "@/lib/stocks";
 import type { HouseholdSettings } from "@/lib/types";
 
 const WEATHER_REFRESH_MS = 30 * 60 * 1000;
@@ -258,4 +259,39 @@ export function useNews() {
     };
   }, []);
   return state;
+}
+
+const STOCKS_REFRESH_MS = 5 * 60 * 1000;
+
+/**
+ * Market numbers from /api/stocks, refreshed every 5 minutes and on wake.
+ * Empty when the source is unavailable; the news card then just hides them.
+ */
+export function useStocks() {
+  const [quotes, setQuotes] = useState<StockQuote[]>([]);
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const response = await fetch("/api/stocks", { cache: "no-store" });
+        const body = (await response.json()) as { quotes?: StockQuote[] };
+        if (alive && response.ok && Array.isArray(body.quotes)) setQuotes(body.quotes);
+      } catch {
+        // Keep the last numbers.
+      }
+    };
+    const first = window.setTimeout(() => void load(), 0);
+    const timer = window.setInterval(load, STOCKS_REFRESH_MS);
+    const stop = watchWake(
+      () => void load(),
+      () => void load(),
+    );
+    return () => {
+      alive = false;
+      window.clearTimeout(first);
+      window.clearInterval(timer);
+      stop();
+    };
+  }, []);
+  return quotes;
 }

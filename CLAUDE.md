@@ -44,15 +44,17 @@ src/
       push/prayer/              # Cron: athan push at prayer times
       calendar/{feed,import,sync}/  # iCal feed, holiday imports, sync links
       version/                  # Live deploy id (kitchen display self-update)
-      news/                     # Headlines for the Home news card (server-side RSS)
+      news/                     # Perth headlines for the Home news card (server-side RSS)
+      stocks/                   # Market numbers for the news card (Yahoo Finance chart API)
   components/
     ListShell.tsx               # Auth check, loads household lists
     WorkspaceData.tsx           # Realtime controllers + household context (members, settings, adder)
     HouseholdWorkspace.tsx      # Header, tabs, dialogs, kitchen mode wiring
     HomeDashboard.tsx           # Home grid + AmbientLayer (idle "today" view data)
     WorkTab.tsx                 # Weekly work roster (Work tab) + shift editor
-    MemberTag.tsx               # Owner tag, member avatar/tint helpers
-    Ambient.tsx                 # Outside card (weather/prayer), athan banner, idle view, place settings
+    MemberTag.tsx               # Owner tag, person colours, useEveryone / lookup helpers
+    HouseholdPeople.tsx         # "People" in the household dialog (colours, kids without accounts)
+    Ambient.tsx                 # Outside card (clock + weather + prayer), athan banner, idle view, place settings
     Sky.tsx                     # Animated sky behind the Outside card
     KitchenDisplay.tsx          # Settings hold button, sync badge, kitchen switch
     WhoIsAdding.tsx             # Kitchen display member picker
@@ -74,7 +76,8 @@ src/
     calendar.ts, dashboard.ts   # Recurrence expansion, Home helpers
     kitchen.ts                  # Kitchen display rules and timings
     weather.ts, prayer.ts       # Open-Meteo parsing, prayer times (adhan)
-    news.ts                     # RSS/Atom parsing for the Home news card
+    news.ts                     # RSS/Atom parsing + Perth filter for the Home news card
+    stocks.ts                   # STOCK_SYMBOLS, Yahoo chart parsing, price formatting
     work.ts                     # Work roster: weeks, overnight shifts, "everyone home" summary
     push.ts, new-item-push.ts   # Web Push sending and wording
     offline-snapshot.ts         # Last-known board for public/offline.html
@@ -141,6 +144,10 @@ Managed via SQL migrations in `supabase/migrations/`. Apply in filename timestam
 
 **Owner tags** — list items show who added them (`added_by ?? created_by`). `calendar_events.owner_id` is whose plan it is (null = everyone), chosen with "Whose is it?" in the add form (defaults to the adder; on a kitchen display, the "Who's adding?" pick); a trigger clears it unless that member is in the event's household. `calendar_events.created_by` defaults to `auth.uid()`. `MemberTag` hides itself in one-person households.
 
+**Household members & admins** — the household dialog's "Members" list is everyone who signed up and joined (`household_members()` returns `joined_at` and `is_admin`). A household can have several admins (`household_admins`, service role only). With none recorded, the admin is whoever created it (`households.created_by`), or for older households the first member to join. Admins can "Make admin" / "Remove admin" (`set_household_admin`; the last admin can't step down) and "Remove" a member from the household (`remove_household_member`: clears their `pin_code`, admin role, colour, work shifts and unused invites; not themselves). `is_household_admin()` is the RLS check.
+
+**`household_people`** — colours, plus people who can't sign up (babies, kids). A row with `user_id` holds an account member's colour (name comes from their profile); a row without is someone with no account. Only admins add or remove people; members can change their own colour, admins anyone's (RLS). `calendar_events.owner_person_id` tags an event for someone without an account ("Whose is it?" lists everyone); `owner_id` still names account members. Triggers keep both inside the household. `MemberTag` / `useEveryone` merge accounts and people (`buildEveryone`); members without a chosen colour get one nobody has picked. UI in `components/HouseholdPeople.tsx`.
+
 **`work_shifts`** — weekly work roster: one row per member per day (`unique (user_id, shift_date)`), `start_time`/`end_time` as `HH:MM` (end at or before start = overnight), optional `note`. Any household member can edit it; a trigger keeps `user_id` inside the household. Realtime enabled. Shown in the **Work** tab (Mon–Sun grid, "All home" column, copy last week) and as a line on Home's schedule (who works that day, when everyone is home).
 
 **`prayer_push_log`**, **`item_push_log`** — single-use logs for athan and new-item pushes (service role only).
@@ -188,7 +195,8 @@ const supabase = createClient(
 | `CRON_SECRET` | Yes (cron routes) | Bearer token for `/api/notifications` and `/api/push/remind`. If unset, those routes reject every request (fail closed). |
 | `TELEGRAM_BOT_TOKEN` | Optional | For Telegram notification channel |
 | `APP_TIMEZONE` | Optional | IANA zone for event dates/times in cron routes (default `Australia/Perth`; Netlify functions run in UTC) |
-| `NEWS_FEEDS` | Optional | Home news card feeds: comma-separated `Label\|https://…` RSS/Atom URLs, max 6 (default ABC News WA + ABC Top Stories) |
+| `NEWS_FEEDS` | Optional | Home news card feeds: comma-separated `Label\|https://…` or `Label\|https://…\|local` RSS/Atom URLs, max 6. Only Perth/WA stories are kept unless a feed is `local` (default: ABC News WA + WAtoday in full, ABC Top Stories filtered) |
+| `STOCK_SYMBOLS` | Optional | News card market line: comma-separated `Label\|SYMBOL` in Yahoo Finance form, max 4 (default `ASX 200\|^AXJO,AUD/USD\|AUDUSD=X`) |
 
 ---
 
@@ -232,6 +240,10 @@ Weather comes from Open-Meteo (no key) in the browser (`useWeather`), refreshed 
 ### `GET /api/news`
 
 Headlines for the Home news card. Fetches the fixed feed list from `NEWS_FEEDS` (never a URL from the client) on the server, since RSS has no CORS; 8s timeout; redirects followed by hand (max 3, https only); body capped at 2MB while downloading; 15-minute in-memory cache shared by concurrent requests; stale copy served if every feed fails. Parsing in `lib/news.ts` (no XML dependency, single forward scan so a malformed feed can't go quadratic): tags stripped, entities decoded, only http(s) links kept, merged newest first without duplicates. `useNews` in `hooks/useAmbient.ts` caches on the device (`fridgeboard.news`) and refreshes every 15 minutes and on wake.
+
+### `GET /api/stocks`
+
+Market numbers shown as one line above the news headlines. Fetches the fixed `STOCK_SYMBOLS` list (never a symbol from the client) from Yahoo Finance's public chart endpoint on the server; 8s timeout, no redirects, 200KB cap, 5-minute in-memory cache, last good numbers served if it fails. `useStocks` refreshes every 5 minutes and on wake; the line hides when there's nothing to show.
 
 ### `GET /api/version`
 
@@ -284,7 +296,7 @@ npm run test:coverage # Run tests with coverage report
 - Design system "Warm & Homely" (kitchen ambient hub): warm cream canvas `#F7F5F0`, white cards, heritage sage `#6C8273` / deep laurel `#4C6153`, soft amber `#D99B65`, ink `#2B332E`. One font: Plus Jakarta Sans (`--font-body`; `--font-heading` points to it).
 - Automatic light/dark: the signed-in app is light by day and dark from sunset to sunrise at home (`isDarkTime` in `lib/weather.ts`, using Open-Meteo sun times; fallback 6 AM–6 PM). `useAutoTheme` in `HouseholdWorkspace` sets `<html data-theme="dark">` before paint and updates `theme-color`; it's removed on sign-out, so sign-in and onboarding stay light. Dark tokens live under `:root[data-theme="dark"]` at the top of `workspace.css`. Deep greens stay mid-tone fills for white button text; text that used them reads `--sage-deep-text` / `--sage-ink-text`. New colours should come from tokens so both themes work.
 - The signed-in workspace is styled in `src/app/workspace.css`, scoped to `.household-workspace` with tokens (`--sage`, `--amber-tint`, `--radius-card`, `--shadow-1`…) defined at the top. Shared pieces: `.card`, `.pill`, `.icon-tile`, `.check-control` + `.check-ring`, `.list-row`, `event-<color>` (sets `--event` / `--event-tint`).
-- Home (`HomeDashboard`) is a three-column landscape layout (clock + Outside + News | Family Schedule | To-Do + Groceries) that fits 1280×800 without scrolling. On that one-screen layout, cards show whole rows only (`hooks/useWholeRows.ts` hides rows that would be cut off) with a "View all · N" link. Two columns below 1180px, one column below 760px (news moves last).
+- Home (`HomeDashboard`) is a three-column landscape layout (Outside card with clock, weather and "Next up" + Perth news with markets | Family Schedule | To-Do + Groceries) that fits 1280×800 without scrolling. On that one-screen layout, cards show whole rows only (`hooks/useWholeRows.ts` hides rows that would be cut off) with a "View all · N" link. Two columns below 1180px, one column below 760px (news moves last).
 - The schedule is time-aware (`eventPhase`, `defaultScheduleDay` in `lib/dashboard.ts`): an event is "Now" from its start until an hour later, finished ones fold into "Earlier today", and Home opens on Tomorrow once today is over (or from 6 PM on an empty day). Prayer tiles switch to tomorrow's times after Isha (`prayerView` in `lib/prayer.ts`). News shows two headlines; "More news" opens the rest. Text meant to be read across the kitchen is at least 13–15px. Adding from Home uses the "+" buttons on the schedule, To-Do and Groceries cards. Touch targets are at least 48px.
 
 ### Animations
@@ -326,7 +338,8 @@ Vitest is configured. Tests live alongside source files as `*.test.ts`.
 - `src/lib/calendar.test.ts` — covers all pure calendar utilities and recurrence expansion
 - `src/lib/suggestions.test.ts` — covers autocomplete and smartSuggest
 - `src/lib/work.test.ts` — week helpers, overnight shifts, "everyone home" summary
-- `src/lib/news.test.ts` — feed parsing, merging, `NEWS_FEEDS` and story ages
+- `src/lib/news.test.ts` — feed parsing, merging, `NEWS_FEEDS`, Perth filter and story ages
+- `src/lib/stocks.test.ts` — `STOCK_SYMBOLS`, Yahoo chart parsing, price/change formatting
 - `src/app/api/news/route.test.ts` — redirect, size-cap and caching rules for `/api/news`
 
 The vitest config (`vitest.config.ts`) sets up the `@/*` path alias and uses the `node` environment (no DOM needed for pure utility tests).

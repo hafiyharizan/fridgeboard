@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanText, DEFAULT_NEWS_FEEDS, mergeNews, newsAge, newsFeedsFromEnv, parseFeed } from "@/lib/news";
+import { cleanText, DEFAULT_NEWS_FEEDS, isPerthStory, mergeNews, newsAge, newsFeedsFromEnv, parseFeed, perthOnly } from "@/lib/news";
 
 const rss = `<?xml version="1.0"?><rss><channel><title>ABC</title>
 <item><title><![CDATA[Perth hits 30&deg; &amp; more]]></title><link>https://www.abc.net.au/news/1</link>
@@ -70,5 +70,30 @@ describe("newsAge", () => {
     expect(newsAge("2026-11-04T09:00:00Z", now)).toBe("3 h ago");
     expect(newsAge("2026-11-03T08:00:00Z", now)).toBe("Yesterday");
     expect(newsAge(null, now)).toBe("");
+  });
+});
+
+describe("Perth filter", () => {
+  it("recognises Perth and WA headlines", () => {
+    expect(isPerthStory({ title: "Train delays across Perth tonight" })).toBe(true);
+    expect(isPerthStory({ title: "WA Premier announces budget" })).toBe(true);
+    expect(isPerthStory({ title: "Storm warning for Mandurah" })).toBe(true);
+    expect(isPerthStory({ title: "Sydney rents rise again" })).toBe(false);
+    expect(isPerthStory({ title: "Washington talks stall" })).toBe(false);
+    expect(isPerthStory({ title: "Kiwa wins award" })).toBe(false);
+  });
+  it("keeps local feeds whole and filters the rest", () => {
+    const item = (title: string) => ({ id: title, title, link: "https://x.test/" + title, source: "s", publishedAt: null });
+    const groups = [[item("Council meeting")], [item("Sydney news"), item("Perth news")]];
+    const feeds = [
+      { url: "https://a.test", source: "Local", local: true },
+      { url: "https://b.test", source: "National" },
+    ];
+    expect(perthOnly(groups, feeds).map((g) => g.map((i) => i.title))).toEqual([["Council meeting"], ["Perth news"]]);
+  });
+  it("reads the local flag from NEWS_FEEDS", () => {
+    expect(newsFeedsFromEnv("Mine|https://a.test/rss|local")).toEqual([
+      { url: "https://a.test/rss", source: "Mine", local: true },
+    ]);
   });
 });

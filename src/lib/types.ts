@@ -47,10 +47,32 @@ export type HouseholdSettings = {
   updated_at: string;
 };
 
+/** Someone who signed up and joined the household (household_members()). */
 export type HouseholdMember = {
   user_id: string;
   display_name: string | null;
   avatar_url: string | null;
+  /** When they joined (missing before the household_people migration). */
+  joined_at?: string | null;
+  /** Can manage the household: admins, members, people without an account. */
+  is_admin?: boolean;
+};
+
+/** Colour a person is shown in (tags, chips, avatars). */
+export type PersonColor = "sage" | "clay" | "blue" | "lilac" | "sand" | "rose";
+
+/**
+ * Someone the household plans around. With user_id: an account member's
+ * colour (their name comes from their profile). Without: a person with no
+ * account, such as a child.
+ */
+export type HouseholdPerson = {
+  id: string;
+  pin_code: string;
+  user_id: string | null;
+  name: string;
+  color: PersonColor;
+  created_at: string;
 };
 
 export type CalendarEventType = "event" | "reminder" | "todo";
@@ -83,6 +105,8 @@ export type CalendarEvent = {
   created_by?: string | null;
   /** Whose event it is; null = the whole household. */
   owner_id?: string | null;
+  /** Whose event it is, for someone without an account (household_people). */
+  owner_person_id?: string | null;
 };
 
 /** One member's work hours on one day. End at or before start = overnight. */
@@ -183,6 +207,7 @@ export type Database = {
           source_label?: string | null;
           source_event_id?: string | null;
           owner_id?: string | null;
+          owner_person_id?: string | null;
         };
         Update: {
           id?: string;
@@ -203,6 +228,7 @@ export type Database = {
           source_label?: string | null;
           source_event_id?: string | null;
           owner_id?: string | null;
+          owner_person_id?: string | null;
         };
         Relationships: [];
       };
@@ -319,6 +345,19 @@ export type Database = {
           },
         ];
       };
+      household_people: {
+        Row: HouseholdPerson;
+        Insert: {
+          id?: string;
+          pin_code: string;
+          user_id?: string | null;
+          name: string;
+          color?: PersonColor;
+          created_at?: string;
+        };
+        Update: { name?: string; color?: PersonColor };
+        Relationships: [];
+      };
       household_settings: {
         Row: HouseholdSettings;
         Insert: Partial<Omit<HouseholdSettings, "pin_code">> & { pin_code: string };
@@ -417,6 +456,14 @@ export type Database = {
       current_user_pin: {
         Args: Record<string, never>;
         Returns: string | null;
+      };
+      set_household_admin: {
+        Args: { member: string; make_admin: boolean };
+        Returns: undefined;
+      };
+      remove_household_member: {
+        Args: { member: string };
+        Returns: undefined;
       };
       household_members: {
         Args: Record<string, never>;

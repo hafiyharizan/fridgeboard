@@ -11,17 +11,23 @@ export type NewsItem = {
   publishedAt: string | null;
 };
 
-export type NewsFeed = { url: string; source: string };
+/** `local`: a Perth/WA feed whose stories are all kept. Others are filtered to Perth. */
+export type NewsFeed = { url: string; source: string; local?: boolean };
 
-/** ABC News WA top stories, then national top stories. */
+/**
+ * Perth and WA news: ABC News WA and WAtoday in full, plus national ABC
+ * stories that are about Perth or WA.
+ */
 export const DEFAULT_NEWS_FEEDS: NewsFeed[] = [
-  { url: "https://www.abc.net.au/news/feed/5313390/rss.xml", source: "ABC News WA" },
+  { url: "https://www.abc.net.au/news/feed/5313390/rss.xml", source: "ABC News WA", local: true },
+  { url: "https://www.watoday.com.au/rss/feed.xml", source: "WAtoday", local: true },
   { url: "https://www.abc.net.au/news/feed/10719986/rss.xml", source: "ABC News" },
 ];
 
 /**
- * NEWS_FEEDS overrides the defaults: comma-separated `url` or `Label|url`
- * entries. Anything that isn't an https URL is ignored.
+ * NEWS_FEEDS overrides the defaults: comma-separated `url`, `Label|url` or
+ * `Label|url|local` entries (`local` keeps every story; otherwise only Perth
+ * and WA stories are shown). Anything that isn't an https URL is ignored.
  */
 export function newsFeedsFromEnv(value: string | undefined): NewsFeed[] {
   if (!value?.trim()) return DEFAULT_NEWS_FEEDS;
@@ -30,16 +36,34 @@ export function newsFeedsFromEnv(value: string | undefined): NewsFeed[] {
     .map((entry) => entry.trim())
     .filter(Boolean)
     .flatMap((entry): NewsFeed[] => {
-      const [label, raw] = entry.includes("|") ? entry.split("|", 2) : ["", entry];
+      const parts = entry.split("|").map((part) => part.trim());
+      const [label, raw, flag] = parts.length > 1 ? parts : ["", parts[0]];
       try {
-        const url = new URL(raw.trim());
+        const url = new URL(raw);
         if (url.protocol !== "https:") return [];
-        return [{ url: url.toString(), source: label.trim() || url.hostname.replace(/^www\./, "") }];
+        const feed: NewsFeed = { url: url.toString(), source: label || url.hostname.replace(/^www\./, "") };
+        if (flag?.toLowerCase() === "local") feed.local = true;
+        return [feed];
       } catch {
         return [];
       }
     });
   return feeds.length ? feeds.slice(0, 6) : DEFAULT_NEWS_FEEDS;
+}
+
+// Perth, WA and Perth-area places. "WA" must be upper case on its own.
+const PERTH_WORDS =
+  /\b(perth|western australia(n)?|fremantle|freo|joondalup|rockingham|mandurah|kwinana|armadale|midland|cannington|subiaco|cottesloe|scarborough|ellenbrook|baldivis|wanneroo|morley|northbridge|optus stadium|rottnest|swan river|perth hills|wheatbelt|pilbara|kimberley|goldfields|kalgoorlie|bunbury|busselton|margaret river|albany|geraldton|broome|karratha|port hedland|wa police|wa labor|wa liberals?|wacca|west coast eagles|fremantle dockers|perth glory|perth scorchers|perth wildcats)\b/i;
+const WA_ABBREVIATION = /(^|[^A-Za-z])WA([^A-Za-z]|$)/;
+
+/** Whether a headline is about Perth or Western Australia. */
+export function isPerthStory(item: Pick<NewsItem, "title">): boolean {
+  return PERTH_WORDS.test(item.title) || WA_ABBREVIATION.test(item.title);
+}
+
+/** Keeps local feeds whole and filters the rest to Perth and WA stories. */
+export function perthOnly(groups: NewsItem[][], feeds: NewsFeed[]): NewsItem[][] {
+  return groups.map((items, index) => (feeds[index]?.local ? items : items.filter(isPerthStory)));
 }
 
 const ENTITIES: Record<string, string> = {

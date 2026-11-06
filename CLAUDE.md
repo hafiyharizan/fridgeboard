@@ -60,6 +60,7 @@ src/
     Sky.tsx                     # Animated sky behind the Outside card
     KitchenDisplay.tsx          # Settings hold button, sync badge, kitchen switch
     WhoIsAdding.tsx             # Kitchen display member picker
+    SwipeDeck.tsx               # Sideways card deck (News / Markets on Home)
     ListTab.tsx, ItemRow.tsx, AddItemInput.tsx, SuggestionPanel.tsx
     CalendarTab.tsx, CalendarGrid.tsx, CalendarDialogs.tsx, AddEventModal.tsx,
     DayDetailSheet.tsx, EventDetail.tsx, CalendarSettings.tsx
@@ -203,7 +204,7 @@ const supabase = createClient(
 | `TELEGRAM_BOT_TOKEN` | Optional | For Telegram notification channel |
 | `APP_TIMEZONE` | Optional | IANA zone for event dates/times in cron routes (default `Australia/Perth`; Netlify functions run in UTC) |
 | `NEWS_FEEDS` | Optional | Home news card feeds: comma-separated `Label\|https://…` or `Label\|https://…\|local` RSS/Atom URLs, max 6. Only Perth/WA stories are kept unless a feed is `local` (default: ABC News WA + WAtoday in full, ABC Top Stories filtered) |
-| `STOCK_SYMBOLS` | Optional | News card market line: comma-separated `Label\|SYMBOL` in Yahoo Finance form, max 4 (default `SPUS,ASX 200\|^AXJO,AUD/MYR\|AUDMYR=X,MYR/USD\|MYRUSD=X`) |
+| `STOCK_SYMBOLS` | Optional | Markets card on Home: comma-separated `Label\|SYMBOL` in Yahoo Finance form, max 4 (default `SPUS,ASX 200\|^AXJO,AUD/MYR\|AUDMYR=X,MYR/USD\|MYRUSD=X`) |
 
 ---
 
@@ -250,7 +251,7 @@ Headlines for the Home news card. Fetches the fixed feed list from `NEWS_FEEDS` 
 
 ### `GET /api/stocks`
 
-Market numbers shown as one line above the news headlines. Fetches the fixed `STOCK_SYMBOLS` list (never a symbol from the client) from Yahoo Finance's public chart endpoint on the server; 8s timeout, no redirects, 200KB cap, 5-minute in-memory cache, last good numbers served if it fails. `useStocks` refreshes every 5 minutes and on wake; the line hides when there's nothing to show.
+Market numbers for the Markets card (SPUS, ASX 200, AUD/MYR, MYR/USD by default), a swipeable deck partner of the news card (`SwipeDeck`: drag, dots, arrow keys; a drag over 8px never opens a news link). SPUS shows its currency beside the price; currency pairs (`=X`) do not. The card is left out of the deck when no numbers come back. Fetches the fixed `STOCK_SYMBOLS` list (never a symbol from the client) from Yahoo Finance's public chart endpoint on the server; 8s timeout, no redirects, 200KB cap, 5-minute in-memory cache, last good numbers served if it fails. `useStocks` refreshes every 5 minutes and on wake; Markets is dropped from the deck when there's nothing to show.
 
 ### `GET /api/version`
 
@@ -307,7 +308,7 @@ npm run test:coverage # Run tests with coverage report
 - Design system "Warm & Homely" (kitchen ambient hub): warm cream canvas `#F7F5F0`, white cards, heritage sage `#6C8273` / deep laurel `#4C6153`, soft amber `#D99B65`, ink `#2B332E`. One font: Plus Jakarta Sans (`--font-body`; `--font-heading` points to it).
 - Automatic light/dark: the signed-in app is light by day and dark from sunset to sunrise at home (`isDarkTime` in `lib/weather.ts`, using Open-Meteo sun times; fallback 6 AM–6 PM). `useAutoTheme` in `HouseholdWorkspace` sets `<html data-theme="dark">` before paint and updates `theme-color`; it's removed on sign-out, so sign-in and onboarding stay light. Dark tokens live under `:root[data-theme="dark"]` at the top of `workspace.css`. Deep greens stay mid-tone fills for white button text; text that used them reads `--sage-deep-text` / `--sage-ink-text`. New colours should come from tokens so both themes work.
 - The signed-in workspace is styled in `src/app/workspace.css`, scoped to `.household-workspace` with tokens (`--sage`, `--amber-tint`, `--radius-card`, `--shadow-1`…) defined at the top. Shared pieces: `.card`, `.pill`, `.icon-tile`, `.check-control` + `.check-ring`, `.list-row`, `event-<color>` (sets `--event` / `--event-tint`).
-- Home (`HomeDashboard`) is a three-column landscape layout (Outside card with clock, weather and "Next up" + Perth news with markets | Family Schedule | To-Do + Groceries) that fits 1280×800 without scrolling. On that one-screen layout, cards show whole rows only (`hooks/useWholeRows.ts` hides rows that would be cut off) with a "View all · N" link. Two columns below 1180px, one column below 760px (news moves last).
+- Home (`HomeDashboard`) is a three-column landscape layout (Outside card with clock, weather and "Next up" + a swipeable Perth news / Markets deck | Family Schedule | To-Do + Groceries) that fits 1280×800 without scrolling. On that one-screen layout, cards show whole rows only (`hooks/useWholeRows.ts` hides rows that would be cut off) with a "View all · N" link. Two columns below 1180px, one column below 760px (news moves last).
 - The schedule is time-aware (`eventPhase`, `defaultScheduleDay` in `lib/dashboard.ts`): an event is "Now" from its start until an hour later, finished ones fold into "Earlier today", and Home opens on Tomorrow once today is over (or from 6 PM on an empty day). Prayer tiles switch to tomorrow's times after Isha (`prayerView` in `lib/prayer.ts`). News shows two headlines; "More news" opens the rest. Text meant to be read across the kitchen is at least 13–15px. Adding from Home uses the "+" buttons on the schedule, To-Do and Groceries cards. Touch targets are at least 48px.
 
 ### Animations

@@ -265,20 +265,26 @@ const STOCKS_REFRESH_MS = 5 * 60 * 1000;
 
 /**
  * Market numbers from /api/stocks, refreshed every 5 minutes and on wake.
- * Empty when the source is unavailable; the news card then just hides them.
+ * Empty when the source is unavailable; Home then drops the Markets card.
+ * `loaded` turns true after the first attempt, whatever its outcome.
  */
 export function useStocks() {
-  const [quotes, setQuotes] = useState<StockQuote[]>([]);
+  const [state, setState] = useState<{ quotes: StockQuote[]; loaded: boolean }>({ quotes: [], loaded: false });
   useEffect(() => {
     let alive = true;
     const load = async () => {
       try {
         const response = await fetch("/api/stocks", { cache: "no-store" });
         const body = (await response.json()) as { quotes?: StockQuote[] };
-        if (alive && response.ok && Array.isArray(body.quotes)) setQuotes(body.quotes);
+        if (alive && response.ok && Array.isArray(body.quotes)) {
+          const quotes = body.quotes;
+          setState({ quotes, loaded: true });
+          return;
+        }
       } catch {
         // Keep the last numbers.
       }
+      if (alive) setState((prev) => (prev.loaded ? prev : { ...prev, loaded: true }));
     };
     const first = window.setTimeout(() => void load(), 0);
     const timer = window.setInterval(load, STOCKS_REFRESH_MS);
@@ -293,5 +299,5 @@ export function useStocks() {
       stop();
     };
   }, []);
-  return quotes;
+  return state;
 }

@@ -18,11 +18,13 @@ import {
   Repeat,
   ShoppingBasket,
   Sunrise,
+  TrendingUp,
 } from "lucide-react";
 import { AmbientScreen, OutsideCard } from "@/components/Ambient";
 import { Dialog } from "@/components/Dialog";
+import { SwipeDeck } from "@/components/SwipeDeck";
 import { useNews, useNow, useStocks, type PrayerDay } from "@/hooks/useAmbient";
-import { formatChange, formatPrice, type StockQuote } from "@/lib/stocks";
+import { formatChange, formatPrice, priceCurrency, type StockQuote } from "@/lib/stocks";
 import { useWholeRows } from "@/hooks/useWholeRows";
 import { newsAge, type NewsItem } from "@/lib/news";
 import type { Forecast } from "@/lib/weather";
@@ -142,7 +144,7 @@ function NextUp({
 
 function NewsRow({ item, now }: { item: NewsItem; now: Date }) {
   return (
-    <a className="news-item" href={item.link} target="_blank" rel="noopener noreferrer">
+    <a className="news-item" href={item.link} draggable={false} target="_blank" rel="noopener noreferrer">
       <span className="news-title">{item.title}</span>
       <span className="news-meta">
         {item.source}
@@ -152,33 +154,56 @@ function NewsRow({ item, now }: { item: NewsItem; now: Date }) {
   );
 }
 
-/** One line of market numbers above the headlines: "ASX 200 8,812.4 +0.6%". */
-function StockStrip({ quotes }: { quotes: StockQuote[] }) {
-  if (!quotes.length) return null;
+/** Day-move direction for colouring a tile. */
+function trendOf(change: string) {
+  return !change || change === "0.0%" ? "flat" : change.startsWith("+") ? "up" : "down";
+}
+
+/** Market tiles from /api/stocks: share, index and currency pairs, one swipe away from the news. */
+function MarketsCard({ quotes, loaded }: { quotes: StockQuote[]; loaded: boolean }) {
   return (
-    <ul className="stock-strip" aria-label="Markets">
-      {quotes.map((quote) => {
-        const change = formatChange(quote);
-        const trend = !change || change === "0.0%" ? "flat" : change.startsWith("+") ? "up" : "down";
-        return (
-          <li key={quote.symbol} className={`stock-chip is-${trend}`}>
-            <span className="stock-label">{quote.label}</span>
-            <strong>{formatPrice(quote)}</strong>
-            {change && <span className="stock-change">{change}</span>}
-          </li>
-        );
-      })}
-    </ul>
+    <section className="card news-card markets-card" aria-label="Markets">
+      <div className="news-head">
+        <p className="eyebrow">
+          <TrendingUp size={16} aria-hidden /> Markets
+        </p>
+      </div>
+      {quotes.length ? (
+        <ul className="market-grid">
+          {quotes.map((quote) => {
+            const change = formatChange(quote);
+            const currency = priceCurrency(quote);
+            return (
+              <li key={quote.symbol} className={`market-tile is-${trendOf(change)}`}>
+                <span className="market-label">{quote.label}</span>
+                <span className="market-price">
+                  <strong>{formatPrice(quote)}</strong>
+                  {currency && <span className="market-currency">{currency}</span>}
+                </span>
+                {change && <span className="market-change">{change}</span>}
+              </li>
+            );
+          })}
+        </ul>
+      ) : loaded ? (
+        <p className="empty-copy">Market numbers aren&apos;t available right now.</p>
+      ) : (
+        <ul className="market-grid" aria-label="Loading markets">
+          {[0, 1, 2, 3].map((key) => (
+            <li key={key} className="market-tile is-skeleton" />
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
 /**
- * Market numbers (/api/stocks) and two Perth headlines from /api/news (ABC News WA + national by default); the
- * rest open in a dialog. Lowest priority on Home, so it stays small.
+ * Two Perth headlines from /api/news (ABC News WA + national by default); the rest open in a dialog.
+ * Lowest priority on Home, so it stays small.
  */
 function NewsCard() {
   const news = useNews();
-  const quotes = useStocks();
   const now = useNow(60_000);
   const [open, setOpen] = useState(false);
   const shown = news.items.slice(0, 2);
@@ -195,7 +220,6 @@ function NewsCard() {
           </button>
         )}
       </div>
-      <StockStrip quotes={quotes} />
       {news.loading && !news.items.length ? (
         <ul className="news-list" aria-label="Loading headlines">
           {[0, 1].map((key) => (
@@ -217,7 +241,6 @@ function NewsCard() {
       )}
       {open && (
         <Dialog title="Perth news" onClose={() => setOpen(false)}>
-          <StockStrip quotes={quotes} />
           <ul className="news-list is-dialog">
             {news.items.map((item) => (
               <li key={item.id}>
@@ -229,6 +252,16 @@ function NewsCard() {
       )}
     </section>
   );
+}
+
+/** News and Markets share one cell; Markets drops out when no numbers come back. */
+function NewsMarketsDeck() {
+  const { quotes, loaded } = useStocks();
+  const cards = [{ id: "news", label: "News", node: <NewsCard /> }];
+  if (!loaded || quotes.length) {
+    cards.push({ id: "markets", label: "Markets", node: <MarketsCard quotes={quotes} loaded={loaded} /> });
+  }
+  return <SwipeDeck cards={cards} label="News and markets" />;
 }
 
 /* ---------- Middle column ---------- */
@@ -704,7 +737,7 @@ export function HomeDashboard({
         >
           <NextUp nextUp={nextUp} today={today} onEvent={onEvent} />
         </OutsideCard>
-        <NewsCard />
+        <NewsMarketsDeck />
       </div>
 
       <FamilySchedule

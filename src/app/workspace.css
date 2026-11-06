@@ -1073,45 +1073,124 @@ textarea:focus-visible {
 .news-head .text-button {
   margin: -10px -4px -10px 0;
 }
-/* Market numbers above the headlines, one quiet line. */
-.stock-strip {
+/* News and Markets share one cell and swipe sideways; the deck fills the cell, never grows it. */
+.swipe-deck {
   display: flex;
-  flex-wrap: wrap;
-  gap: 2px 14px;
-  margin: 6px 0 2px;
-  padding: 0 0 8px;
-  border-bottom: 1px solid var(--line);
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: var(--radius-card);
+}
+.swipe-deck:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: 2px;
+}
+.swipe-slide {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  cursor: grab;
+}
+.swipe-slide:active {
+  cursor: grabbing;
+}
+/* 28px of layout, 48px to tap: the buttons reach up into the card's bottom padding. */
+.swipe-dots {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+}
+.swipe-dot {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin: -10px 0;
+  border-radius: 24px;
+  position: relative;
+  z-index: 1;
+}
+.swipe-dot span {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  opacity: 0.55;
+}
+.swipe-dot[aria-current] span {
+  width: 20px;
+  border-radius: 4px;
+  background: var(--sage);
+  opacity: 1;
+}
+/* Markets: four tiles, two by two. */
+.market-grid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 8px;
+  min-height: 0;
+  margin: 8px 0 0;
+  padding: 0;
   list-style: none;
 }
-.stock-chip {
-  display: inline-flex;
+.market-tile {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-content: center;
   align-items: baseline;
-  gap: 5px;
-  font-size: 14px;
+  gap: 2px 6px;
+  min-height: 0;
+  padding: 6px 12px;
+  border-radius: 14px;
+  background: var(--sage-tint);
   font-variant-numeric: tabular-nums;
+}
+.market-tile.is-skeleton {
+  opacity: 0.6;
+}
+.market-label {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.market-change {
+  grid-area: 1 / 2;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.market-price {
+  display: flex;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  gap: 5px;
+  align-items: baseline;
   white-space: nowrap;
 }
-.stock-label {
+.market-price strong {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.market-currency {
   color: var(--muted);
   font-size: 13px;
   font-weight: 600;
 }
-.stock-chip strong {
-  font-weight: 700;
-}
-.stock-change {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--muted);
-}
-.stock-chip.is-up .stock-change {
+.market-tile.is-up .market-change {
   color: var(--sage-deep-text, var(--sage-deep));
 }
-.stock-chip.is-down .stock-change {
+.market-tile.is-down .market-change {
   color: var(--rose-ink);
-}
-.workspace-dialog .stock-strip {
-  margin: 0 0 8px;
 }
 .news-list {
   position: relative;
@@ -2694,7 +2773,7 @@ textarea:focus-visible {
   .home-side {
     display: contents;
   }
-  .news-card {
+  .swipe-deck {
     order: 1;
   }
   .home-lists {

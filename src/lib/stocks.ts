@@ -79,6 +79,14 @@ export function formatPrice(quote: Pick<StockQuote, "symbol" | "price">): string
   return quote.price.toLocaleString("en-AU", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
+/**
+ * Currency to print beside a price ("USD" for a US-listed fund). Currency pairs
+ * (`=X`) already say what they are, so they get none.
+ */
+export function priceCurrency(quote: Pick<StockQuote, "symbol" | "currency">): string | null {
+  return quote.symbol.endsWith("=X") || !quote.currency ? null : quote.currency;
+}
+
 /** "+0.6%", "−1.2%" (or "" when unknown). */
 export function formatChange(quote: Pick<StockQuote, "changePercent">): string {
   const pct = quote.changePercent;

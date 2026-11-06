@@ -81,10 +81,10 @@ export function formatPrice(quote: Pick<StockQuote, "symbol" | "price">): string
 
 /**
  * Currency to print beside a price ("USD" for a US-listed fund). Currency pairs
- * (`=X`) already say what they are, so they get none.
+ * (`=X`) already say what they are, and an index (`^`) is points, so neither gets one.
  */
 export function priceCurrency(quote: Pick<StockQuote, "symbol" | "currency">): string | null {
-  return quote.symbol.endsWith("=X") || !quote.currency ? null : quote.currency;
+  return quote.symbol.endsWith("=X") || quote.symbol.startsWith("^") || !quote.currency ? null : quote.currency;
 }
 
 /** "+0.6%", "−1.2%" (or "" when unknown). */

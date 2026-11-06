@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_STOCKS, formatChange, formatPrice, parseChart, stocksFromEnv, stockUrl } from "@/lib/stocks";
+import { DEFAULT_STOCKS, formatChange, formatPrice, parseChart, priceCurrency, stocksFromEnv, stockUrl } from "@/lib/stocks";
 
 const chart = (meta: Record<string, unknown>) => ({ chart: { result: [{ meta }], error: null } });
 
@@ -72,4 +72,11 @@ describe("formatting", () => {
     expect(formatChange({ changePercent: 0.01 })).toBe("0.0%");
     expect(formatChange({ changePercent: null })).toBe("");
   });
+});
+
+describe("priceCurrency", () => {
+  it("shows the currency of a share", () => expect(priceCurrency({ symbol: "SPUS", currency: "USD" })).toBe("USD"));
+  it("none for an index", () => expect(priceCurrency({ symbol: "^AXJO", currency: "AUD" })).toBeNull());
+  it("none for a currency pair", () => expect(priceCurrency({ symbol: "AUDMYR=X", currency: "MYR" })).toBeNull());
+  it("none when the currency is unknown", () => expect(priceCurrency({ symbol: "SPUS", currency: null })).toBeNull());
 });

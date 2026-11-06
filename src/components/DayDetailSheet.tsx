@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Bell, Clock, Plus, Repeat, X } from "lucide-react";
 import {
   EVENT_TYPE_ICONS,
+  formatDateRange,
   formatEventTime,
   NOTIFY_BEFORE_OPTIONS,
   RECURRENCE_LABELS,
@@ -148,6 +149,13 @@ export function DayDetailSheet({
                           </span>
                         ) : null}
                       </div>
+
+                      {event.day_count > 1 ? (
+                        <p className="text-[0.65rem] font-bold text-muted">
+                          {formatDateRange(event.event_date, event.end_date)} · Day{" "}
+                          {event.day_index} of {event.day_count}
+                        </p>
+                      ) : null}
 
                       {event.note ? (
                         <p className="truncate text-xs text-muted">

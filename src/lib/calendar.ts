@@ -117,6 +117,15 @@ export function normalizeEndDate(start: string, end: string | null | undefined):
   return end;
 }
 
+/** "13 Nov – 16 Nov" for a multi-day event; null for a single day. */
+export function formatDateRange(start: string, end: string | null | undefined): string | null {
+  const last = normalizeEndDate(start, end);
+  if (!last) return null;
+  const fmt = (key: string) =>
+    parseDateKey(key).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return `${fmt(start)} – ${fmt(last)}`;
+}
+
 /**
  * First not-done entry whose last covered day is today or later. Today counts
  * until midnight, so a timed event earlier today is still returned.

@@ -58,17 +58,20 @@ function joinedLabel(joinedAt: string | null | undefined) {
   return `Joined ${date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`;
 }
 
+type Pending = { userId: string; action: "remove" | "step-down" };
+
 /**
  * Household dialog: "Members" lists everyone who signed up and joined;
- * "Without an account" lists babies and kids the admin added so events can
- * be tagged for them. Only the admin (who created the household) adds or
- * removes people; members can change their own colour, the admin anyone's.
+ * "Without an account" lists babies and kids so events can be tagged for
+ * them. Admins (there can be several) add and remove people, make or remove
+ * admins, and can take a member out of the household. Members can change
+ * their own colour, admins anyone's. The database enforces all of this.
  */
 export function HouseholdPeople() {
-  const { members, userId, addPerson, setPersonColor, removePerson, makeAdmin } = useHousehold();
+  const { members, userId, addPerson, setPersonColor, removePerson, setAdmin, removeMember } = useHousehold();
   const everyone = useEveryone();
   const isAdmin = members.some((member) => member.user_id === userId && member.is_admin);
-  const admin = members.find((member) => member.is_admin);
+  const admins = members.filter((member) => member.is_admin);
   const accounts = everyone.filter((entry) => entry.userId);
   const others = everyone.filter((entry) => entry.personId);
   const used = new Set(everyone.map((entry) => entry.look.color));
@@ -76,21 +79,24 @@ export function HouseholdPeople() {
   const [color, setColor] = useState<PersonColor | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  // Member the admin is about to hand admin to (asks before doing it).
-  const [handingTo, setHandingTo] = useState<string | null>(null);
-  const [handing, setHanding] = useState(false);
-
-  const confirmHandOver = async (target: string) => {
-    if (handing) return;
-    setHanding(true);
-    const message = await makeAdmin(target);
-    setHanding(false);
-    setHandingTo(null);
-    report(message);
-  };
+  // Destructive member actions ask first.
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [working, setWorking] = useState<string | null>(null);
   const newColor = color ?? COLOR_ORDER.find((c) => !used.has(c)) ?? "sage";
 
   const report = (message: string | null) => setError(message ? "Couldn't save that. Please try again." : "");
+  // Admin actions raise readable messages ("A household needs at least one admin…").
+  const reportAction = (message: string | null) =>
+    setError(message ? (/^(A household|You can|Only a household|That person)/.test(message) ? message : "Couldn't save that. Please try again.") : "");
+
+  const run = async (member: string, action: () => Promise<string | null>) => {
+    if (working) return;
+    setWorking(member);
+    const message = await action();
+    setWorking(null);
+    setPending(null);
+    reportAction(message);
+  };
 
   const add = async (event: FormEvent) => {
     event.preventDefault();
@@ -113,54 +119,98 @@ export function HouseholdPeople() {
       <ul className="people-list">
         {accounts.map((entry) => {
           const member = members.find((m) => m.user_id === entry.userId);
-          const you = entry.userId === userId;
+          const memberId = entry.userId ?? "";
+          const you = memberId === userId;
+          const memberIsAdmin = Boolean(member?.is_admin);
           const joined = joinedLabel(member?.joined_at);
+          const confirming = pending?.userId === memberId ? pending : null;
+          const busyHere = working === memberId;
+          // The last admin can't step down; the database checks this too.
+          const canStepDown = you && memberIsAdmin && admins.length > 1;
           return (
-            <li key={entry.key} className={`people-row is-member${handingTo === entry.userId ? " is-confirming" : ""}`}>
+            <li key={entry.key} className={`people-row is-member${confirming ? " is-confirming" : ""}`}>
               <MemberAvatar look={entry.look} />
               <span className="people-member">
                 <strong className="people-name">{entry.look.name}</strong>
                 <span className="people-meta">
-                  {member?.is_admin && <span className="people-badge is-admin">Admin</span>}
+                  {memberIsAdmin && <span className="people-badge is-admin">Admin</span>}
                   {you && <span className="people-badge">You</span>}
                   {joined && <span>{joined}</span>}
-                  {isAdmin && !you && handingTo !== entry.userId && (
-                    <button
-                      type="button"
-                      className="text-button people-make-admin"
-                      onClick={() => setHandingTo(entry.userId)}
-                    >
-                      Make admin
-                    </button>
-                  )}
                 </span>
+                {isAdmin && !confirming && (!you || canStepDown) && (
+                  <span className="people-actions">
+                    {!you && (
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={busyHere}
+                        onClick={() => void run(memberId, () => setAdmin(memberId, !memberIsAdmin))}
+                      >
+                        {memberIsAdmin ? "Remove admin" : "Make admin"}
+                      </button>
+                    )}
+                    {canStepDown && (
+                      <button
+                        type="button"
+                        className="text-button"
+                        onClick={() => setPending({ userId: memberId, action: "step-down" })}
+                      >
+                        Stop being admin
+                      </button>
+                    )}
+                    {!you && (
+                      <button
+                        type="button"
+                        className="text-button is-danger"
+                        onClick={() => setPending({ userId: memberId, action: "remove" })}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </span>
+                )}
               </span>
               {(you || isAdmin) && (
                 <ColorPicker
                   value={entry.look.color}
                   label={`Colour for ${entry.look.name}`}
                   onChange={async (next) =>
-                    report(await setPersonColor({ userId: entry.userId ?? "", name: entry.look.name }, next))
+                    report(await setPersonColor({ userId: memberId, name: entry.look.name }, next))
                   }
                 />
               )}
-              {isAdmin && handingTo === entry.userId && (
-                <div className="people-confirm" role="group" aria-label={`Make ${entry.look.name} admin`}>
-                  <p>
-                    Make <strong>{entry.look.name}</strong> the admin? They&apos;ll add and remove people, and
-                    you&apos;ll become a regular member.
-                  </p>
+              {confirming && (
+                <div
+                  className="people-confirm"
+                  role="group"
+                  aria-label={confirming.action === "remove" ? `Remove ${entry.look.name}` : "Stop being admin"}
+                >
+                  {confirming.action === "remove" ? (
+                    <p>
+                      Remove <strong>{entry.look.name}</strong> from the household? They&apos;ll lose access to your
+                      lists and calendar, and their work roster is cleared. They can rejoin with a new invite code.
+                    </p>
+                  ) : (
+                    <p>
+                      Stop being an admin? You won&apos;t be able to manage members or people without an account
+                      until another admin makes you admin again.
+                    </p>
+                  )}
                   <div className="people-confirm-actions">
-                    <button type="button" className="secondary-button" onClick={() => setHandingTo(null)}>
+                    <button type="button" className="secondary-button" onClick={() => setPending(null)}>
                       Cancel
                     </button>
                     <button
                       type="button"
-                      className="primary-button"
-                      disabled={handing}
-                      onClick={() => void confirmHandOver(entry.userId ?? "")}
+                      className={`primary-button${confirming.action === "remove" ? " is-danger" : ""}`}
+                      disabled={busyHere}
+                      onClick={() =>
+                        void run(memberId, () =>
+                          confirming.action === "remove" ? removeMember(memberId) : setAdmin(memberId, false),
+                        )
+                      }
                     >
-                      {handing ? "Saving…" : "Make admin"}
+                      {busyHere ? "Saving…" : confirming.action === "remove" ? "Remove" : "Stop being admin"}
                     </button>
                   </div>
                 </div>
@@ -173,7 +223,12 @@ export function HouseholdPeople() {
       <h4 className="people-subhead">Without an account</h4>
       <p>
         Babies and kids who can&apos;t sign up. Tag events with who they&apos;re for.
-        {!isAdmin && admin && <> Ask {admin.display_name || "the admin"} to add someone.</>}
+        {!isAdmin && admins.length > 0 && (
+          <>
+            {" "}
+            Ask {admins.length === 1 ? admins[0].display_name || "the admin" : "an admin"} to add someone.
+          </>
+        )}
       </p>
       {others.length > 0 ? (
         <ul className="people-list">

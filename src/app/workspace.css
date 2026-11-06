@@ -1783,11 +1783,24 @@ textarea:focus-visible {
 .people-row.is-confirming {
   flex-wrap: wrap;
 }
-.household-sharing .people-make-admin {
+.people-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 14px;
+  margin-top: 2px;
+}
+.household-sharing .people-actions .text-button {
   min-height: 32px;
-  margin: -6px 0;
-  padding-inline: 2px;
+  padding-inline: 0;
   font-size: 13px;
+}
+.household-sharing .text-button.is-danger {
+  color: var(--rose-ink);
+}
+.workspace-dialog .primary-button.is-danger {
+  /* Fixed deep red: white text stays readable in both themes. */
+  background: #a63d2c;
+  color: #fff;
 }
 .people-confirm {
   flex: 1 0 100%;

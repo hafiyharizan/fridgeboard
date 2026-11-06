@@ -116,12 +116,25 @@ export function useHouseholdInfo(pin: string) {
     [people, supabase],
   );
 
-  /** Hands admin to another member (current admin only). */
-  const makeAdmin = useCallback(
-    async (newAdmin: string) => {
-      const { error } = await supabase.rpc("transfer_household_admin", { new_admin: newAdmin });
+  /** Makes a member an admin or a regular member (admins only). */
+  const setAdmin = useCallback(
+    async (member: string, makeAdmin: boolean) => {
+      const { error } = await supabase.rpc("set_household_admin", { member, make_admin: makeAdmin });
       if (error) return error.message;
-      setMembers((prev) => prev.map((member) => ({ ...member, is_admin: member.user_id === newAdmin })));
+      setMembers((prev) => prev.map((m) => (m.user_id === member ? { ...m, is_admin: makeAdmin } : m)));
+      setRevision((value) => value + 1);
+      return null;
+    },
+    [supabase],
+  );
+
+  /** Takes a member out of the household (admins only, not themselves). */
+  const removeMember = useCallback(
+    async (member: string) => {
+      const { error } = await supabase.rpc("remove_household_member", { member });
+      if (error) return error.message;
+      setMembers((prev) => prev.filter((m) => m.user_id !== member));
+      setPeople((prev) => prev.filter((p) => p.user_id !== member));
       setRevision((value) => value + 1);
       return null;
     },
@@ -129,7 +142,8 @@ export function useHouseholdInfo(pin: string) {
   );
 
   return {
-    makeAdmin,
+    setAdmin,
+    removeMember,
     members,
     people,
     addPerson,

@@ -54,7 +54,7 @@ export type HouseholdMember = {
   avatar_url: string | null;
   /** When they joined (missing before the household_people migration). */
   joined_at?: string | null;
-  /** Created the household; adds and removes people without an account. */
+  /** Can manage the household: admins, members, people without an account. */
   is_admin?: boolean;
 };
 
@@ -457,8 +457,12 @@ export type Database = {
         Args: Record<string, never>;
         Returns: string | null;
       };
-      transfer_household_admin: {
-        Args: { new_admin: string };
+      set_household_admin: {
+        Args: { member: string; make_admin: boolean };
+        Returns: undefined;
+      };
+      remove_household_member: {
+        Args: { member: string };
         Returns: undefined;
       };
       household_members: {

@@ -51,6 +51,7 @@ src/
     WorkspaceData.tsx           # Realtime controllers + household context (members, settings, adder)
     HouseholdWorkspace.tsx      # Header, tabs, dialogs, kitchen mode wiring
     HomeDashboard.tsx           # Home grid + AmbientLayer (idle "today" view data)
+    VoiceAdd.tsx                # "Say it": add groceries, to-dos, events, reminders by voice
     WorkTab.tsx                 # Weekly work roster (Work tab) + shift editor
     MemberTag.tsx               # Owner tag, person colours, useEveryone / lookup helpers
     HouseholdPeople.tsx         # "People" in the household dialog (colours, kids without accounts)
@@ -68,6 +69,7 @@ src/
     useWorkShifts.ts            # Live work roster (work_shifts)
     useKitchenDisplay.ts        # Wake lock, idle, night, self-update
     useAmbient.ts               # useNow, useWeather, usePrayerDay, useAthan, useNews
+    useSpeech.ts                # Browser speech recognition (Web Speech API), one sentence at a time
     useModalSurface.ts, watchWake.ts
     useWholeRows.ts             # One-screen Home: hide rows that would be cut off
   lib/
@@ -78,6 +80,7 @@ src/
     weather.ts, prayer.ts       # Open-Meteo parsing, prayer times (adhan)
     news.ts                     # RSS/Atom parsing + Perth filter for the Home news card
     stocks.ts                   # STOCK_SYMBOLS, Yahoo chart parsing, price formatting
+    voice.ts                    # Spoken sentence → grocery / to-do / event / reminder (rule-based)
     work.ts                     # Work roster: weeks, overnight shifts, "everyone home" summary
     push.ts, new-item-push.ts   # Web Push sending and wording
     offline-snapshot.ts         # Last-known board for public/offline.html
@@ -249,6 +252,10 @@ Market numbers shown as one line above the news headlines. Fetches the fixed `ST
 
 Returns `{ version }`, the build stamp `APP_VERSION` (Netlify `DEPLOY_ID`, else `COMMIT_REF`, else `"dev"`; set in `next.config.ts`). Kitchen displays poll it and reload while idle when it changes. `"dev"` never triggers a reload.
 
+### Voice ("Say it")
+
+A microphone button in the header (and "Say it" in Quick Add) opens `VoiceAdd`. The browser's speech recognition (`hooks/useSpeech.ts`; Chrome, Edge, Safari — the button hides where it's missing, e.g. Firefox) hears one sentence; `parseVoiceCommand` in `lib/voice.ts` turns it into a grocery list ("add milk and eggs to the shopping list", "we're out of rice"), a to-do ("I need to fix the gate"), a reminder ("remind me to call Mum tomorrow at 5pm") or an event ("dentist on Friday at 3", "swimming every Tuesday at 4pm"). Parsing is rule-based on the device (no API). The result is always shown for checking (type, text, date, time) before "Add". Reminders with a time alert at that time. On a kitchen display it credits the "Who's adding?" pick. `next.config.ts` allows `microphone=(self)` in `Permissions-Policy`.
+
 ### Kitchen display mode
 
 A per-device switch in the household menu (localStorage `fridgeboard.kitchen-mode`) for a wall tablet. Logic in `hooks/useKitchenDisplay.ts`, pure rules and timings in `lib/kitchen.ts`, UI in `components/KitchenDisplay.tsx`.
@@ -337,6 +344,7 @@ Vitest is configured. Tests live alongside source files as `*.test.ts`.
 
 - `src/lib/calendar.test.ts` — covers all pure calendar utilities and recurrence expansion
 - `src/lib/suggestions.test.ts` — covers autocomplete and smartSuggest
+- `src/lib/voice.test.ts` — spoken groceries, to-dos, reminders, events, dates, times and repeats
 - `src/lib/work.test.ts` — week helpers, overnight shifts, "everyone home" summary
 - `src/lib/news.test.ts` — feed parsing, merging, `NEWS_FEEDS`, Perth filter and story ages
 - `src/lib/stocks.test.ts` — `STOCK_SYMBOLS`, Yahoo chart parsing, price/change formatting

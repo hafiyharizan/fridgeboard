@@ -12,7 +12,10 @@ import {
   Settings,
   LogOut,
   ArrowRight,
+  Mic,
 } from "lucide-react";
+import { VoiceAdd } from "@/components/VoiceAdd";
+import { useSpeechSupported } from "@/hooks/useSpeech";
 import { CalendarTab } from "@/components/CalendarTab";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import {
@@ -121,7 +124,8 @@ export function HouseholdWorkspace({
 }) {
   const [active, setActive] = useState("home");
   const [today, setToday] = useState(() => dateKey(new Date()));
-  const [menu, setMenu] = useState<"household" | "quick" | null>(null);
+  const [menu, setMenu] = useState<"household" | "quick" | "voice" | null>(null);
+  const canSpeak = useSpeechSupported();
   const [signingOut, setSigningOut] = useState(false);
   const [accountError, setAccountError] = useState("");
   const [day, setDay] = useState<string | null>(null);
@@ -214,6 +218,16 @@ export function HouseholdWorkspace({
             <Clock onDay={setToday} />
             <SyncBadge />
           </div>
+          {canSpeak && (
+            <button
+              className="icon-button header-voice"
+              onClick={() => setMenu("voice")}
+              aria-label="Say it: add by voice"
+              title="Add by voice"
+            >
+              <Mic size={21} />
+            </button>
+          )}
           <HoldToOpenButton
             locked={kitchen.enabled}
             label="Household and account"
@@ -277,6 +291,13 @@ export function HouseholdWorkspace({
           <Dialog title="Add something" onClose={closeMenu}>
             <p className="dialog-copy">A small note for your household.</p>
             <div className="quick-options">
+              {canSpeak && (
+                <button onClick={() => setMenu("voice")}>
+                  <Mic />
+                  <span>Say it</span>
+                  <ArrowRight size={18} />
+                </button>
+              )}
               {lists.map((list) => (
                 <button key={list.id} onClick={() => addToList(list.id)}>
                   {list.name === "Grocery" ? (
@@ -307,6 +328,7 @@ export function HouseholdWorkspace({
             </div>
           </Dialog>
         )}
+        {menu === "voice" && <VoiceAdd lists={lists} onClose={closeMenu} />}
         {menu === "household" && (
           <Dialog title="Your household" onClose={closeMenu}>
             <p className="dialog-copy">

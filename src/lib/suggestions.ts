@@ -280,3 +280,13 @@ export function smartSuggest(
 
   return scored.slice(0, limit).map((r) => r.text);
 }
+
+/** True when the text is a grocery the library knows ("milk", "Eggs", "banana"). */
+export function isKnownGrocery(text: string): boolean {
+  const word = text.trim().toLowerCase();
+  if (!word) return false;
+  return GROCERY.some((entry) => {
+    const known = entry.text.toLowerCase();
+    return known === word || known === `${word}s` || known === `${word}es` || `${known}s` === word;
+  });
+}

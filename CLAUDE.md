@@ -58,6 +58,7 @@ src/
     HouseholdPeople.tsx         # "People" in the household dialog (colours, kids without accounts)
     Ambient.tsx                 # Outside card (clock + weather + prayer), athan banner, idle view, place settings
     Sky.tsx                     # Animated sky behind the Outside card
+    IdleSlideshow.tsx           # Kitchen idle photo slideshow
     KitchenDisplay.tsx          # Settings hold button, sync badge, kitchen switch
     WhoIsAdding.tsx             # Kitchen display member picker
     SwipeDeck.tsx               # Sideways card deck (News / Markets on Home)
@@ -86,6 +87,8 @@ src/
     voice.ts                    # Spoken sentence → grocery / to-do / event / reminder (rule-based)
     work.ts                     # Work roster: weeks, overnight shifts, "everyone home" summary
     push.ts, new-item-push.ts   # Web Push sending and wording
+    photo-store.ts              # Idle slideshow photos in IndexedDB
+    swipe.ts                    # Swipe gesture helpers (Home News/Markets cards)
     offline-snapshot.ts         # Last-known board for public/offline.html
 supabase/migrations/            # SQL migrations (apply in filename order)
 netlify/functions/              # Scheduled functions calling the cron routes
@@ -129,7 +132,7 @@ Managed via SQL migrations in `supabase/migrations/`. Apply in filename timestam
 - `event_type`: `"event" | "reminder" | "todo"`
 - `color`: `"amber" | "blue" | "rose" | "green" | "purple"`
 - `is_done` bool, `recurrence`: `"none" | "daily" | "weekly" | "biweekly" | "monthly" | "yearly"`
-- `recurrence_end` text|null (YYYY-MM-DD), `end_date` text|null (last day of a multi-day event, YYYY-MM-DD; null = single day; not before `event_date`), `notify_before` int (minutes), `notify_channels` text[]
+- `recurrence_end` text|null (YYYY-MM-DD), `end_date` text|null (last day of a multi-day event, YYYY-MM-DD; null = single day; strictly after `event_date`), `notify_before` int (minutes), `notify_channels` text[]
 - Realtime enabled
 
 **`notification_channels`** — per-PIN notification endpoints
@@ -274,6 +277,10 @@ A per-device switch in the household menu (localStorage `fridgeboard.kitchen-mod
 - Settings button needs a press-and-hold (keyboard still opens it directly).
 - "Live" / "Synced N min ago" badge from `useSyncStatus()` in `WorkspaceData`.
 
+Slideshow photos (IndexedDB) and the idle flags are device-level settings and survive sign-out.
+
+The morning-summary push (`/api/push/remind`) lists only events that START today, so days 2..N of a running multi-day event are not listed. On Home and the idle view, entries with `day_index > 1` count as all-day (`lib/dashboard.ts`), so a running multi-day event stays "now".
+
 On every device, `useRealtimeItems` and `useRealtimeCalendar` refetch when the page becomes visible again, and resubscribe if it was hidden for over 5 minutes (`hooks/watchWake.ts`).
 
 ---
@@ -323,7 +330,7 @@ npm run test:coverage # Run tests with coverage report
 ### Supabase Queries
 - Always filter by `pin_code` for user-scoped data.
 - Use the typed `Database` generic when creating clients to get type inference.
-- Recurrence expansion is done client-side in `lib/calendar.ts` — recurring events are stored as a single row and expanded on read.
+- Recurrence expansion is done client-side in `lib/calendar.ts` — recurring events are stored as a single row and expanded on read. Multi-day events (`end_date`) expand to one entry per covered day, each with `day_index` / `day_count`.
 
 ### Icons
 - Use Lucide React only. Import individual icons: `import { Trash2 } from "lucide-react"`.

@@ -149,4 +149,28 @@ describe("time-aware schedule", () => {
     expect(rowsThatFit(40, 56, 8)).toBe(0);
     expect(rowsThatFit(300, 0, 8)).toBe(0);
   });
+
+describe("running multi-day events", () => {
+  const camp = (day_index: number, date: string) => ({
+    occurrence_date: date,
+    event_time: "09:00",
+    day_index,
+  });
+  const fourteenth = new Date(2026, 10, 14, 14, 0);
+
+  it("nextUpEvent returns the running day-2 entry, not a later one", () => {
+    const running = camp(2, "2026-11-14");
+    const later = camp(3, "2026-11-15");
+    expect(nextUpEvent([running, later], fourteenth)).toBe(running);
+  });
+
+  it("eventPhase treats a later day as all-day", () => {
+    expect(eventPhase(camp(2, "2026-11-14"), fourteenth)).toBe("now");
+    expect(eventPhase(camp(1, "2026-11-14"), fourteenth)).toBe("earlier");
+  });
+
+  it("defaultScheduleDay stays on today while the event runs", () => {
+    expect(defaultScheduleDay([camp(2, "2026-11-14")], fourteenth)).toBe("today");
+  });
+});
 });

@@ -348,6 +348,8 @@ Vitest is configured. Tests live alongside source files as `*.test.ts`.
 - `src/lib/work.test.ts` — week helpers, overnight shifts, "everyone home" summary
 - `src/lib/news.test.ts` — feed parsing, merging, `NEWS_FEEDS`, Perth filter and story ages
 - `src/lib/stocks.test.ts` — `STOCK_SYMBOLS`, Yahoo chart parsing, price/change formatting
+- `src/lib/local-time.test.ts` — time-zone conversion and reminder trigger/catch-up timing
+- `src/lib/reminders.test.ts`, `src/lib/athan.test.ts` — the cron tick: push once per reminder, athan once per prayer, saved prayer times
 - `src/app/api/news/route.test.ts` — redirect, size-cap and caching rules for `/api/news`
 
 The vitest config (`vitest.config.ts`) sets up the `@/*` path alias and uses the `node` environment (no DOM needed for pure utility tests).

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Cloud,
@@ -56,14 +56,33 @@ const clock = (date: Date) =>
 /** "Southern River, Western Australia, Australia" → "Southern River". */
 const placeName = (name: string | null | undefined) => name?.split(",")[0]?.trim() || "Home";
 
-function HomeLabel() {
+function HomeLabel({ place }: { place?: string }) {
   return (
     <span className="sky-home">
       <Navigation size={12} fill="currentColor" aria-hidden /> Home
+      {place && <span className="sky-home-place"> · {place}</span>}
     </span>
   );
 }
 
+/** "4:55" + "PM" in the household's locale. */
+function clockParts(now: Date) {
+  const parts = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).formatToParts(now);
+  return {
+    time: parts
+      .filter((part) => part.type !== "dayPeriod")
+      .map((part) => part.value)
+      .join("")
+      .trim(),
+    period: parts.find((part) => part.type === "dayPeriod")?.value,
+  };
+}
+
+/**
+ * Home's first card: the time and date with the weather beside them on an
+ * animated sky, then "next up" (passed in as children), weather details and
+ * prayer times.
+ */
 export function OutsideCard({
   settings,
   forecast,
@@ -71,6 +90,7 @@ export function OutsideCard({
   prayer,
   now,
   onSetup,
+  children,
 }: {
   settings: HouseholdSettings | null;
   forecast: Forecast | null;
@@ -78,51 +98,62 @@ export function OutsideCard({
   prayer: PrayerDay | null;
   now: Date;
   onSetup: () => void;
+  /** Shown under the clock (Home's "Next up" line). */
+  children?: ReactNode;
 }) {
   const scene = skyScene(forecast, now);
   const located = Boolean(settings?.latitude && settings.longitude);
   const today = forecast ? describeWeather(forecast.current.code) : null;
+  const { time, period } = clockParts(now);
   return (
     <section
       className={`card outside-card sky is-${scene.phase} is-${scene.weather}`}
-      aria-label="Weather and prayer times"
+      aria-label="Time, weather and prayer times"
     >
       <SkyBackdrop scene={scene} />
       <div className="sky-content">
-        {!located ? (
-          <>
-            <HomeLabel />
-            <button className="sky-setup" onClick={onSetup}>
-              <MapPin size={20} aria-hidden />
+        <div className="sky-head">
+          <div className="sky-where">
+            <HomeLabel place={located ? placeName(settings?.location_name) : undefined} />
+            <p className="sky-clock">
+              <time dateTime={now.toISOString()} suppressHydrationWarning>
+                {time}
+              </time>
+              {period && <small>{period}</small>}
+            </p>
+            <p className="sky-date" suppressHydrationWarning>
+              {now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })}
+            </p>
+          </div>
+          {located && forecast && today && (
+            <div className="sky-summary">
+              <p className="sky-now">
+                <WeatherIcon code={forecast.current.code} night={scene.phase === "night"} size={28} />
+                <span className="sky-temp">{Math.round(forecast.current.temperature)}°</span>
+              </p>
+              <strong>{today.label}</strong>
               <span>
-                <strong>Add your home location</strong>
-                <span>For weather and, if you like, prayer times.</span>
+                H:{Math.round(forecast.today.max)}° L:{Math.round(forecast.today.min)}°
               </span>
-            </button>
-          </>
+              {forecast.today.rainChance !== null && forecast.today.rainChance >= 20 && (
+                <span>
+                  <Droplets size={13} aria-hidden /> {forecast.today.rainChance}% rain
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        {children}
+        {!located ? (
+          <button className="sky-setup" onClick={onSetup}>
+            <MapPin size={20} aria-hidden />
+            <span>
+              <strong>Add your home location</strong>
+              <span>For weather and, if you like, prayer times.</span>
+            </span>
+          </button>
         ) : forecast && today ? (
           <>
-            <div className="sky-head">
-              <div className="sky-where">
-                <HomeLabel />
-                <h2 className="sky-place">{placeName(settings?.location_name)}</h2>
-                <p className="sky-temp">
-                  {Math.round(forecast.current.temperature)}°
-                </p>
-              </div>
-              <div className="sky-summary">
-                <WeatherIcon code={forecast.current.code} night={scene.phase === "night"} size={30} />
-                <strong>{today.label}</strong>
-                <span>
-                  H:{Math.round(forecast.today.max)}° L:{Math.round(forecast.today.min)}°
-                </span>
-                {forecast.today.rainChance !== null && forecast.today.rainChance >= 20 && (
-                  <span>
-                    <Droplets size={13} aria-hidden /> {forecast.today.rainChance}% rain
-                  </span>
-                )}
-              </div>
-            </div>
             <dl className="weather-stats">
               <div>
                 <dt>
@@ -168,13 +199,9 @@ export function OutsideCard({
             )}
           </>
         ) : (
-          <div className="sky-where">
-            <HomeLabel />
-            <h2 className="sky-place">{placeName(settings?.location_name)}</h2>
-            <p className="sky-waiting">
-              {weatherFailed ? "Weather isn\u2019t available right now." : "Checking the weather…"}
-            </p>
-          </div>
+          <p className="sky-waiting">
+            {weatherFailed ? "Weather isn\u2019t available right now." : "Checking the weather…"}
+          </p>
         )}
         {prayer?.next && (
           <div className="prayer-strip">
@@ -278,7 +305,7 @@ export function AmbientScreen({
               {period && <small>{period}</small>}
             </p>
             <p className="ambient-date">
-              {now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}
+              {now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })}
               {forecast && (
                 <span className="ambient-weather">
                   <WeatherIcon code={forecast.current.code} night={!forecast.current.isDay} size={34} />

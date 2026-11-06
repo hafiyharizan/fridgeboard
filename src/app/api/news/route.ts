@@ -1,11 +1,12 @@
 // GET /api/news — latest headlines for the Home news card.
 // RSS feeds don't allow browser (CORS) requests, so the server reads them.
-// Only the configured feeds are fetched (NEWS_FEEDS or the ABC defaults),
+// Only the configured feeds are fetched (NEWS_FEEDS or the Perth defaults),
+// filtered to Perth and WA stories unless a feed is marked local.
 // never a URL from the request, so this can't proxy arbitrary URLs.
 // Redirects are followed by hand and must stay on https; bodies are capped
 // while downloading. Results are cached 15 minutes per server instance,
 // and concurrent requests share one refresh.
-import { mergeNews, newsFeedsFromEnv, parseFeed, type NewsItem } from "@/lib/news";
+import { mergeNews, newsFeedsFromEnv, parseFeed, perthOnly, type NewsItem } from "@/lib/news";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +72,7 @@ async function readFeed(url: string, source: string): Promise<NewsItem[]> {
 async function refresh(): Promise<NewsItem[]> {
   const feeds = newsFeedsFromEnv(process.env.NEWS_FEEDS);
   const groups = await Promise.all(feeds.map((feed) => readFeed(feed.url, feed.source)));
-  const items = mergeNews(groups, 12);
+  const items = mergeNews(perthOnly(groups, feeds), 12);
   if (items.length) cache = { at: Date.now(), items };
   return items;
 }

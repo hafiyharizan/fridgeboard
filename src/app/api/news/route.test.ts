@@ -57,7 +57,7 @@ describe("GET /api/news", () => {
   });
 
   it("shares one refresh between concurrent requests and then caches", async () => {
-    const fetchMock = vi.fn(async () => new Response(rss("Once")));
+    const fetchMock = vi.fn(async () => new Response(rss("Perth, once")));
     vi.stubGlobal("fetch", fetchMock);
     const { GET } = await loadRoute();
     await Promise.all([GET(), GET(), GET()]);

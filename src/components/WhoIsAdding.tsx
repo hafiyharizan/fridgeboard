@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useHousehold } from "@/components/WorkspaceData";
-import { MemberAvatar, memberLook } from "@/components/MemberTag";
+import { MemberAvatar, useAccountLooks } from "@/components/MemberTag";
 
 /**
  * Kitchen display only: pick who is typing, so items (and the alerts other
@@ -11,6 +11,7 @@ import { MemberAvatar, memberLook } from "@/components/MemberTag";
  */
 export function WhoIsAdding() {
   const { members, userId, adderId, setAdderId } = useHousehold();
+  const looks = useAccountLooks();
   if (members.length < 2) return null;
   const current = adderId ?? userId;
   return (
@@ -18,7 +19,7 @@ export function WhoIsAdding() {
       <span className="eyebrow">Who&apos;s adding?</span>
       <div className="who-adding-row">
         {members.map((member, index) => {
-          const look = memberLook(member, index);
+          const look = looks[index];
           const selected = member.user_id === current;
           return (
             <motion.button

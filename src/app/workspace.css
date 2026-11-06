@@ -536,32 +536,40 @@ textarea:focus-visible {
   grid-area: lists;
 }
 
-/* Hero clock */
-.hero-card {
-  padding: 20px 24px 16px;
-  border-radius: var(--radius-hero);
-}
-.hero-time {
+/* Clock on the Outside card (time + date beside the weather). */
+.sky-clock {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  font-size: 66px;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 60px;
   font-weight: 700;
-  line-height: 70px;
+  line-height: 62px;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
 }
-.hero-time small {
-  font-size: 26px;
+.sky-clock small {
+  font-size: 22px;
   font-weight: 600;
   letter-spacing: 0;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.82);
 }
-.hero-date {
+.sky-date {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   margin-top: 2px;
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 500;
-  line-height: 26px;
+  line-height: 24px;
+  color: rgba(255, 255, 255, 0.92);
+}
+.sky-home-place {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0.02em;
 }
 .hero-next {
   display: flex;
@@ -579,11 +587,15 @@ textarea:focus-visible {
 }
 .hero-next svg {
   flex: none;
-  color: var(--sage);
+  color: #ffd98a;
 }
 .hero-next strong {
-  color: var(--ink);
+  color: #fff;
   font-weight: 700;
+}
+.outside-card .hero-next {
+  border-top-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.85);
 }
 .hero-next span {
   min-width: 0;
@@ -663,30 +675,25 @@ textarea:focus-visible {
 }
 .sky-head {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
 .sky-where {
   min-width: 0;
 }
-.sky-place {
-  margin-top: 2px;
-  color: inherit;
-  overflow: hidden;
-  font-size: 22px;
-  font-weight: 600;
-  line-height: 28px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.sky-now {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .sky-temp {
-  margin-top: -2px;
-  font-size: 64px;
+  font-size: 52px;
   font-weight: 200;
-  line-height: 68px;
+  line-height: 56px;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
+  color: #fff;
 }
 .sky-summary {
   display: flex;
@@ -694,13 +701,12 @@ textarea:focus-visible {
   flex-direction: column;
   align-items: flex-end;
   gap: 1px;
-  padding-bottom: 8px;
+  padding-top: 14px;
   text-align: right;
   font-size: 15px;
   color: rgba(255, 255, 255, 0.85);
 }
 .sky-summary svg {
-  margin-bottom: 4px;
   filter: drop-shadow(0 1px 2px rgba(8, 12, 28, 0.25));
 }
 .sky-summary strong {
@@ -1066,6 +1072,46 @@ textarea:focus-visible {
 }
 .news-head .text-button {
   margin: -10px -4px -10px 0;
+}
+/* Market numbers above the headlines, one quiet line. */
+.stock-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  margin: 6px 0 2px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--line);
+  list-style: none;
+}
+.stock-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.stock-label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+.stock-chip strong {
+  font-weight: 700;
+}
+.stock-change {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.stock-chip.is-up .stock-change {
+  color: var(--sage-deep-text, var(--sage-deep));
+}
+.stock-chip.is-down .stock-change {
+  color: var(--rose-ink);
+}
+.workspace-dialog .stock-strip {
+  margin: 0 0 8px;
 }
 .news-list {
   position: relative;
@@ -1655,6 +1701,127 @@ textarea:focus-visible {
 .sign-out-button {
   margin-top: 8px;
 }
+
+/* People (household dialog): everyone the household plans around. */
+.people-settings {
+  margin-bottom: 16px;
+}
+.people-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.people-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 52px;
+  padding: 4px 2px 4px 8px;
+  border-radius: 14px;
+  background: var(--card);
+}
+.person-chip {
+  flex: 0 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 4px 14px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.person-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.person-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.person-you {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+.people-row .color-picker {
+  margin-left: auto;
+}
+.color-picker {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+.workspace-dialog .color-swatch {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+}
+.color-swatch span {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+.color-swatch[aria-checked="true"] span {
+  box-shadow:
+    0 0 0 2px var(--card),
+    0 0 0 4px currentColor;
+  color: var(--ink);
+}
+.color-swatch:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: 0;
+}
+.people-remove {
+  flex: none;
+  width: 40px;
+}
+.workspace-dialog .people-remove.icon-button {
+  min-width: 40px;
+  min-height: 44px;
+}
+.people-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+.people-add-row input {
+  flex: 1 1 180px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  font-size: 16px;
+}
+.people-add-button {
+  margin-top: 6px;
+}
+@media (max-width: 520px) {
+  .people-row {
+    flex-wrap: wrap;
+  }
+  .people-row .color-picker {
+    order: 3;
+    margin-left: 0;
+  }
+  .people-remove {
+    margin-left: auto;
+  }
+}
 .skip-link {
   position: fixed;
   top: -100px;
@@ -2178,16 +2345,13 @@ textarea:focus-visible {
     min-height: 68px;
     padding-block: 8px;
   }
-  .hero-card {
-    padding: 16px 20px 8px;
+  .sky-clock {
+    font-size: 54px;
+    line-height: 56px;
   }
-  .hero-time {
-    font-size: 60px;
-    line-height: 64px;
-  }
-  .hero-date {
-    font-size: 18px;
-    line-height: 24px;
+  .sky-date {
+    font-size: 17px;
+    line-height: 22px;
   }
   .hero-next {
     margin-top: 6px;
@@ -2198,8 +2362,8 @@ textarea:focus-visible {
     padding: 14px 18px;
   }
   .sky-temp {
-    font-size: 56px;
-    line-height: 58px;
+    font-size: 46px;
+    line-height: 50px;
   }
   .weather-stats {
     margin-top: 6px;
@@ -2346,15 +2510,16 @@ textarea:focus-visible {
   .home-lists {
     grid-template-columns: 1fr;
   }
-  .hero-card {
-    padding: 20px;
+  .sky-clock {
+    font-size: 52px;
+    line-height: 56px;
   }
-  .hero-time {
-    font-size: 58px;
-    line-height: 62px;
+  .sky-date {
+    font-size: 16px;
   }
-  .hero-date {
-    font-size: 17px;
+  .sky-temp {
+    font-size: 44px;
+    line-height: 48px;
   }
   .schedule-card {
     min-height: 0;

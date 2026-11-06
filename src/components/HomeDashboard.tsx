@@ -20,7 +20,8 @@ import {
 } from "lucide-react";
 import { AmbientScreen, OutsideCard } from "@/components/Ambient";
 import { Dialog } from "@/components/Dialog";
-import { useNews, useNow, type PrayerDay } from "@/hooks/useAmbient";
+import { useNews, useNow, useStocks, type PrayerDay } from "@/hooks/useAmbient";
+import { formatChange, formatPrice, type StockQuote } from "@/lib/stocks";
 import { useWholeRows } from "@/hooks/useWholeRows";
 import { newsAge, type NewsItem } from "@/lib/news";
 import type { Forecast } from "@/lib/weather";
@@ -105,7 +106,8 @@ function dayLabel(day: string, options: Intl.DateTimeFormatOptions) {
 
 /* ---------- Left column ---------- */
 
-function HeroClock({
+/** "Next up" line on the combined clock + weather card. */
+function NextUp({
   nextUp,
   today,
   onEvent,
@@ -114,51 +116,24 @@ function HeroClock({
   today: string;
   onEvent: (event: ExpandedCalendarEvent) => void;
 }) {
-  const now = useNow(15_000);
-  const parts = new Intl.DateTimeFormat(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  }).formatToParts(now);
-  const time = parts
-    .filter((part) => part.type !== "dayPeriod")
-    .map((part) => part.value)
-    .join("")
-    .trim();
-  const period = parts.find((part) => part.type === "dayPeriod")?.value;
-  const when = nextUp
-    ? `${nextUp.occurrence_date === today ? "" : `${dayLabel(nextUp.occurrence_date, { weekday: "short" })} `}${
-        nextUp.event_time ? formatEventTime(nextUp.event_time) : "all day"
-      }`
-    : "";
+  if (!nextUp) {
+    return (
+      <p className="hero-next">
+        <Clock3 size={18} aria-hidden />
+        <span>Nothing else planned this week.</span>
+      </p>
+    );
+  }
+  const when = `${nextUp.occurrence_date === today ? "" : `${dayLabel(nextUp.occurrence_date, { weekday: "short" })} `}${
+    nextUp.event_time ? formatEventTime(nextUp.event_time) : "all day"
+  }`;
   return (
-    <section className="card hero-card" aria-label="Time and next up">
-      <p className="hero-time">
-        <time dateTime={now.toISOString()} suppressHydrationWarning>
-          {time}
-        </time>
-        {period && <small>{period}</small>}
-      </p>
-      <p className="hero-date" suppressHydrationWarning>
-        {now.toLocaleDateString(undefined, {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-        })}
-      </p>
-      {nextUp ? (
-        <button className="hero-next" onClick={() => onEvent(nextUp)}>
-          <Clock3 size={18} aria-hidden />
-          <span>
-            Next up: <strong>{nextUp.title}</strong> · {when}
-          </span>
-        </button>
-      ) : (
-        <p className="hero-next">
-          <Clock3 size={18} aria-hidden />
-          <span>Nothing else planned this week.</span>
-        </p>
-      )}
-    </section>
+    <button className="hero-next" onClick={() => onEvent(nextUp)}>
+      <Clock3 size={18} aria-hidden />
+      <span>
+        Next up: <strong>{nextUp.title}</strong> · {when}
+      </span>
+    </button>
   );
 }
 
@@ -174,12 +149,33 @@ function NewsRow({ item, now }: { item: NewsItem; now: Date }) {
   );
 }
 
+/** One line of market numbers above the headlines: "ASX 200 8,812.4 +0.6%". */
+function StockStrip({ quotes }: { quotes: StockQuote[] }) {
+  if (!quotes.length) return null;
+  return (
+    <ul className="stock-strip" aria-label="Markets">
+      {quotes.map((quote) => {
+        const change = formatChange(quote);
+        const trend = !change || change === "0.0%" ? "flat" : change.startsWith("+") ? "up" : "down";
+        return (
+          <li key={quote.symbol} className={`stock-chip is-${trend}`}>
+            <span className="stock-label">{quote.label}</span>
+            <strong>{formatPrice(quote)}</strong>
+            {change && <span className="stock-change">{change}</span>}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 /**
- * Two headlines from /api/news (ABC News WA + national by default); the
+ * Market numbers (/api/stocks) and two Perth headlines from /api/news (ABC News WA + national by default); the
  * rest open in a dialog. Lowest priority on Home, so it stays small.
  */
 function NewsCard() {
   const news = useNews();
+  const quotes = useStocks();
   const now = useNow(60_000);
   const [open, setOpen] = useState(false);
   const shown = news.items.slice(0, 2);
@@ -188,7 +184,7 @@ function NewsCard() {
     <section className="card news-card" aria-label="News">
       <div className="news-head">
         <p className="eyebrow">
-          <Newspaper size={16} aria-hidden /> News
+          <Newspaper size={16} aria-hidden /> Perth news
         </p>
         {news.items.length > 0 && (
           <button className="text-button" onClick={() => setOpen(true)}>
@@ -196,6 +192,7 @@ function NewsCard() {
           </button>
         )}
       </div>
+      <StockStrip quotes={quotes} />
       {news.loading && !news.items.length ? (
         <ul className="news-list" aria-label="Loading headlines">
           {[0, 1].map((key) => (
@@ -216,7 +213,8 @@ function NewsCard() {
         <p className="empty-copy">Headlines aren&apos;t available right now.</p>
       )}
       {open && (
-        <Dialog title="News" onClose={() => setOpen(false)}>
+        <Dialog title="Perth news" onClose={() => setOpen(false)}>
+          <StockStrip quotes={quotes} />
           <ul className="news-list is-dialog">
             {news.items.map((item) => (
               <li key={item.id}>
@@ -274,7 +272,7 @@ function AgendaRow({
               <span className="pill">{TYPE_LABEL[event.event_type]}</span>
             )}
             <strong>{event.title}</strong>
-            <MemberTag userId={event.owner_id} label="For" />
+            <MemberTag userId={event.owner_id} personId={event.owner_person_id} label="For" />
           </span>
           {meta && <span className="agenda-meta">{meta}</span>}
         </span>
@@ -664,13 +662,12 @@ export function HomeDashboard({
   const events = upcomingEvents(calendar.rawEvents, today, days[6]);
   const grocery = lists.find((list) => list.name === "Grocery");
   const todo = lists.find((list) => list.name === "To-Do");
-  const now = useNow(30_000);
+  const now = useNow(15_000);
   const nextUp = nextUpEvent(events, now);
 
   return (
     <div className="home-grid">
       <div className="home-side">
-        <HeroClock nextUp={nextUp} today={today} onEvent={onEvent} />
         <OutsideCard
           settings={settings}
           forecast={forecast}
@@ -678,7 +675,9 @@ export function HomeDashboard({
           prayer={prayer}
           now={now}
           onSetup={onSetup}
-        />
+        >
+          <NextUp nextUp={nextUp} today={today} onEvent={onEvent} />
+        </OutsideCard>
         <NewsCard />
       </div>
 

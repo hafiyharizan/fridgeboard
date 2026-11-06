@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { BriefcaseBusiness, ChevronLeft, ChevronRight, Copy, House, Moon } from "lucide-react";
 import { Dialog } from "@/components/Dialog";
 import { DataStatus } from "@/components/HomeDashboard";
-import { MemberAvatar, memberLook, type MemberLook } from "@/components/MemberTag";
+import { MemberAvatar, useAccountLooks, type MemberLook } from "@/components/MemberTag";
 import { useHousehold, useWorkData } from "@/components/WorkspaceData";
 import { formatEventTime } from "@/lib/calendar";
 import {
@@ -156,6 +156,7 @@ function ShiftEditor({
  */
 export function WorkTab({ today }: { today: string }) {
   const { members } = useHousehold();
+  const looks = useAccountLooks();
   const work = useWorkData();
   const thisMonday = mondayOf(today);
   const [monday, setMonday] = useState(thisMonday);
@@ -192,7 +193,6 @@ export function WorkTab({ today }: { today: string }) {
     day: "numeric",
     month: "short",
   })}`;
-  const looks = members.map((member, index) => memberLook(member, index));
 
   return (
     <section className="card work-card" aria-label="Work schedule">

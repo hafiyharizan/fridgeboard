@@ -1,0 +1,58 @@
+import { describe, expect, it } from "vitest";
+import { DEFAULT_STOCKS, formatChange, formatPrice, parseChart, stocksFromEnv, stockUrl } from "@/lib/stocks";
+
+const chart = (meta: Record<string, unknown>) => ({ chart: { result: [{ meta }], error: null } });
+
+describe("stocksFromEnv", () => {
+  it("uses the defaults when unset or invalid", () => {
+    expect(stocksFromEnv(undefined)).toBe(DEFAULT_STOCKS);
+    expect(stocksFromEnv(" , <script>")).toBe(DEFAULT_STOCKS);
+  });
+  it("reads labelled symbols, max four", () => {
+    expect(stocksFromEnv("BHP|BHP.AX, ^GSPC, bad symbol!, A, B, C")).toEqual([
+      { symbol: "BHP.AX", label: "BHP" },
+      { symbol: "^GSPC", label: "GSPC" },
+      { symbol: "A", label: "A" },
+      { symbol: "B", label: "B" },
+    ]);
+  });
+  it("encodes symbols into the URL", () => {
+    expect(stockUrl("^AXJO")).toContain("/chart/%5EAXJO?");
+  });
+});
+
+describe("parseChart", () => {
+  const asx = DEFAULT_STOCKS[0];
+  it("reads price and change from the previous close", () => {
+    const quote = parseChart(
+      chart({ regularMarketPrice: 8800, chartPreviousClose: 8750, currency: "AUD", regularMarketTime: 1_762_400_000 }),
+      asx,
+    );
+    expect(quote).toMatchObject({ symbol: "^AXJO", label: "ASX 200", price: 8800, change: 50, currency: "AUD" });
+    expect(quote?.changePercent).toBeCloseTo(0.5714, 3);
+    expect(quote?.at).toBe(new Date(1_762_400_000_000).toISOString());
+  });
+  it("falls back to previousClose and copes without one", () => {
+    expect(parseChart(chart({ regularMarketPrice: 10, previousClose: 8 }), asx)?.change).toBe(2);
+    expect(parseChart(chart({ regularMarketPrice: 10 }), asx)).toMatchObject({ change: null, changePercent: null });
+  });
+  it("rejects malformed responses", () => {
+    expect(parseChart(null, asx)).toBeNull();
+    expect(parseChart({ chart: { result: null } }, asx)).toBeNull();
+    expect(parseChart(chart({ regularMarketPrice: "8800" }), asx)).toBeNull();
+  });
+});
+
+describe("formatting", () => {
+  it("formats prices by kind", () => {
+    expect(formatPrice({ symbol: "^AXJO", price: 8812.44 })).toBe("8,812.4");
+    expect(formatPrice({ symbol: "AUDUSD=X", price: 0.66123 })).toBe("0.6612");
+    expect(formatPrice({ symbol: "BHP.AX", price: 41.5 })).toBe("41.50");
+  });
+  it("formats changes with a sign", () => {
+    expect(formatChange({ changePercent: 0.61 })).toBe("+0.6%");
+    expect(formatChange({ changePercent: -1.24 })).toBe("−1.2%");
+    expect(formatChange({ changePercent: 0.01 })).toBe("0.0%");
+    expect(formatChange({ changePercent: null })).toBe("");
+  });
+});

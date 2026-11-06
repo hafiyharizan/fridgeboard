@@ -167,9 +167,10 @@ function PhotoPicker() {
 
   const choose = async (files: File[]) => {
     if (files.length === 0) return;
-    const before = count ?? 0;
     setBusy(true);
     setMessage("");
+    // Read the real stored count now; the state value can be null or stale.
+    const before = (await listPhotos()).length;
     const { accepted, skipped } = roomForPhotos(before, files.length);
     if (accepted > 0) await addPhotos(files.slice(0, accepted));
     const after = (await listPhotos()).length;
@@ -215,7 +216,7 @@ function PhotoPicker() {
               type="file"
               accept="image/*"
               multiple
-              disabled={busy}
+              disabled={busy || count === null}
               onChange={(event) => {
                 const files = Array.from(event.target.files ?? []);
                 event.target.value = "";

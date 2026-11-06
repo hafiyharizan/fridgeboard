@@ -67,15 +67,18 @@ export async function listPhotos(): Promise<Blob[]> {
 async function downscale(file: File): Promise<Blob | null> {
   try {
     const bitmap = await createImageBitmap(file);
-    const { width, height } = fitWithin(bitmap.width, bitmap.height, MAX_SIDE);
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    if (!context) return null;
-    context.drawImage(bitmap, 0, 0, width, height);
-    bitmap.close();
-    return await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY));
+    try {
+      const { width, height } = fitWithin(bitmap.width, bitmap.height, MAX_SIDE);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) return null;
+      context.drawImage(bitmap, 0, 0, width, height);
+      return await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY));
+    } finally {
+      bitmap.close();
+    }
   } catch {
     return null; // Not a readable image (or HEIC the browser can't decode): skip it.
   }

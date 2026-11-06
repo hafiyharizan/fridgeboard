@@ -3414,3 +3414,8 @@ textarea:focus-visible {
   opacity: 0;
   cursor: inherit;
 }
+/* The real file input is invisible, so the label shows keyboard focus. */
+.photo-picker-choose:has(input:focus-visible) {
+  outline: 3px solid var(--focus, #4c6153);
+  outline-offset: 3px;
+}

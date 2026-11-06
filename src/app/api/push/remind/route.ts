@@ -2,9 +2,9 @@
 // Cron-triggered route that sends proactive push notifications.
 //
 // grocery  — fires when a household has unchecked grocery items.
-//            Schedule daily (e.g. 8 am local time via Netlify Scheduled Functions).
+//            Daily at 08:00 Perth (Supabase pg_cron job fridgeboard-grocery-reminder).
 // summary  — morning briefing: today's events + grocery count.
-//            Schedule daily (e.g. 7 am).
+//            Daily at 07:00 Perth (fridgeboard-morning-summary).
 //
 // Auth: Authorization: Bearer <CRON_SECRET>
 

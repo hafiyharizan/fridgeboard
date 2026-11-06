@@ -384,6 +384,12 @@ export type Database = {
         Update: { pin_code?: string; prayer?: string; prayer_date?: string; sent_at?: string };
         Relationships: [];
       };
+      prayer_times: {
+        Row: { pin_code: string; prayer: string; prayer_date: string; prayer_at: string };
+        Insert: { pin_code: string; prayer: string; prayer_date: string; prayer_at: string };
+        Update: { pin_code?: string; prayer?: string; prayer_date?: string; prayer_at?: string };
+        Relationships: [];
+      };
       item_push_log: {
         Row: { item_id: string; sent_at: string };
         Insert: { item_id: string; sent_at?: string };

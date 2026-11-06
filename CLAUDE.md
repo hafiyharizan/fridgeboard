@@ -37,11 +37,10 @@ src/
     globals.css                 # Tailwind + global tokens
     workspace.css               # Signed-in workspace design system (Warm & Homely)
     api/
-      notifications/            # Cron: calendar reminders (email/Telegram/webhook)
+      cron/tick/                # Cron: due calendar reminders + athan pushes (called by Supabase)
       push/subscribe/           # Register a device for Web Push
       push/new-item/            # Alert the household about a new list item
       push/remind/              # Cron: grocery reminder / morning summary
-      push/prayer/              # Cron: athan push at prayer times
       calendar/{feed,import,sync}/  # iCal feed, holiday imports, sync links
       version/                  # Live deploy id (kitchen display self-update)
       news/                     # Perth headlines for the Home news card (server-side RSS)
@@ -85,9 +84,9 @@ src/
     voice.ts                    # Spoken sentence → grocery / to-do / event / reminder (rule-based)
     work.ts                     # Work roster: weeks, overnight shifts, "everyone home" summary
     push.ts, new-item-push.ts   # Web Push sending and wording
+    reminders.ts, athan.ts      # Due calendar reminders / athan pushes + saved prayer times (cron tick)
     offline-snapshot.ts         # Last-known board for public/offline.html
 supabase/migrations/            # SQL migrations (apply in filename order)
-netlify/functions/              # Scheduled functions calling the cron routes
 public/                         # sw.js, offline.html, manifest.json, icons
 ```
 
@@ -159,6 +158,8 @@ Managed via SQL migrations in `supabase/migrations/`. Apply in filename timestam
 
 **`prayer_push_log`**, **`item_push_log`** — single-use logs for athan and new-item pushes (service role only).
 
+**`prayer_times`** — today's and tomorrow's prayer times per athan household, written by the cron tick (adhan runs in JS) so the database can see when a prayer is due. Service role only; a trigger clears a household's rows when its location or prayer settings change. `notification_log` allows one `push` row per event (unique index), claimed before the reminder push is sent.
+
 ### Key Types (src/lib/types.ts)
 
 ```ts
@@ -199,9 +200,9 @@ const supabase = createClient(
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key (public) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes (API routes) | Supabase service role key (server-side only) |
-| `CRON_SECRET` | Yes (cron routes) | Bearer token for `/api/notifications` and `/api/push/remind`. If unset, those routes reject every request (fail closed). |
+| `CRON_SECRET` | Yes (cron routes) | Bearer token for `/api/cron/tick` and `/api/push/remind`. If unset, those routes reject every request (fail closed). The same value is stored in Supabase Vault as `fridgeboard_cron_secret`. |
 | `TELEGRAM_BOT_TOKEN` | Optional | For Telegram notification channel |
-| `APP_TIMEZONE` | Optional | IANA zone for event dates/times in cron routes (default `Australia/Perth`; Netlify functions run in UTC) |
+| `APP_TIMEZONE` | Optional | IANA zone for event dates/times in cron routes (default `Australia/Perth`; server code runs in UTC). Cron routes use a household's own `household_settings.timezone` when set |
 | `NEWS_FEEDS` | Optional | Home news card feeds: comma-separated `Label\|https://…` or `Label\|https://…\|local` RSS/Atom URLs, max 6. Only Perth/WA stories are kept unless a feed is `local` (default: ABC News WA + WAtoday in full, ABC Top Stories filtered) |
 | `STOCK_SYMBOLS` | Optional | News card market line: comma-separated `Label\|SYMBOL` in Yahoo Finance form, max 4 (default `ASX 200\|^AXJO,AUD/USD\|AUDUSD=X`) |
 
@@ -209,16 +210,14 @@ const supabase = createClient(
 
 ## API Routes
 
-### `POST /api/notifications`
+### `POST /api/cron/tick`
 
-Cron-triggered notification dispatcher, called every minute by the `event-reminders` Netlify scheduled function.
+Sends calendar reminders and athan pushes that are due. Called by Supabase only when its once-a-minute check finds something due (see Scheduled jobs below), so a quiet minute never wakes the app.
 
 - Auth: `Authorization: Bearer <CRON_SECRET>` header (required; checked by `lib/cron-auth.ts`)
-- Finds `calendar_events` for today with `notify_before >= 0`
-- Checks `notification_log` for idempotency
-- Dispatches to enabled `notification_channels` matching `pin_code`
-- Supports: email (Resend), Telegram (live), webhook (live)
-- Returns `{ sent: number, checked: number }`
+- Reminders (`lib/reminders.ts`): events with `notify_before >= 0` and a time, due from `event_time − notify_before` (in the household's time zone) for 30 minutes. Every due reminder is pushed to the household's devices once (claimed in `notification_log` as `push` first). Email / Telegram / webhook go to enabled `notification_channels` listed in the event's `notify_channels`, retried each run while they fail and the reminder is still due.
+- Athan (`lib/athan.ts`): for households with prayer times and athan alerts on, a push when a prayer time arrives (10-minute catch-up window), once per prayer per day via `prayer_push_log`. Times come from `adhan` in the household's `timezone` (default `APP_TIMEZONE`). Each run also saves today's and tomorrow's times to `prayer_times`.
+- Returns `{ reminders: { due, sent }, athan: { due, sent, households, timesSaved } }`. Only `event_date` events: repeating events don't send reminders yet.
 
 ---
 
@@ -231,10 +230,6 @@ Called by `useRealtimeItems` right after a member adds a list item. Body: `{ ite
 - Skips the adder's own devices (`push_subscriptions.user_id`). Notifications are tagged per list, so a burst of additions replaces itself instead of stacking.
 
 `InstallPrompt` (mounted in `HouseholdWorkspace`) suggests installing the app: a native install button on Chromium, Share → Add to Home Screen steps on iPhone/iPad (the only way iOS allows web push). "Not now" snoozes it for 30 days.
-
-### `POST /api/push/prayer`
-
-Cron, every minute (same `event-reminders` scheduled function). For households with prayer times and athan alerts on, sends a push when a prayer time arrives (10-minute catch-up window), once per prayer per day via `prayer_push_log`. Times are calculated locally with `adhan` in the household's `timezone` (default `APP_TIMEZONE`).
 
 ### Weather and prayer times
 
@@ -254,7 +249,7 @@ Market numbers shown as one line above the news headlines. Fetches the fixed `ST
 
 ### `GET /api/version`
 
-Returns `{ version }`, the build stamp `APP_VERSION` (Netlify `DEPLOY_ID`, else `COMMIT_REF`, else `"dev"`; set in `next.config.ts`). Kitchen displays poll it and reload while idle when it changes. `"dev"` never triggers a reload.
+Returns `{ version }`, the build stamp `APP_VERSION` (Vercel `VERCEL_DEPLOYMENT_ID`, else `VERCEL_GIT_COMMIT_SHA`, else `"dev"`; set in `next.config.ts`). Kitchen displays poll it and reload while idle when it changes. `"dev"` never triggers a reload.
 
 ### Voice ("Say it")
 
@@ -334,7 +329,7 @@ npm run test:coverage # Run tests with coverage report
 
 ## Notification Integrations
 
-All three channels are fully implemented in `src/app/api/notifications/route.ts`:
+All three channels are fully implemented in `src/lib/reminders.ts` (sent by `/api/cron/tick`). Every due reminder is also pushed to the household's devices:
 
 - **Email** — uses [Resend](https://resend.com). Requires `RESEND_API_KEY` and `RESEND_FROM_EMAIL` env vars. The `from` address must be a verified sender in your Resend account.
 - **Telegram** — live. Requires `TELEGRAM_BOT_TOKEN`. The `channel_value` is the Telegram chat ID.
@@ -361,15 +356,21 @@ The vitest config (`vitest.config.ts`) sets up the `@/*` path alias and uses the
 
 ## Deployment
 
-Netlify is the target host. Configuration is in `netlify.toml`.
+Vercel (free Hobby plan) is the target host. `vercel.json` pins functions to `bom1` (Mumbai), next to the Supabase project (`ap-south-1`).
 
-- Build command: `npm run build`
-- Publish directory: `.next`
-- Plugin: `@netlify/plugin-nextjs` v5 (handles SSR + API routes as Netlify Functions)
-- Node version: 20
-- Set env vars in Netlify UI → Site configuration → Environment variables
+- Framework preset: Next.js (no build settings needed)
+- Set env vars in Vercel → Project → Settings → Environment Variables, including `NEXT_PUBLIC_SITE_URL` (the production URL, used for OAuth redirects)
+- Add the production URL to Supabase → Authentication → URL Configuration (site URL and redirect URLs)
 
-Cron routes are called by Netlify Scheduled Functions in `netlify/functions/` (shared helper `netlify/lib/call-cron-route.ts`, which uses Netlify's `URL` and `CRON_SECRET` env vars): `event-reminders` every minute → `/api/notifications`, `morning-summary` 07:00 Perth (`0 23 * * *` UTC) and `grocery-reminder` 08:00 Perth (`0 0 * * *` UTC) → `/api/push/remind`. They only run on the published production deploy; use **Run now** in Netlify → Functions to test. Reminders stay due for 30 minutes after their trigger time (`lib/local-time.ts`); `notification_log` prevents duplicates.
+### Scheduled jobs (Supabase pg_cron)
+
+No scheduler runs on the web host. `supabase/migrations/20261109000000_supabase_scheduler.sql` sets up pg_cron jobs that call the app with pg_net, reading the app URL and cron secret from Vault (`fridgeboard_app_url`, `fridgeboard_cron_secret`; jobs do nothing until both exist):
+
+- `fridgeboard-tick`, every minute: `cron_tick()` runs `cron_tick_due()`, a database-only check for a due reminder (push not yet claimed, or a channel not yet sent), a prayer started in the last 10 minutes without an athan push, or an athan household missing tomorrow's `prayer_times`. Only then does it POST `/api/cron/tick`. Keep its rules in step with `lib/local-time.ts` (`reminderTriggerAt`, 30-minute catch-up), `lib/prayer.ts` (`ATHAN_WINDOW_MS`) and `lib/reminders.ts`.
+- `fridgeboard-morning-summary` 07:00 Perth (`0 23 * * *` UTC) and `fridgeboard-grocery-reminder` 08:00 Perth (`0 0 * * *` UTC) → `/api/push/remind`.
+- `fridgeboard-cron-history-cleanup` trims `cron.job_run_details` to a week.
+
+Check runs with `select * from cron.job_run_details order by start_time desc limit 20;` and app responses with `select * from net._http_response order by created desc limit 20;`. To test the tick by hand: `select public.call_app_route('/api/cron/tick');`.
 
 ---
 

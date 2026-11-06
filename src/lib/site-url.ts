@@ -1,5 +1,6 @@
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
-const DEFAULT_SITE_URL = "https://fridgeboard.netlify.app";
+// Set NEXT_PUBLIC_SITE_URL in Vercel; this is only a last resort.
+const DEFAULT_SITE_URL = "https://fridgeboard.vercel.app";
 
 function trimTrailingSlash(url: string) {
   return url.replace(/\/+$/, "");

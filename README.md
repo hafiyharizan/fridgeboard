@@ -25,7 +25,8 @@ Members sign in with Google, belong to a household, and see updates instantly ac
 - Supabase (PostgreSQL + Realtime + Auth)
 - @supabase/ssr
 - Lucide React
-- Netlify functions for scheduled background jobs
+- Supabase pg_cron + pg_net for scheduled jobs (reminders, athan, daily pushes)
+- Hosted on Vercel
 
 ## App overview
 
@@ -132,22 +133,25 @@ src/
 public/
 supabase/
   migrations/
-netlify/
-  functions/
 ```
 
 The app uses the App Router, a shared household workspace layout, and client-side realtime hooks to keep the UI synced with Supabase.
 
 ## Deployment notes
 
-This repo is set up for deployment on Netlify, with scheduled functions under `netlify/functions/` and server-side cron routes under `src/app/api/`.
+The app is hosted on Vercel (free Hobby plan). Scheduled jobs run in Supabase, not on the host: pg_cron checks every minute whether a reminder or athan is due and only then calls `/api/cron/tick`, and calls `/api/push/remind` for the 07:00 summary and 08:00 grocery reminder (see `supabase/migrations/20261109000000_supabase_scheduler.sql`).
 
 For production, ensure:
 
-- your Supabase project is configured correctly
+- your Supabase project is configured correctly, with all migrations applied
 - OAuth redirect URLs are added to your Google provider and Supabase auth settings
 - your `NEXT_PUBLIC_SITE_URL` is set
-- cron secrets are configured for notification endpoints
+- `CRON_SECRET` is set in Vercel, and the app URL and the same secret are stored in Supabase Vault:
+
+```sql
+select vault.create_secret('https://your-app.vercel.app', 'fridgeboard_app_url');
+select vault.create_secret('your-cron-secret', 'fridgeboard_cron_secret');
+```
 
 ## Security and auth notes
 

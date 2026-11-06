@@ -48,5 +48,3 @@ next-env.d.ts
 /output/playwright/
 /.playwright-cli/
 
-# Local Netlify folder
-.netlify

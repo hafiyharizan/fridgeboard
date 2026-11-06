@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { watchWake } from "@/hooks/watchWake";
 import { dateKey } from "@/lib/dashboard";
+import { isNightTime } from "@/lib/kitchen";
 import { duePrayer, prayerSchedule, prayerView, type PrayerSlot } from "@/lib/prayer";
 import { forecastUrl, parseForecast, type Forecast } from "@/lib/weather";
 import type { NewsItem } from "@/lib/news";
@@ -208,9 +209,19 @@ function playChime() {
 }
 
 const NEWS_REFRESH_MS = 15 * 60 * 1000;
+
+/**
+ * Timed refreshes pause overnight (the kitchen screen is dimmed then and
+ * each refresh is a server call); waking the page still refreshes at once.
+ */
+function unlessNight(load: () => Promise<void>) {
+  return () => {
+    if (!isNightTime(new Date())) void load();
+  };
+}
 const NEWS_CACHE_KEY = "fridgeboard.news";
 
-/** Headlines from /api/news, refreshed every 15 minutes and on wake. */
+/** Headlines from /api/news, refreshed every 15 minutes (not overnight) and on wake. */
 export function useNews() {
   const [state, setState] = useState<{ items: NewsItem[]; at: number | null; failed: boolean; loading: boolean }>({
     items: [],
@@ -237,6 +248,7 @@ export function useNews() {
         if (alive) setState((prev) => ({ ...prev, failed: true, loading: false }));
       }
     };
+    const loadUnlessNight = unlessNight(load);
     const first = window.setTimeout(() => {
       try {
         const cached = JSON.parse(localStorage.getItem(NEWS_CACHE_KEY) ?? "null") as { at: number; items: NewsItem[] } | null;
@@ -246,7 +258,7 @@ export function useNews() {
       }
       void load();
     }, 0);
-    const timer = window.setInterval(load, NEWS_REFRESH_MS);
+    const timer = window.setInterval(loadUnlessNight, NEWS_REFRESH_MS);
     const stop = watchWake(
       () => void load(),
       () => void load(),
@@ -264,7 +276,7 @@ export function useNews() {
 const STOCKS_REFRESH_MS = 5 * 60 * 1000;
 
 /**
- * Market numbers from /api/stocks, refreshed every 5 minutes and on wake.
+ * Market numbers from /api/stocks, refreshed every 5 minutes (not overnight) and on wake.
  * Empty when the source is unavailable; the news card then just hides them.
  */
 export function useStocks() {
@@ -280,8 +292,9 @@ export function useStocks() {
         // Keep the last numbers.
       }
     };
+    const loadUnlessNight = unlessNight(load);
     const first = window.setTimeout(() => void load(), 0);
-    const timer = window.setInterval(load, STOCKS_REFRESH_MS);
+    const timer = window.setInterval(loadUnlessNight, STOCKS_REFRESH_MS);
     const stop = watchWake(
       () => void load(),
       () => void load(),

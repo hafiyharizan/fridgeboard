@@ -7,6 +7,7 @@ import { CalendarGrid } from "@/components/CalendarGrid";
 import { CalendarSettings } from "@/components/CalendarSettings";
 import { PushNotificationButton } from "@/components/PushNotificationButton";
 import { useCalendarData } from "@/components/WorkspaceData";
+import { useNow } from "@/hooks/useAmbient";
 import { DataStatus } from "@/components/HomeDashboard";
 import {
   addDaysToKey,
@@ -24,7 +25,8 @@ type CalendarTabProps = {
 };
 
 export function CalendarTab({ onDay, onEvent }: CalendarTabProps) {
-  const now = new Date();
+  // Ticks each minute so the header and "today" stay right on an always-on tablet.
+  const now = useNow(60_000);
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
 
@@ -52,8 +54,7 @@ export function CalendarTab({ onDay, onEvent }: CalendarTabProps) {
       expandRecurrences(rawEvents, today, addDaysToKey(today, 60)),
       now,
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `now` is re-read each render; rawEvents drives changes
-  }, [rawEvents]);
+  }, [rawEvents, now]);
 
   const goToPrevMonth = () => {
     if (month === 0) {

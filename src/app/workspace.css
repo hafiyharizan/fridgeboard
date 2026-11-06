@@ -1618,6 +1618,9 @@ textarea:focus-visible {
   background: var(--card);
   border: 1px solid var(--sage-tint-strong);
 }
+.household-workspace .note-panel .calendar-day-button {
+  min-height: 48px;
+}
 .household-workspace .note-panel .calendar-add-button {
   min-height: 32px;
 }

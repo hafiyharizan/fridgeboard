@@ -69,3 +69,27 @@ export function isNewVersion(current: string, latest: unknown): boolean {
 
 /** Window event that asks every open overlay to close (kitchen idle reset). */
 export const DISMISS_OVERLAYS_EVENT = "fridgeboard:dismiss-overlays";
+
+/** localStorage keys for the idle-view options (per device). */
+export const IDLE_DIM_KEY = "fridgeboard.idle-dim";
+export const SLIDESHOW_KEY = "fridgeboard.idle-slideshow";
+
+/** Seconds each photo stays up in the idle slideshow. */
+export const SLIDE_SECONDS = 30;
+
+/** Stored flags are "1" / "0"; anything else (or nothing) uses the fallback. */
+export function parseFlag(raw: string | null, fallback: boolean): boolean {
+  if (raw === "1") return true;
+  if (raw === "0") return false;
+  return fallback;
+}
+
+/** Next photo index, wrapping; 0 when there is nothing to rotate. */
+export function nextSlide(index: number, count: number): number {
+  return count <= 1 ? 0 : (index + 1) % count;
+}
+
+/** Strength of the dark overlay on the idle view (a browser can't change real brightness). */
+export function idleDimOpacity(night: boolean): number {
+  return night ? 0.75 : 0.55;
+}

@@ -20,6 +20,7 @@ import { CalendarTab } from "@/components/CalendarTab";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import {
   HoldToOpenButton,
+  KitchenIdleSettings,
   KitchenModeSetting,
   SyncBadge,
 } from "@/components/KitchenDisplay";
@@ -350,6 +351,14 @@ export function HouseholdWorkspace({
               enabled={kitchen.enabled}
               onChange={kitchen.setEnabled}
             />
+            {kitchen.enabled && (
+              <KitchenIdleSettings
+                idleDim={kitchen.idleDim}
+                slideshow={kitchen.slideshow}
+                onIdleDim={kitchen.setIdleDim}
+                onSlideshow={kitchen.setSlideshow}
+              />
+            )}
             <button
               className="secondary-button sign-out-button"
               disabled={signingOut}

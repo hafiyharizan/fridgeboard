@@ -147,3 +147,59 @@ export function KitchenModeSetting({
     </section>
   );
 }
+
+/** Idle-view options; shown only while kitchen mode is on. */
+export function KitchenIdleSettings({
+  idleDim,
+  slideshow,
+  onIdleDim,
+  onSlideshow,
+}: {
+  idleDim: boolean;
+  slideshow: boolean;
+  onIdleDim: (on: boolean) => void;
+  onSlideshow: (on: boolean) => void;
+}) {
+  const rows = [
+    {
+      id: "idle-dim-label",
+      title: "Dim the screen when idle",
+      text: "Darkens the today view after 2 minutes, more at night. Only affects this device.",
+      on: idleDim,
+      set: onIdleDim,
+    },
+    {
+      id: "idle-slideshow-label",
+      title: "Photo slideshow when idle",
+      text: "Shows household photos instead of the today view while idle. Only affects this device.",
+      on: slideshow,
+      set: onSlideshow,
+    },
+  ];
+  return (
+    <>
+      {rows.map((row) => (
+        <section className="kitchen-setting" key={row.id}>
+          <div>
+            <h3 id={row.id}>{row.title}</h3>
+            <p>{row.text}</p>
+          </div>
+          <button
+            className="switch"
+            role="switch"
+            aria-checked={row.on}
+            aria-labelledby={row.id}
+            onClick={() => row.set(!row.on)}
+            type="button"
+          >
+            <motion.span
+              className="switch-thumb"
+              layout
+              transition={{ type: "spring", stiffness: 500, damping: 34 }}
+            />
+          </button>
+        </section>
+      ))}
+    </>
+  );
+}

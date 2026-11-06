@@ -6,7 +6,10 @@ import {
   isNewVersion,
   isNightTime,
   KITCHEN_IDLE_MS,
+  IDLE_DIM_KEY,
   KITCHEN_MODE_KEY,
+  parseFlag,
+  SLIDESHOW_KEY,
   VERSION_CHECK_MS,
 } from "@/lib/kitchen";
 
@@ -39,6 +42,26 @@ function writeEnabled(on: boolean) {
   }
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
+
+function readFlag(key: string, fallback: boolean) {
+  try {
+    return parseFlag(localStorage.getItem(key), fallback);
+  } catch {
+    return fallback;
+  }
+}
+
+function writeFlag(key: string, on: boolean) {
+  try {
+    localStorage.setItem(key, on ? "1" : "0");
+  } catch {
+    // Storage blocked: the setting lasts until the page reloads.
+  }
+  window.dispatchEvent(new Event(CHANGE_EVENT));
+}
+
+const readIdleDim = () => readFlag(IDLE_DIM_KEY, true);
+const readSlideshow = () => readFlag(SLIDESHOW_KEY, false);
 
 /** Whether this device is in kitchen display mode (read-only view of the switch). */
 export function useKitchenEnabled() {
@@ -79,6 +102,8 @@ function useWakeLock(enabled: boolean) {
  */
 export function useKitchenDisplay(onIdle: () => void) {
   const enabled = useSyncExternalStore(subscribe, readEnabled, () => false);
+  const idleDim = useSyncExternalStore(subscribe, readIdleDim, () => true);
+  const slideshow = useSyncExternalStore(subscribe, readSlideshow, () => false);
   const [idle, setIdle] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const updateReady = useRef(false);
@@ -155,11 +180,19 @@ export function useKitchenDisplay(onIdle: () => void) {
   }, [enabled]);
 
   const setEnabled = useCallback((on: boolean) => writeEnabled(on), []);
+  const setIdleDim = useCallback((on: boolean) => writeFlag(IDLE_DIM_KEY, on), []);
+  const setSlideshow = useCallback((on: boolean) => writeFlag(SLIDESHOW_KEY, on), []);
   const active = enabled && idle;
 
   return {
     enabled,
     setEnabled,
+    /** Dark overlay on the idle view (default on). */
+    idleDim,
+    setIdleDim,
+    /** Photo slideshow on the idle view (default off). */
+    slideshow,
+    setSlideshow,
     /** Kitchen mode and nobody has touched the screen for a while. */
     idle: active,
     /** 22:00–06:00: the idle view switches to its dark, low-glare look. */

@@ -789,72 +789,70 @@ textarea:focus-visible {
 .weather-tip svg {
   color: #ffd98a;
 }
-.prayer-strip {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.22);
+/* Prayer times card: sits under the sky card, on a normal light/dark card. */
+.prayer-card {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 18px 14px;
 }
-.prayer-next {
+.prayer-card-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  color: rgba(255, 255, 255, 0.8);
+  justify-content: space-between;
+  gap: 10px;
 }
-.prayer-next svg {
-  flex: none;
-}
-.prayer-day {
-  color: #fff;
-  font-weight: 700;
-}
-.prayer-countdown {
-  margin-left: auto;
+.prayer-card-next {
+  color: var(--muted);
+  font-size: 14px;
   white-space: nowrap;
 }
-.prayer-countdown strong {
-  color: #fff;
+.prayer-card-next strong {
+  color: var(--ink);
 }
-.prayer-times {
+.prayer-card-day {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.prayer-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
-  margin: 8px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
-/* Tiles are tinted, not blurred: backdrop-filter over animated layers
-   would re-blur every frame on the tablet. */
-.prayer-times li {
+.prayer-grid li {
   display: flex;
   flex-direction: column;
   align-items: center;
   min-width: 0;
-  padding: 5px 2px;
+  padding: 6px 2px;
   border-radius: 12px;
-  background: rgba(8, 12, 28, 0.22);
+  background: var(--oat-soft);
+  color: var(--muted);
   font-size: 13px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.8);
+  font-variant-numeric: tabular-nums;
 }
-.prayer-times li span {
+.prayer-grid li span {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.prayer-times li strong {
+.prayer-grid li strong {
+  color: var(--ink);
   font-size: 18px;
   line-height: 24px;
+}
+.prayer-grid li.is-next {
+  background: var(--sage-deep);
+  color: rgba(255, 255, 255, 0.85);
+}
+.prayer-grid li.is-next strong {
   color: #fff;
-  font-variant-numeric: tabular-nums;
-}
-.prayer-times li.is-next {
-  background: rgba(255, 255, 255, 0.92);
-  color: #5b655e;
-  text-shadow: none;
-}
-.prayer-times li.is-next strong {
-  color: #2b332e;
 }
 
 /* Sky layers. Compositor-only loops (transform/opacity). */
@@ -2676,14 +2674,11 @@ textarea:focus-visible {
   .weather-tomorrow {
     margin-top: 4px;
   }
-  .prayer-strip {
-    margin-top: 8px;
-    padding-top: 8px;
+  .prayer-card {
+    gap: 8px;
+    padding: 10px 16px;
   }
-  .prayer-times {
-    margin-top: 6px;
-  }
-  .prayer-times li {
+  .prayer-grid li {
     padding: 3px 2px;
   }
   .schedule-card {
@@ -2713,10 +2708,10 @@ textarea:focus-visible {
 
 /* Portrait tablet / small laptop: two columns, lists underneath. */
 @media (max-width: 1179px) {
-  .prayer-times {
+  .prayer-grid {
     gap: 4px;
   }
-  .prayer-times li span {
+  .prayer-grid li span {
     font-size: 12px;
   }
   .dashboard-header {

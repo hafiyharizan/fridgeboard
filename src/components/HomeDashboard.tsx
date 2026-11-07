@@ -23,7 +23,7 @@ import {
   Sunrise,
   TrendingUp,
 } from "lucide-react";
-import { AmbientScreen, OutsideCard } from "@/components/Ambient";
+import { AmbientScreen, OutsideCard, PrayerCard } from "@/components/Ambient";
 import { Dialog } from "@/components/Dialog";
 import { SwipeDeck, type DeckCard } from "@/components/SwipeDeck";
 import { useNews, useNow, useStocks, type PrayerDay } from "@/hooks/useAmbient";
@@ -755,12 +755,12 @@ export function HomeDashboard({
           settings={settings}
           forecast={forecast}
           weatherFailed={weatherFailed}
-          prayer={prayer}
           now={now}
           onSetup={onSetup}
         >
           <NextUp nextUp={nextUp} today={today} onEvent={onEvent} />
         </OutsideCard>
+        <PrayerCard prayer={prayer} now={now} />
         <NewsMarketsDeck />
       </div>
 

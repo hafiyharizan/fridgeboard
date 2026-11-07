@@ -89,7 +89,6 @@ export function OutsideCard({
   settings,
   forecast,
   weatherFailed,
-  prayer,
   now,
   onSetup,
   children,
@@ -97,7 +96,6 @@ export function OutsideCard({
   settings: HouseholdSettings | null;
   forecast: Forecast | null;
   weatherFailed?: boolean;
-  prayer: PrayerDay | null;
   now: Date;
   onSetup: () => void;
   /** Shown under the clock (Home's "Next up" line). */
@@ -110,7 +108,7 @@ export function OutsideCard({
   return (
     <section
       className={`card outside-card sky is-${scene.phase} is-${scene.weather}`}
-      aria-label="Time, weather and prayer times"
+      aria-label="Time and weather"
     >
       <SkyBackdrop scene={scene} />
       <div className="sky-content">
@@ -205,29 +203,38 @@ export function OutsideCard({
             {weatherFailed ? "Weather isn\u2019t available right now." : "Checking the weather…"}
           </p>
         )}
-        {prayer?.next && (
-          <div className="prayer-strip">
-            <p className="prayer-next">
-              <MoonStar size={16} aria-hidden />
-              <span className="prayer-day">{prayer.nextIsTomorrow ? "Tomorrow" : "Today"}</span>
-              <span className="prayer-countdown">
-                <strong>{prayer.next.label}</strong> {countdown(prayer.next.time, now)}
-              </span>
-            </p>
-            <ol className="prayer-times" aria-label={`Prayer times ${prayer.nextIsTomorrow ? "tomorrow" : "today"}`}>
-              {prayer.shown.map((slot) => {
-                const next = slot.name === prayer.next?.name;
-                return (
-                  <li key={slot.name} className={next ? "is-next" : ""} aria-current={next ? "time" : undefined}>
-                    <span>{slot.label}</span>
-                    <strong>{clock(slot.time).replace(/\s?[AP]M$/i, "")}</strong>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-        )}
       </div>
+    </section>
+  );
+}
+
+/* ---------- Prayer times: its own card, apart from the weather ---------- */
+
+export function PrayerCard({ prayer, now }: { prayer: PrayerDay | null; now: Date }) {
+  if (!prayer?.next) return null;
+  const when = prayer.nextIsTomorrow ? "Tomorrow" : "Today";
+  return (
+    <section className="card prayer-card" aria-label="Prayer times">
+      <div className="prayer-card-head">
+        <p className="eyebrow deck-title">
+          <MoonStar size={16} aria-hidden /> Prayer times
+        </p>
+        <p className="prayer-card-next">
+          <strong>{prayer.next.label}</strong> {countdown(prayer.next.time, now)}
+        </p>
+      </div>
+      <ol className="prayer-grid" aria-label={`Prayer times ${when.toLowerCase()}`}>
+        {prayer.shown.map((slot) => {
+          const next = slot.name === prayer.next?.name;
+          return (
+            <li key={slot.name} className={next ? "is-next" : ""} aria-current={next ? "time" : undefined}>
+              <span>{slot.label}</span>
+              <strong>{clock(slot.time).replace(/s?[AP]M$/i, "")}</strong>
+            </li>
+          );
+        })}
+      </ol>
+      {prayer.nextIsTomorrow && <p className="prayer-card-day">Showing tomorrow&apos;s times</p>}
     </section>
   );
 }

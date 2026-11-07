@@ -7,7 +7,7 @@ import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import { watchWake } from "@/hooks/watchWake";
 
-import { expandRecurrences, getMonthRange } from "@/lib/calendar";
+import { expandRecurrences, getMonthRange, normalizeEndDate } from "@/lib/calendar";
 
 import type {
   CalendarEvent,
@@ -177,6 +177,9 @@ export function useRealtimeCalendar(pinCode: string) {
 
     event_time?: string | null;
 
+    /** Last day of a multi-day event (after event_date); ignored otherwise. */
+    end_date?: string;
+
     title: string;
 
     note?: string;
@@ -219,6 +222,8 @@ export function useRealtimeCalendar(pinCode: string) {
           event_date: data.event_date,
 
           event_time: data.event_time ?? null,
+
+          end_date: normalizeEndDate(data.event_date, data.end_date),
 
           title: data.title,
 

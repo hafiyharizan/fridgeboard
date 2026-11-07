@@ -5,8 +5,8 @@ import { useModalSurface } from "@/hooks/useModalSurface";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { DISMISS_OVERLAYS_EVENT } from "@/lib/kitchen";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, Clock, Repeat, X } from "lucide-react";
-import { NOTIFY_BEFORE_OPTIONS, RECURRENCE_LABELS } from "@/lib/calendar";
+import { Bell, CalendarRange, Clock, Repeat, X } from "lucide-react";
+import { addDaysToKey, NOTIFY_BEFORE_OPTIONS, normalizeEndDate, RECURRENCE_LABELS } from "@/lib/calendar";
 import { MemberAvatar, useEveryone } from "@/components/MemberTag";
 import type {
   CalendarEventType,
@@ -57,6 +57,7 @@ type AddEventModalProps = {
   onAdd: (data: {
     event_date: string;
     event_time: string | null;
+    end_date?: string;
     title: string;
     note?: string;
     event_type: CalendarEventType;
@@ -78,6 +79,7 @@ type Draft = {
   color: StickyColor;
   recurrence: Recurrence;
   recurrenceEnd: string;
+  endDate: string;
   eventTime: string;
   notifyBefore: number;
   owner: string | null;
@@ -110,6 +112,7 @@ export function AddEventModal({
   const [color, setColor] = useState<StickyColor>(initial?.color ?? "amber");
   const [recurrence, setRecurrence] = useState<Recurrence>(initial?.recurrence ?? "none");
   const [recurrenceEnd, setRecurrenceEnd] = useState(initial?.recurrenceEnd ?? "");
+  const [endDate, setEndDate] = useState(initial?.endDate ?? "");
   const [eventTime, setEventTime] = useState(initial?.eventTime ?? "");
   const [notifyBefore, setNotifyBefore] = useState(initial?.notifyBefore ?? -1);
   const everyone = useEveryone();
@@ -122,7 +125,7 @@ export function AddEventModal({
 
   const draft = useRef<Draft | null>(null);
   useEffect(() => {
-    draft.current = { dateKey, title, note, eventType, color, recurrence, recurrenceEnd, eventTime, notifyBefore, owner };
+    draft.current = { dateKey, title, note, eventType, color, recurrence, recurrenceEnd, endDate, eventTime, notifyBefore, owner };
   });
   // Runs after useModalSurface's own dismiss handler (registered first), so
   // the draft is parked after that handler's discard.
@@ -145,17 +148,26 @@ export function AddEventModal({
     },
   );
 
+  // "Ends on" must be after the start day; it only applies to one-off events.
+  const nextDay = addDaysToKey(dateKey, 1);
+  const endBeforeStart =
+    recurrence === "none" && endDate !== "" && endDate <= dateKey;
+
   // Reminder only makes sense when a specific time is set
   const canSetReminder = eventTime !== "";
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const trimmed = title.trim();
-    if (!trimmed || busy) return;
+    if (!trimmed || busy || endBeforeStart) return;
+
+    const validEnd =
+      recurrence === "none" ? normalizeEndDate(dateKey, endDate) : null;
 
     const saved = await onAdd({
       event_date: dateKey,
       event_time: eventTime || null,
+      end_date: validEnd ?? undefined,
       title: trimmed,
       note: note.trim() || undefined,
       event_type: eventType,
@@ -329,6 +341,34 @@ export function AddEventModal({
                   </div>
                 </div>
 
+                {/* Ends on — multi-day events; not combined with a repeat */}
+                {recurrence === "none" ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1">
+                      <CalendarRange className="h-3 w-3 text-muted" />
+                      <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-muted">
+                        Ends on{" "}
+                        <span className="normal-case font-normal">
+                          (optional)
+                        </span>
+                      </p>
+                    </div>
+                    <input
+                      aria-label="Ends on"
+                      className="w-full rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
+                      min={nextDay}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      type="date"
+                      value={endDate}
+                    />
+                    {endBeforeStart ? (
+                      <p className="text-[0.65rem] font-bold text-danger" role="alert">
+                        End date must be after the start date
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 {/* Time — required to enable reminders */}
                 <div className="space-y-1">
                   <div className="flex items-center gap-1">
@@ -363,9 +403,11 @@ export function AddEventModal({
                   <div className="flex items-center gap-2">
                     <select
                       className="flex-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-foreground outline-none transition focus:border-amber-deep focus:ring-2 focus:ring-amber/20"
-                      onChange={(e) =>
-                        setRecurrence(e.target.value as Recurrence)
-                      }
+                      onChange={(e) => {
+                        const next = e.target.value as Recurrence;
+                        setRecurrence(next);
+                        if (next !== "none") setEndDate("");
+                      }}
                       value={recurrence}
                     >
                       {RECURRENCE_OPTIONS.map(([value, label]) => (
@@ -438,7 +480,7 @@ export function AddEventModal({
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   className="w-full rounded-xl bg-foreground px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#2f241b] disabled:opacity-60"
-                  disabled={busy || !title.trim()}
+                  disabled={busy || !title.trim() || endBeforeStart}
                   type="submit"
                 >
                   Pin to calendar

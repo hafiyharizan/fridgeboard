@@ -101,6 +101,8 @@ export type CalendarEvent = {
   is_done: boolean;
   recurrence: Recurrence;
   recurrence_end: string | null;
+  /** Last day of a multi-day event (YYYY-MM-DD); null = single day. */
+  end_date: string | null;
   notify_before: number;
   notify_channels: NotifyChannel[];
   created_at: string;
@@ -115,6 +117,9 @@ export type CalendarEvent = {
   owner_person_id?: string | null;
 };
 
+/** Where a shift happens. "other" is a named location (`WorkShift.location`). */
+export type WorkPlace = "office" | "home" | "other";
+
 /** One member's work hours on one day. End at or before start = overnight. */
 export type WorkShift = {
   id: string;
@@ -127,6 +132,10 @@ export type WorkShift = {
   /** HH:MM (24-hour) */
   end_time: string;
   note: string | null;
+  /** Null = not said (shifts saved before places existed). */
+  work_place: WorkPlace | null;
+  /** Name of the place when `work_place` is "other". */
+  location: string | null;
   created_at: string;
 };
 
@@ -136,6 +145,10 @@ export type ExpandedCalendarEvent = CalendarEvent & {
   occurrence_date: string;
   /** True if this is a generated occurrence, not the original row. */
   is_recurrence: boolean;
+  /** 1-based day of a multi-day event this entry falls on (1 for single-day). */
+  day_index: number;
+  /** Total days the event spans (1 for single-day). */
+  day_count: number;
 };
 
 export type NotificationChannelConfig = {
@@ -206,6 +219,7 @@ export type Database = {
           is_done?: boolean;
           recurrence?: Recurrence;
           recurrence_end?: string | null;
+          end_date?: string | null;
           notify_before?: number;
           notify_channels?: NotifyChannel[];
           created_at?: string;
@@ -227,6 +241,7 @@ export type Database = {
           is_done?: boolean;
           recurrence?: Recurrence;
           recurrence_end?: string | null;
+          end_date?: string | null;
           notify_before?: number;
           notify_channels?: NotifyChannel[];
           created_at?: string;
@@ -248,6 +263,8 @@ export type Database = {
           start_time: string;
           end_time: string;
           note?: string | null;
+          work_place?: WorkPlace | null;
+          location?: string | null;
           created_at?: string;
         };
         Update: Partial<Omit<WorkShift, "id" | "created_at">>;

@@ -49,6 +49,11 @@ export function ListTab({ list }: ListTabProps) {
     [items, now],
   );
 
+  const openCount = useMemo(
+    () => items.filter((i) => !i.is_checked && !i.is_routine).length,
+    [items],
+  );
+
   const existingItemTexts = useMemo(
     () => items.filter((i) => !i.is_checked).map((i) => i.text),
     [items],
@@ -56,22 +61,20 @@ export function ListTab({ list }: ListTabProps) {
 
   return (
     <section className="note-panel flex h-full flex-col overflow-hidden">
-      <div className="border-b border-border/80 px-4 pb-4 pt-4 sm:px-5">
+      <div className="border-b border-border/80 px-4 pb-3 pt-3 sm:px-5">
         <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted">
-              {list.name} list
-            </p>
-            <h2 className="text-3xl text-foreground sm:text-[2.2rem]">
-              {list.name === "Grocery"
-                ? "What do we need?"
-                : "What still needs doing?"}
-            </h2>
-          </div>
+          <h2 className="text-2xl text-foreground sm:text-[1.7rem]">
+            {isGrocery ? "What do we need?" : "What still needs doing?"}
+          </h2>
+          {openCount > 0 && (
+            <span className="pill" aria-label={`${openCount} ${isGrocery ? "to buy" : "to do"}`}>
+              {openCount} {isGrocery ? "to buy" : "to do"}
+            </span>
+          )}
         </div>
 
         {kitchen && <WhoIsAdding />}
-        <div className="mt-4">
+        <div className="mt-3">
           <AddItemInput
             inputId={`list-input-${list.id}`}
             allowRoutine={!isGrocery}

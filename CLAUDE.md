@@ -56,10 +56,12 @@ src/
     WorkTab.tsx                 # Weekly work roster (Work tab) + shift editor
     MemberTag.tsx               # Owner tag, person colours, useEveryone / lookup helpers
     HouseholdPeople.tsx         # "People" in the household dialog (colours, kids without accounts)
-    Ambient.tsx                 # Outside card (clock + weather + prayer), athan banner, idle view, place settings
+    Ambient.tsx                 # Outside card (clock + weather), PrayerCard, athan banner, idle view, place settings
     Sky.tsx                     # Animated sky behind the Outside card
+    IdleSlideshow.tsx           # Kitchen idle photo slideshow
     KitchenDisplay.tsx          # Settings hold button, sync badge, kitchen switch
     WhoIsAdding.tsx             # Kitchen display member picker
+    SwipeDeck.tsx               # Sideways card deck (News / Markets on Home)
     ListTab.tsx, ItemRow.tsx, AddItemInput.tsx, SuggestionPanel.tsx
     CalendarTab.tsx, CalendarGrid.tsx, CalendarDialogs.tsx, AddEventModal.tsx,
     DayDetailSheet.tsx, EventDetail.tsx, CalendarSettings.tsx
@@ -85,6 +87,8 @@ src/
     voice.ts                    # Spoken sentence → grocery / to-do / event / reminder (rule-based)
     work.ts                     # Work roster: weeks, overnight shifts, "everyone home" summary
     push.ts, new-item-push.ts   # Web Push sending and wording
+    photo-store.ts              # Idle slideshow photos in IndexedDB
+    swipe.ts                    # Swipe gesture helpers (Home News/Markets cards)
     offline-snapshot.ts         # Last-known board for public/offline.html
 supabase/migrations/            # SQL migrations (apply in filename order)
 netlify/functions/              # Scheduled functions calling the cron routes
@@ -128,7 +132,7 @@ Managed via SQL migrations in `supabase/migrations/`. Apply in filename timestam
 - `event_type`: `"event" | "reminder" | "todo"`
 - `color`: `"amber" | "blue" | "rose" | "green" | "purple"`
 - `is_done` bool, `recurrence`: `"none" | "daily" | "weekly" | "biweekly" | "monthly" | "yearly"`
-- `recurrence_end` text|null (YYYY-MM-DD), `notify_before` int (minutes), `notify_channels` text[]
+- `recurrence_end` text|null (YYYY-MM-DD), `end_date` text|null (last day of a multi-day event, YYYY-MM-DD; null = single day; strictly after `event_date`), `notify_before` int (minutes), `notify_channels` text[]
 - Realtime enabled
 
 **`notification_channels`** — per-PIN notification endpoints
@@ -155,7 +159,7 @@ Managed via SQL migrations in `supabase/migrations/`. Apply in filename timestam
 
 **`household_people`** — colours, plus people who can't sign up (babies, kids). A row with `user_id` holds an account member's colour (name comes from their profile); a row without is someone with no account. Only admins add or remove people; members can change their own colour, admins anyone's (RLS). `calendar_events.owner_person_id` tags an event for someone without an account ("Whose is it?" lists everyone); `owner_id` still names account members. Triggers keep both inside the household. `MemberTag` / `useEveryone` merge accounts and people (`buildEveryone`); members without a chosen colour get one nobody has picked. UI in `components/HouseholdPeople.tsx`.
 
-**`work_shifts`** — weekly work roster: one row per member per day (`unique (user_id, shift_date)`), `start_time`/`end_time` as `HH:MM` (end at or before start = overnight), optional `note`. Any household member can edit it; a trigger keeps `user_id` inside the household. Realtime enabled. Shown in the **Work** tab (Mon–Sun grid, "All home" column, copy last week) and as a line on Home's schedule (who works that day, when everyone is home).
+**`work_shifts`** — weekly work roster: one row per member per day (`unique (user_id, shift_date)`), `start_time`/`end_time` as `HH:MM` (end at or before start = overnight), optional `note`, `work_place` (`office` | `home` | `other`; null = not said) and `location` (the place name when `work_place` is `other`). Any household member can edit it; a trigger keeps `user_id` inside the household. Realtime enabled. Shown in the **Work** tab (Mon–Sun grid, "All home" column, copy last week) and as a "Working today" section on Home's schedule (a row per person: hours, where they work — office, home or a named place — "at work now", and when everyone is home). Shown with `WorkPlaceChip`.
 
 **`prayer_push_log`**, **`item_push_log`** — single-use logs for athan and new-item pushes (service role only).
 
@@ -203,7 +207,7 @@ const supabase = createClient(
 | `TELEGRAM_BOT_TOKEN` | Optional | For Telegram notification channel |
 | `APP_TIMEZONE` | Optional | IANA zone for event dates/times in cron routes (default `Australia/Perth`; Netlify functions run in UTC) |
 | `NEWS_FEEDS` | Optional | Home news card feeds: comma-separated `Label\|https://…` or `Label\|https://…\|local` RSS/Atom URLs, max 6. Only Perth/WA stories are kept unless a feed is `local` (default: ABC News WA + WAtoday in full, ABC Top Stories filtered) |
-| `STOCK_SYMBOLS` | Optional | News card market line: comma-separated `Label\|SYMBOL` in Yahoo Finance form, max 4 (default `ASX 200\|^AXJO,AUD/USD\|AUDUSD=X`) |
+| `STOCK_SYMBOLS` | Optional | Markets card on Home: comma-separated `Label\|SYMBOL` in Yahoo Finance form, max 4 (default `SPUS,ASX 200\|^AXJO,AUD/MYR\|AUDMYR=X,MYR/USD\|MYRUSD=X`) |
 
 ---
 
@@ -250,7 +254,7 @@ Headlines for the Home news card. Fetches the fixed feed list from `NEWS_FEEDS` 
 
 ### `GET /api/stocks`
 
-Market numbers shown as one line above the news headlines. Fetches the fixed `STOCK_SYMBOLS` list (never a symbol from the client) from Yahoo Finance's public chart endpoint on the server; 8s timeout, no redirects, 200KB cap, 5-minute in-memory cache, last good numbers served if it fails. `useStocks` refreshes every 5 minutes and on wake; the line hides when there's nothing to show.
+Market numbers for the Markets card (SPUS, ASX 200, AUD/MYR, MYR/USD by default), a swipeable deck partner of the news card (`SwipeDeck`: drag, a "News | Markets" switcher in each card header, arrow keys; a drag over 8px never opens a news link). SPUS shows its currency beside the price; currency pairs (`=X`) do not. The card is left out of the deck when no numbers come back. Fetches the fixed `STOCK_SYMBOLS` list (never a symbol from the client) from Yahoo Finance's public chart endpoint on the server; 8s timeout, no redirects, 200KB cap, 5-minute in-memory cache, last good numbers served if it fails. `useStocks` refreshes every 5 minutes and on wake; Markets is dropped from the deck when there's nothing to show.
 
 ### `GET /api/version`
 
@@ -269,8 +273,13 @@ A per-device switch in the household menu (localStorage `fridgeboard.kitchen-mod
 - When idle: a full-screen "today" view (big time, next event, list counts, weather, next prayer) that swallows the first tap; dark and low-glare 22:00–06:00. An unsaved event form is parked and restored.
 - "Who's adding?" member picker on list tabs; resets on idle.
 - Header and content shift ±3px every 10 minutes (burn-in).
+- Idle options in the household menu (kitchen mode only, per device; localStorage `fridgeboard.idle-dim` default on, `fridgeboard.idle-slideshow` default off). **Dim** is a black `.ambient-dim` overlay at `idleDimOpacity(night)` (0.55 day, 0.75 night), because browsers can't change hardware brightness; it is `pointer-events: none` so the first tap still wakes the screen. **Slideshow** (`components/IdleSlideshow.tsx`) covers the today view with this device's photos, cross-fading every `SLIDE_SECONDS` (30) with a small corner clock that follows the burn-in shift; no photos, or none that load, leaves the normal today view. Photos are chosen in `KitchenIdleSettings` (max 30, downscaled to 1920px JPEG) and live only on the device, in IndexedDB `fridgeboard`/`photos` (`lib/photo-store.ts`); they are never uploaded or synced.
 - Settings button needs a press-and-hold (keyboard still opens it directly).
 - "Live" / "Synced N min ago" badge from `useSyncStatus()` in `WorkspaceData`.
+
+Slideshow photos (IndexedDB) and the idle flags are device-level settings and survive sign-out.
+
+The morning-summary push (`/api/push/remind`) lists only events that START today, so days 2..N of a running multi-day event are not listed. On Home and the idle view, entries with `day_index > 1` count as all-day (`lib/dashboard.ts`), so a running multi-day event stays "now".
 
 On every device, `useRealtimeItems` and `useRealtimeCalendar` refetch when the page becomes visible again, and resubscribe if it was hidden for over 5 minutes (`hooks/watchWake.ts`).
 
@@ -307,7 +316,7 @@ npm run test:coverage # Run tests with coverage report
 - Design system "Warm & Homely" (kitchen ambient hub): warm cream canvas `#F7F5F0`, white cards, heritage sage `#6C8273` / deep laurel `#4C6153`, soft amber `#D99B65`, ink `#2B332E`. One font: Plus Jakarta Sans (`--font-body`; `--font-heading` points to it).
 - Automatic light/dark: the signed-in app is light by day and dark from sunset to sunrise at home (`isDarkTime` in `lib/weather.ts`, using Open-Meteo sun times; fallback 6 AM–6 PM). `useAutoTheme` in `HouseholdWorkspace` sets `<html data-theme="dark">` before paint and updates `theme-color`; it's removed on sign-out, so sign-in and onboarding stay light. Dark tokens live under `:root[data-theme="dark"]` at the top of `workspace.css`. Deep greens stay mid-tone fills for white button text; text that used them reads `--sage-deep-text` / `--sage-ink-text`. New colours should come from tokens so both themes work.
 - The signed-in workspace is styled in `src/app/workspace.css`, scoped to `.household-workspace` with tokens (`--sage`, `--amber-tint`, `--radius-card`, `--shadow-1`…) defined at the top. Shared pieces: `.card`, `.pill`, `.icon-tile`, `.check-control` + `.check-ring`, `.list-row`, `event-<color>` (sets `--event` / `--event-tint`).
-- Home (`HomeDashboard`) is a three-column landscape layout (Outside card with clock, weather and "Next up" + Perth news with markets | Family Schedule | To-Do + Groceries) that fits 1280×800 without scrolling. On that one-screen layout, cards show whole rows only (`hooks/useWholeRows.ts` hides rows that would be cut off) with a "View all · N" link. Two columns below 1180px, one column below 760px (news moves last).
+- Home (`HomeDashboard`) is a three-column landscape layout (Outside card with clock, weather and "Next up" + a Prayer times card + a swipeable Perth news / Markets deck | Family Schedule | To-Do + Groceries) that fits 1280×800 without scrolling. On that one-screen layout, cards show whole rows only (`hooks/useWholeRows.ts` hides rows that would be cut off) with a "View all · N" link. Two columns below 1180px, one column below 760px (news moves last). Quick Add is a "+" button in the header on every tab except Home (which has its own "+" buttons); list tabs show a single heading with an open-count pill.
 - The schedule is time-aware (`eventPhase`, `defaultScheduleDay` in `lib/dashboard.ts`): an event is "Now" from its start until an hour later, finished ones fold into "Earlier today", and Home opens on Tomorrow once today is over (or from 6 PM on an empty day). Prayer tiles switch to tomorrow's times after Isha (`prayerView` in `lib/prayer.ts`). News shows two headlines; "More news" opens the rest. Text meant to be read across the kitchen is at least 13–15px. Adding from Home uses the "+" buttons on the schedule, To-Do and Groceries cards. Touch targets are at least 48px.
 
 ### Animations
@@ -321,7 +330,7 @@ npm run test:coverage # Run tests with coverage report
 ### Supabase Queries
 - Always filter by `pin_code` for user-scoped data.
 - Use the typed `Database` generic when creating clients to get type inference.
-- Recurrence expansion is done client-side in `lib/calendar.ts` — recurring events are stored as a single row and expanded on read.
+- Recurrence expansion is done client-side in `lib/calendar.ts` — recurring events are stored as a single row and expanded on read. Multi-day events (`end_date`) expand to one entry per covered day, each with `day_index` / `day_count`.
 
 ### Icons
 - Use Lucide React only. Import individual icons: `import { Trash2 } from "lucide-react"`.

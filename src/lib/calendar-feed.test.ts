@@ -15,6 +15,7 @@ function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     is_done: false,
     recurrence: "none",
     recurrence_end: null,
+    end_date: null,
     notify_before: -1,
     notify_channels: [],
     created_at: "2026-01-01T00:00:00.000Z",
@@ -67,5 +68,16 @@ describe("buildCalendarFeed", () => {
 
     expect(feed).toContain("Imported from Islamic events");
     expect(feed).toContain("CATEGORIES:event,Islamic events");
+  });
+
+  it("ends a multi-day event after its last day (exclusive DTEND)", () => {
+    const ics = buildCalendarFeed([makeEvent({ event_date: "2026-11-13", end_date: "2026-11-16" })]);
+    expect(ics).toContain("DTSTART;VALUE=DATE:20261113");
+    expect(ics).toContain("DTEND;VALUE=DATE:20261117");
+  });
+
+  it("keeps a single-day event to one day", () => {
+    const ics = buildCalendarFeed([makeEvent({ event_date: "2026-11-13", end_date: null })]);
+    expect(ics).toContain("DTEND;VALUE=DATE:20261114");
   });
 });

@@ -1,7 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_STOCKS, formatChange, formatPrice, parseChart, stocksFromEnv, stockUrl } from "@/lib/stocks";
+import { DEFAULT_STOCKS, formatChange, formatPrice, parseChart, priceCurrency, stocksFromEnv, stockUrl } from "@/lib/stocks";
 
 const chart = (meta: Record<string, unknown>) => ({ chart: { result: [{ meta }], error: null } });
+
+describe("defaults", () => {
+  it("are SPUS, ASX 200, AUD/MYR and MYR/USD in order", () => {
+    expect(DEFAULT_STOCKS).toEqual([
+      { symbol: "SPUS", label: "SPUS" },
+      { symbol: "^AXJO", label: "ASX 200" },
+      { symbol: "AUDMYR=X", label: "AUD/MYR" },
+      { symbol: "MYRUSD=X", label: "MYR/USD" },
+    ]);
+    expect(DEFAULT_STOCKS.length).toBeLessThanOrEqual(4);
+  });
+  it("formats the default prices", () => {
+    expect(formatPrice({ symbol: "MYRUSD=X", price: 0.2381 })).toBe("0.2381");
+    expect(formatPrice({ symbol: "AUDMYR=X", price: 2.8 })).toBe("2.8000");
+    expect(formatPrice({ symbol: "SPUS", price: 49.5 })).toBe("49.50");
+  });
+});
 
 describe("stocksFromEnv", () => {
   it("uses the defaults when unset or invalid", () => {
@@ -22,7 +39,7 @@ describe("stocksFromEnv", () => {
 });
 
 describe("parseChart", () => {
-  const asx = DEFAULT_STOCKS[0];
+  const asx = DEFAULT_STOCKS[1];
   it("reads price and change from the previous close", () => {
     const quote = parseChart(
       chart({ regularMarketPrice: 8800, chartPreviousClose: 8750, currency: "AUD", regularMarketTime: 1_762_400_000 }),
@@ -55,4 +72,11 @@ describe("formatting", () => {
     expect(formatChange({ changePercent: 0.01 })).toBe("0.0%");
     expect(formatChange({ changePercent: null })).toBe("");
   });
+});
+
+describe("priceCurrency", () => {
+  it("shows the currency of a share", () => expect(priceCurrency({ symbol: "SPUS", currency: "USD" })).toBe("USD"));
+  it("none for an index", () => expect(priceCurrency({ symbol: "^AXJO", currency: "AUD" })).toBeNull());
+  it("none for a currency pair", () => expect(priceCurrency({ symbol: "AUDMYR=X", currency: "MYR" })).toBeNull());
+  it("none when the currency is unknown", () => expect(priceCurrency({ symbol: "SPUS", currency: null })).toBeNull());
 });

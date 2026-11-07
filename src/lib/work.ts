@@ -1,10 +1,24 @@
 import { formatEventTime } from "@/lib/calendar";
 import { dateKey } from "@/lib/dashboard";
-import type { WorkShift } from "@/lib/types";
+import type { WorkPlace, WorkShift } from "@/lib/types";
 
 type Shift = Pick<WorkShift, "user_id" | "shift_date" | "start_time" | "end_time">;
 
 const DAY = 24 * 60;
+
+export const WORK_PLACES: { value: WorkPlace; label: string }[] = [
+  { value: "office", label: "Office" },
+  { value: "home", label: "Work from home" },
+  { value: "other", label: "Location" },
+];
+
+/** "Office", "Work from home", or the named location; null when the shift doesn't say. */
+export function placeLabel(shift: Pick<WorkShift, "work_place" | "location">): string | null {
+  if (shift.work_place === "office") return "Office";
+  if (shift.work_place === "home") return "Work from home";
+  if (shift.work_place === "other") return shift.location?.trim() || "Other location";
+  return null;
+}
 
 /** YYYY-MM-DD `days` after (or before) `day`. */
 export function addDays(day: string, days: number): string {

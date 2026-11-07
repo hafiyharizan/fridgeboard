@@ -15,7 +15,7 @@ returns table (
   is_done boolean,
   recurrence text,
   recurrence_end date,
-  end_date text,
+  end_date date,
   notify_before integer,
   notify_channels text[],
   created_at timestamptz,

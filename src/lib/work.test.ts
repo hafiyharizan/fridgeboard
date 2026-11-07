@@ -8,6 +8,7 @@ import {
   homeSummaryText,
   isOvernight,
   mondayOf,
+  placeLabel,
   weekOf,
 } from "./work";
 
@@ -85,5 +86,22 @@ describe("atWorkNow", () => {
     expect([...atWorkNow(shifts, new Date(2026, 10, 4, 20, 0))]).toEqual([["b", "late"]]);
     expect([...atWorkNow(shifts, new Date(2026, 10, 5, 1, 0))]).toEqual([["b", "02:00"]]);
     expect(atWorkNow(shifts, new Date(2026, 10, 4, 17, 0)).size).toBe(0);
+  });
+});
+
+describe("placeLabel", () => {
+  it("names the office and working from home", () => {
+    expect(placeLabel({ work_place: "office", location: null })).toBe("Office");
+    expect(placeLabel({ work_place: "home", location: null })).toBe("Work from home");
+  });
+
+  it("uses the named location, or a fallback when it is blank", () => {
+    expect(placeLabel({ work_place: "other", location: " Joondalup clinic " })).toBe("Joondalup clinic");
+    expect(placeLabel({ work_place: "other", location: "  " })).toBe("Other location");
+    expect(placeLabel({ work_place: "other", location: null })).toBe("Other location");
+  });
+
+  it("is null for shifts saved before places existed", () => {
+    expect(placeLabel({ work_place: null, location: null })).toBeNull();
   });
 });

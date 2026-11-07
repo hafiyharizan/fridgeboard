@@ -6,6 +6,7 @@ import { BriefcaseBusiness, ChevronLeft, ChevronRight, Copy, House, Moon } from 
 import { Dialog } from "@/components/Dialog";
 import { DataStatus } from "@/components/HomeDashboard";
 import { MemberAvatar, useAccountLooks, type MemberLook } from "@/components/MemberTag";
+import { PLACE_ICON, WorkPlaceChip } from "@/components/WorkPlaceChip";
 import { useHousehold, useWorkData } from "@/components/WorkspaceData";
 import { formatEventTime } from "@/lib/calendar";
 import {
@@ -14,10 +15,12 @@ import {
   homeSummary,
   isOvernight,
   mondayOf,
+  placeLabel,
   weekOf,
+  WORK_PLACES,
   type HomeSummary,
 } from "@/lib/work";
-import type { WorkShift } from "@/lib/types";
+import type { WorkPlace, WorkShift } from "@/lib/types";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -52,6 +55,8 @@ function ShiftEditor({
   const [start, setStart] = useState(editing.shift?.start_time ?? "09:00");
   const [end, setEnd] = useState(editing.shift?.end_time ?? "17:00");
   const [note, setNote] = useState(editing.shift?.note ?? "");
+  const [place, setPlace] = useState<WorkPlace>(editing.shift?.work_place ?? "office");
+  const [location, setLocation] = useState(editing.shift?.location ?? "");
   const [days, setDays] = useState<string[]>([editing.day]);
   const toggleDay = (day: string) =>
     setDays((current) =>
@@ -60,7 +65,7 @@ function ShiftEditor({
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    if (!start || !end || !days.length) return;
+    if (!start || !end || !days.length || (place === "other" && !location.trim())) return;
     const saved = await work.saveShifts(
       days.map((day) => ({
         user_id: editing.userId,
@@ -68,6 +73,8 @@ function ShiftEditor({
         start_time: start,
         end_time: end,
         note: note.trim() || null,
+        work_place: place,
+        location: place === "other" ? location.trim() : null,
       })),
     );
     if (saved) onClose();
@@ -98,12 +105,41 @@ function ShiftEditor({
             <Moon size={16} aria-hidden /> Finishes the next morning.
           </p>
         )}
+        <fieldset className="shift-place">
+          <legend>Where</legend>
+          <div>
+            {WORK_PLACES.map(({ value, label }) => {
+              const Icon = PLACE_ICON[value];
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={place === value}
+                  onClick={() => setPlace(value)}
+                >
+                  <Icon size={18} aria-hidden /> {label}
+                </button>
+              );
+            })}
+          </div>
+          {place === "other" && (
+            <input
+              type="text"
+              required
+              maxLength={60}
+              aria-label="Location name"
+              placeholder="Where? e.g. Joondalup clinic"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+            />
+          )}
+        </fieldset>
         <label className="shift-note">
           <span>Note (optional)</span>
           <input
             type="text"
             maxLength={60}
-            placeholder="Office, night shift, on call…"
+            placeholder="Night shift, on call…"
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
@@ -140,7 +176,7 @@ function ShiftEditor({
           <button
             type="submit"
             className="primary-button"
-            disabled={work.isWorking || !start || !end || !days.length}
+            disabled={work.isWorking || !start || !end || !days.length || (place === "other" && !location.trim())}
           >
             Save
           </button>
@@ -179,6 +215,8 @@ export function WorkTab({ today }: { today: string }) {
         start_time: shift.start_time,
         end_time: shift.end_time,
         note: shift.note,
+        work_place: shift.work_place,
+        location: shift.location,
       })),
     );
   const weekTitle =
@@ -284,7 +322,7 @@ export function WorkTab({ today }: { today: string }) {
                         }
                         aria-label={`${looks[index].name}, ${dayLabel(day, { weekday: "long" })}: ${
                           shift
-                            ? `works ${formatEventTime(shift.start_time)} to ${formatEventTime(shift.end_time)}`
+                            ? `works ${formatEventTime(shift.start_time)} to ${formatEventTime(shift.end_time)}${placeLabel(shift) ? `, ${placeLabel(shift)}` : ""}`
                             : "home, no work"
                         }. Edit`}
                       >
@@ -299,6 +337,7 @@ export function WorkTab({ today }: { today: string }) {
                               {formatEventTime(shift.end_time)}
                               {isOvernight(shift) && <small> +1</small>}
                             </span>
+                            <WorkPlaceChip shift={shift} />
                             {shift.note && <span className="work-note">{shift.note}</span>}
                           </>
                         ) : (

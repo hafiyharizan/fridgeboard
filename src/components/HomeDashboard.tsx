@@ -26,6 +26,7 @@ import {
 import { AmbientScreen, OutsideCard, PrayerCard } from "@/components/Ambient";
 import { Dialog } from "@/components/Dialog";
 import { SwipeDeck, type DeckCard } from "@/components/SwipeDeck";
+import { WorkPlaceChip } from "@/components/WorkPlaceChip";
 import { useNews, useNow, useStocks, type PrayerDay } from "@/hooks/useAmbient";
 import { formatChange, formatPrice, priceCurrency, type StockQuote } from "@/lib/stocks";
 import { useWholeRows } from "@/hooks/useWholeRows";
@@ -342,11 +343,13 @@ function AgendaRow({
   );
 }
 
+const WORK_TODAY_ROWS = 4;
+
 /**
- * One line under the schedule tabs: who works on the shown day and when the
- * whole household is home. Hidden when nobody has hours that day.
+ * Who works on the shown day, their hours and where (office, home or a named
+ * place), and when the whole household is home. Hidden when nobody has hours.
  */
-function WorkStrip({
+function WorkToday({
   day,
   today,
   now,
@@ -359,29 +362,45 @@ function WorkStrip({
 }) {
   const { shifts } = useWorkData();
   const lookup = useMemberLookup();
-  const dayShifts = shifts.filter((shift) => shift.shift_date === day);
+  const dayShifts = shifts
+    .filter((shift) => shift.shift_date === day)
+    .sort((a, b) => a.start_time.localeCompare(b.start_time));
   if (!dayShifts.length) return null;
   const away = day === today ? atWorkNow(shifts, now) : new Map<string, string>();
+  const shown = dayShifts.slice(0, WORK_TODAY_ROWS);
+  const more = dayShifts.length - shown.length;
+  const heading = day === today ? "Working today" : "Working tomorrow";
   return (
-    <button className="work-strip" onClick={onOpen} aria-label="Open the work schedule">
-      <BriefcaseBusiness size={18} aria-hidden className="work-strip-icon" />
-      <span className="work-strip-people">
-        {dayShifts.map((shift) => {
+    <section className="work-today" aria-label={heading}>
+      <button className="work-today-head" onClick={onOpen} aria-label={`${heading}. Open the work schedule`}>
+        <BriefcaseBusiness size={18} aria-hidden />
+        <span className="work-today-title">
+          <strong>{heading}</strong>
+          <span className="work-today-home">
+            <House size={14} aria-hidden /> {homeSummaryText(homeSummary(shifts, day))}
+          </span>
+        </span>
+        <ChevronRight size={16} aria-hidden />
+      </button>
+      <ul>
+        {shown.map((shift) => {
           const look = lookup(shift.user_id);
           if (!look) return null;
           return (
-            <span key={shift.id}>
+            <li key={shift.id}>
               <MemberAvatar look={look} size="sm" />
-              <strong>{look.short}</strong> {formatShift(shift)}
-              {away.has(shift.user_id) && <em className="work-strip-now">at work now</em>}
-            </span>
+              <span className="work-today-who">
+                <strong>{look.short}</strong>
+                {away.has(shift.user_id) && <em className="work-strip-now">at work now</em>}
+              </span>
+              <span className="work-today-time">{formatShift(shift)}</span>
+              <WorkPlaceChip shift={shift} />
+            </li>
           );
         })}
-      </span>
-      <span className="work-strip-home">
-        <House size={16} aria-hidden /> {homeSummaryText(homeSummary(shifts, day))}
-      </span>
-    </button>
+        {more > 0 && <li className="work-today-more">+{more} more</li>}
+      </ul>
+    </section>
   );
 }
 
@@ -467,7 +486,7 @@ function FamilySchedule({
         </div>
       </div>
       {calendarStatus}
-      {view !== "week" && <WorkStrip day={shownDay} today={today} now={now} onOpen={onOpenWork} />}
+      {view !== "week" && <WorkToday day={shownDay} today={today} now={now} onOpen={onOpenWork} />}
 
       {view === "week" ? (
         <ul className="agenda">

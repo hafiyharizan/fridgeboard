@@ -3136,42 +3136,145 @@ textarea:focus-visible {
   flex: 1;
 }
 
-/* Home: who works on the shown day, and when everyone is home. */
-.work-strip {
+/* Where a shift happens (week grid cell and Home). */
+.work-place {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.work-cell .work-place {
+  opacity: 0.9;
+}
+.shift-place {
+  border: 0;
+  margin: 0;
+  padding: 0;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: 6px 12px;
+  gap: 8px;
+}
+.shift-place legend {
+  margin-bottom: 6px;
+}
+.shift-place > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.shift-place button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 0 8px;
+  border-radius: 12px;
+  background: var(--oat-soft);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.shift-place button[aria-pressed="true"] {
+  background: var(--sage-deep);
+  color: #fff;
+}
+
+/* Home: who works on the shown day, where, and when everyone is home. */
+.work-today {
   margin-top: 12px;
-  padding: 10px 14px;
+  padding: 6px 6px 8px;
   border-radius: 16px;
   background: var(--oat-soft);
-  text-align: left;
   font-size: 14px;
   line-height: 20px;
 }
-.work-strip-icon {
-  grid-row: span 2;
-  margin-top: 1px;
+.work-today-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 4px 8px;
+  border-radius: 12px;
   color: var(--muted);
+  text-align: left;
 }
-.work-strip-people {
+.work-today-head:hover {
+  background: var(--sage-tint);
+}
+.work-today-title {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  flex: 1 1 auto;
+  flex-direction: column;
   min-width: 0;
 }
-.work-strip-people > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-}
-.work-strip-people strong {
+.work-today-title strong {
   color: var(--ink);
 }
+.work-today-home {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--sage-ink-text, var(--sage-ink));
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+}
+.work-today ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0 8px;
+  list-style: none;
+}
+/* Two lines per person: name and hours, then where. */
+.work-today li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+  min-height: 40px;
+  padding: 3px 0;
+  color: var(--muted);
+}
+.work-today li .member-avatar {
+  grid-row: 1 / span 2;
+}
+.work-today-who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.work-today-who strong {
+  color: var(--ink);
+}
+.work-today-time {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.work-today li .work-place {
+  grid-column: 2 / -1;
+  color: var(--sage-ink-text, var(--sage-ink));
+  font-size: 13px;
+}
+.work-today li .work-place.is-home {
+  color: var(--amber-ink);
+}
+.work-today-more {
+  min-height: 28px;
+  font-size: 13px;
+  font-weight: 700;
+}
 .work-strip-now {
+  flex: none;
+  white-space: nowrap;
   padding: 0 8px;
   border-radius: 999px;
   background: var(--amber-tint);
@@ -3179,13 +3282,6 @@ textarea:focus-visible {
   font-style: normal;
   font-size: 12px;
   font-weight: 700;
-}
-.work-strip-home {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 700;
-  color: var(--sage-ink-text, var(--sage-ink));
 }
 
 /* Phones: one block per day, members stacked. */

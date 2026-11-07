@@ -117,6 +117,9 @@ export type CalendarEvent = {
   owner_person_id?: string | null;
 };
 
+/** Where a shift happens. "other" is a named location (`WorkShift.location`). */
+export type WorkPlace = "office" | "home" | "other";
+
 /** One member's work hours on one day. End at or before start = overnight. */
 export type WorkShift = {
   id: string;
@@ -129,6 +132,10 @@ export type WorkShift = {
   /** HH:MM (24-hour) */
   end_time: string;
   note: string | null;
+  /** Null = not said (shifts saved before places existed). */
+  work_place: WorkPlace | null;
+  /** Name of the place when `work_place` is "other". */
+  location: string | null;
   created_at: string;
 };
 
@@ -256,6 +263,8 @@ export type Database = {
           start_time: string;
           end_time: string;
           note?: string | null;
+          work_place?: WorkPlace | null;
+          location?: string | null;
           created_at?: string;
         };
         Update: Partial<Omit<WorkShift, "id" | "created_at">>;

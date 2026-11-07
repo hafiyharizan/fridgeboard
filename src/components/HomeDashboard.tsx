@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
+  ArrowDownRight,
   ArrowUpRight,
   Bell,
   BriefcaseBusiness,
@@ -10,6 +11,8 @@ import {
   CalendarPlus,
   Check,
   ChevronDown,
+  ChevronRight,
+  Minus,
   Clock3,
   House,
   ListChecks,
@@ -22,7 +25,7 @@ import {
 } from "lucide-react";
 import { AmbientScreen, OutsideCard } from "@/components/Ambient";
 import { Dialog } from "@/components/Dialog";
-import { SwipeDeck } from "@/components/SwipeDeck";
+import { SwipeDeck, type DeckCard } from "@/components/SwipeDeck";
 import { useNews, useNow, useStocks, type PrayerDay } from "@/hooks/useAmbient";
 import { formatChange, formatPrice, priceCurrency, type StockQuote } from "@/lib/stocks";
 import { useWholeRows } from "@/hooks/useWholeRows";
@@ -147,8 +150,8 @@ function NewsRow({ item, now }: { item: NewsItem; now: Date }) {
     <a className="news-item" href={item.link} draggable={false} target="_blank" rel="noopener noreferrer">
       <span className="news-title">{item.title}</span>
       <span className="news-meta">
-        {item.source}
-        {item.publishedAt && <> · {newsAge(item.publishedAt, now)}</>}
+        <span className="news-source">{item.source}</span>
+        {item.publishedAt && <span className="news-age">{newsAge(item.publishedAt, now)}</span>}
       </span>
     </a>
   );
@@ -159,28 +162,44 @@ function trendOf(change: string) {
   return !change || change === "0.0%" ? "flat" : change.startsWith("+") ? "up" : "down";
 }
 
+const TREND_ICON = { up: ArrowUpRight, down: ArrowDownRight, flat: Minus } as const;
+
+/** "Updated 3:05 PM" from the newest quote time, or null when none carries one. */
+function marketsUpdated(quotes: StockQuote[]): string | null {
+  const times = quotes.flatMap((quote) => (quote.at ? [Date.parse(quote.at)] : [])).filter(Number.isFinite);
+  if (!times.length) return null;
+  return new Date(Math.max(...times)).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
 /** Market tiles from /api/stocks: share, index and currency pairs, one swipe away from the news. */
-function MarketsCard({ quotes, loaded }: { quotes: StockQuote[]; loaded: boolean }) {
+function MarketsCard({ tabs, quotes, loaded }: { tabs: ReactNode; quotes: StockQuote[]; loaded: boolean }) {
+  const updated = marketsUpdated(quotes);
   return (
     <section className="card news-card markets-card" aria-label="Markets">
       <div className="news-head">
-        <p className="eyebrow">
-          <TrendingUp size={16} aria-hidden /> Markets
-        </p>
+        {tabs}
+        {updated && <span className="market-updated">Updated {updated}</span>}
       </div>
       {quotes.length ? (
         <ul className="market-grid">
           {quotes.map((quote) => {
             const change = formatChange(quote);
+            const trend = trendOf(change);
+            const TrendIcon = TREND_ICON[trend];
             const currency = priceCurrency(quote);
             return (
-              <li key={quote.symbol} className={`market-tile is-${trendOf(change)}`}>
+              <li key={quote.symbol} className={`market-tile is-${trend}`}>
                 <span className="market-label">{quote.label}</span>
+                {change && (
+                  <span className="market-change">
+                    <TrendIcon size={14} aria-hidden />
+                    {change}
+                  </span>
+                )}
                 <span className="market-price">
                   <strong>{formatPrice(quote)}</strong>
                   {currency && <span className="market-currency">{currency}</span>}
                 </span>
-                {change && <span className="market-change">{change}</span>}
               </li>
             );
           })}
@@ -202,7 +221,7 @@ function MarketsCard({ quotes, loaded }: { quotes: StockQuote[]; loaded: boolean
  * Two Perth headlines from /api/news (ABC News WA + national by default); the rest open in a dialog.
  * Lowest priority on Home, so it stays small.
  */
-function NewsCard() {
+function NewsCard({ tabs }: { tabs: ReactNode }) {
   const news = useNews();
   const now = useNow(60_000);
   const [open, setOpen] = useState(false);
@@ -211,12 +230,10 @@ function NewsCard() {
   return (
     <section className="card news-card" aria-label="News">
       <div className="news-head">
-        <p className="eyebrow">
-          <Newspaper size={16} aria-hidden /> Perth news
-        </p>
+        {tabs}
         {news.items.length > 0 && (
-          <button className="text-button" onClick={() => setOpen(true)}>
-            More news
+          <button className="text-button news-more" onClick={() => setOpen(true)}>
+            More <ChevronRight size={16} aria-hidden />
           </button>
         )}
       </div>
@@ -257,9 +274,16 @@ function NewsCard() {
 /** News and Markets share one cell; Markets drops out when no numbers come back. */
 function NewsMarketsDeck() {
   const { quotes, loaded } = useStocks();
-  const cards = [{ id: "news", label: "News", node: <NewsCard /> }];
+  const cards: DeckCard[] = [
+    { id: "news", label: "News", icon: <Newspaper size={16} aria-hidden />, render: (tabs) => <NewsCard tabs={tabs} /> },
+  ];
   if (!loaded || quotes.length) {
-    cards.push({ id: "markets", label: "Markets", node: <MarketsCard quotes={quotes} loaded={loaded} /> });
+    cards.push({
+      id: "markets",
+      label: "Markets",
+      icon: <TrendingUp size={16} aria-hidden />,
+      render: (tabs) => <MarketsCard tabs={tabs} quotes={quotes} loaded={loaded} />,
+    });
   }
   return <SwipeDeck cards={cards} label="News and markets" />;
 }

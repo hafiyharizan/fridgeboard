@@ -501,16 +501,6 @@ textarea:focus-visible {
   flex: 1;
   min-height: 0;
 }
-.workspace-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.is-home .workspace-toolbar {
-  display: none;
-}
 
 /* ---------- Home ---------- */
 
@@ -1071,7 +1061,7 @@ textarea:focus-visible {
   color: var(--amber);
 }
 .news-head .text-button {
-  margin: -10px -4px -10px 0;
+  margin: -10px -6px -10px 0;
 }
 /* News and Markets share one cell and swipe sideways; the deck fills the cell, never grows it. */
 .swipe-deck {
@@ -1095,44 +1085,50 @@ textarea:focus-visible {
 .swipe-slide:active {
   cursor: grabbing;
 }
-/* Dots add no height: they sit over the card's bottom padding (dot centre 5px above the card edge),
-   and only the 48px buttons take pointer events. */
 .swipe-deck {
   position: relative;
 }
-.swipe-dots {
-  position: absolute;
-  right: 0;
-  bottom: -19px;
-  left: 0;
-  z-index: 2;
-  display: flex;
+/* Header switcher: "News | Markets" replaces the card's eyebrow and takes no extra height. */
+.deck-title {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  height: 48px;
-  pointer-events: none;
+  gap: 8px;
 }
-.swipe-dot {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 24px;
-  pointer-events: auto;
+.deck-title svg {
+  color: var(--amber);
 }
-.swipe-dot span {
-  display: block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--muted);
-  opacity: 0.55;
+.deck-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--oat-soft);
 }
-.swipe-dot[aria-current] span {
-  width: 20px;
-  border-radius: 4px;
-  background: var(--sage);
-  opacity: 1;
+.deck-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.deck-tab svg {
+  color: currentColor;
+}
+.deck-tab:hover {
+  color: var(--ink);
+}
+.deck-tab[aria-pressed="true"] {
+  background: var(--card);
+  color: var(--sage-deep-text, var(--sage-deep));
+  box-shadow: var(--shadow-1);
+}
+.deck-tab:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: 1px;
 }
 /* Markets: four tiles, two by two. */
 .market-grid {
@@ -1150,13 +1146,19 @@ textarea:focus-visible {
   display: grid;
   grid-template-columns: 1fr auto;
   align-content: center;
-  align-items: baseline;
-  gap: 2px 6px;
+  align-items: center;
+  gap: 4px 6px;
   min-height: 0;
-  padding: 6px 12px;
-  border-radius: 14px;
-  background: var(--sage-tint);
+  padding: 8px 14px;
+  border-radius: 16px;
+  background: var(--oat-soft);
   font-variant-numeric: tabular-nums;
+}
+.market-tile.is-up {
+  background: var(--sage-tint);
+}
+.market-tile.is-down {
+  background: var(--rose-tint);
 }
 .market-tile.is-skeleton {
   opacity: 0.6;
@@ -1165,12 +1167,16 @@ textarea:focus-visible {
   overflow: hidden;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 .market-change {
+  display: inline-flex;
   grid-area: 1 / 2;
+  align-items: center;
+  gap: 2px;
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
@@ -1184,9 +1190,9 @@ textarea:focus-visible {
   white-space: nowrap;
 }
 .market-price strong {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 .market-currency {
   color: var(--muted);
@@ -1198,6 +1204,11 @@ textarea:focus-visible {
 }
 .market-tile.is-down .market-change {
   color: var(--rose-ink);
+}
+.market-updated {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
 }
 .news-list {
   position: relative;
@@ -1234,8 +1245,24 @@ textarea:focus-visible {
   -webkit-line-clamp: 2;
 }
 .news-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   color: var(--muted);
+}
+.news-source {
+  color: var(--sage-deep-text, var(--sage-deep));
+  font-weight: 700;
+}
+.news-age::before {
+  content: "·";
+  margin-right: 8px;
+}
+.news-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 .news-skeleton {
   display: block;
@@ -3213,6 +3240,15 @@ textarea:focus-visible {
 
 /* ---------- Voice ("Say it") ---------- */
 
+/* Quick Add lives in the header (every tab but Home, which has its own "+" buttons). */
+.header-add {
+  flex: none;
+  background: var(--sage-deep);
+  color: #fff;
+}
+.header-add:hover {
+  background: var(--sage-ink);
+}
 .header-voice {
   flex: none;
   border: 1px solid var(--line);

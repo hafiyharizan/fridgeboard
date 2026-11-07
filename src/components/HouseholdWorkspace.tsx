@@ -219,6 +219,16 @@ export function HouseholdWorkspace({
             <Clock onDay={setToday} />
             <SyncBadge />
           </div>
+          {active !== "home" && (
+            <button
+              className="icon-button header-add"
+              onClick={() => setMenu("quick")}
+              aria-label="Quick Add"
+              title="Quick Add"
+            >
+              <Plus size={22} />
+            </button>
+          )}
           {canSpeak && (
             <button
               className="icon-button header-voice"
@@ -244,14 +254,6 @@ export function HouseholdWorkspace({
           style={shift}
         >
           <h1 className="sr-only">Household dashboard</h1>
-          <div className="workspace-toolbar">
-            <p className="eyebrow">
-              {tabs.find((tab) => tab.id === active)?.label}
-            </p>
-            <button className="primary-button" onClick={() => setMenu("quick")}>
-              <Plus size={19} /> Quick Add
-            </button>
-          </div>
           {active === "home" && (
             <HomeDashboard
               today={today}

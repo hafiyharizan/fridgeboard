@@ -4,7 +4,8 @@ import { useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode }
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { stepIndex, swipeStep, TAP_SLOP } from "@/lib/swipe";
 
-export type DeckCard = { id: string; label: string; node: ReactNode };
+/** `render` gets the card's header switcher ("News | Markets") so each card can place it in its own heading. */
+export type DeckCard = { id: string; label: string; icon?: ReactNode; render: (tabs: ReactNode) => ReactNode };
 
 /**
  * One card at a time, swiped sideways (or with the dots / arrow keys). It fills
@@ -29,7 +30,34 @@ export function SwipeDeck({ cards, label }: { cards: DeckCard[]; label: string }
   };
 
   if (!card) return null;
-  if (count === 1) return <div className="swipe-deck">{card.node}</div>;
+  if (count === 1) {
+    return (
+      <div className="swipe-deck">
+        {card.render(
+          <p className="eyebrow deck-title">
+            {card.icon} {card.label}
+          </p>,
+        )}
+      </div>
+    );
+  }
+
+  const tabs = (
+    <div className="deck-tabs" role="group" aria-label="Show">
+      {cards.map((item, i) => (
+        <button
+          key={item.id}
+          type="button"
+          className="deck-tab"
+          aria-pressed={i === index}
+          onClick={() => go(i)}
+        >
+          {item.icon}
+          <span>{item.label}</span>
+        </button>
+      ))}
+    </div>
+  );
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "ArrowRight") go(index + 1);
@@ -92,23 +120,9 @@ export function SwipeDeck({ cards, label }: { cards: DeckCard[]; label: string }
           }}
           onClickCapture={swallowClick}
         >
-          {card.node}
+          {card.render(tabs)}
         </motion.div>
       </AnimatePresence>
-      <div className="swipe-dots">
-        {cards.map((item, i) => (
-          <button
-            key={item.id}
-            type="button"
-            className="swipe-dot"
-            aria-label={`Show ${item.label}`}
-            aria-current={i === index || undefined}
-            onClick={() => go(i)}
-          >
-            <span aria-hidden />
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

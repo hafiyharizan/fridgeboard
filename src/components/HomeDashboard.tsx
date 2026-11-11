@@ -831,6 +831,7 @@ export function AmbientLayer({
   night,
   offset,
   dim,
+  asleep,
   slideshow,
   lists,
   today,
@@ -841,6 +842,7 @@ export function AmbientLayer({
   night: boolean;
   offset: { x: number; y: number };
   dim: boolean;
+  asleep: boolean;
   slideshow: boolean;
   lists: FridgeList[];
   today: string;
@@ -861,6 +863,7 @@ export function AmbientLayer({
       now={now}
       offset={offset}
       dim={dim}
+      asleep={asleep}
       slideshow={slideshow}
       forecast={forecast}
       prayer={prayer}

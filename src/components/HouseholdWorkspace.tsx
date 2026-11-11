@@ -13,7 +13,9 @@ import {
   LogOut,
   ArrowRight,
   Mic,
+  Sparkles,
 } from "lucide-react";
+import { AssistantPanel, useAssistantEnabled } from "@/components/AssistantPanel";
 import { VoiceAdd } from "@/components/VoiceAdd";
 import { useSpeechSupported } from "@/hooks/useSpeech";
 import { CalendarTab } from "@/components/CalendarTab";
@@ -22,6 +24,7 @@ import {
   HoldToOpenButton,
   KitchenIdleSettings,
   KitchenModeSetting,
+  KitchenNightSettings,
   SyncBadge,
 } from "@/components/KitchenDisplay";
 import { useKitchenDisplay } from "@/hooks/useKitchenDisplay";
@@ -125,8 +128,9 @@ export function HouseholdWorkspace({
 }) {
   const [active, setActive] = useState("home");
   const [today, setToday] = useState(() => dateKey(new Date()));
-  const [menu, setMenu] = useState<"household" | "quick" | "voice" | null>(null);
+  const [menu, setMenu] = useState<"household" | "quick" | "voice" | "assistant" | null>(null);
   const canSpeak = useSpeechSupported();
+  const canAsk = useAssistantEnabled();
   const [signingOut, setSigningOut] = useState(false);
   const [accountError, setAccountError] = useState("");
   const [day, setDay] = useState<string | null>(null);
@@ -184,7 +188,7 @@ export function HouseholdWorkspace({
       <main
         className={`household-workspace${kitchen.enabled ? " is-kitchen" : ""}${
           active === "home" ? " is-home" : ""
-        }`}
+        }${kitchen.idle ? " is-idle" : ""}`}
       >
         <a className="skip-link" href="#workspace-content">
           Skip to content
@@ -237,6 +241,16 @@ export function HouseholdWorkspace({
               title="Add by voice"
             >
               <Mic size={21} />
+            </button>
+          )}
+          {canAsk && (
+            <button
+              className="icon-button header-voice"
+              onClick={() => setMenu("assistant")}
+              aria-label="Ask the household assistant"
+              title="Ask the household assistant"
+            >
+              <Sparkles size={21} />
             </button>
           )}
           <HoldToOpenButton
@@ -332,6 +346,7 @@ export function HouseholdWorkspace({
           </Dialog>
         )}
         {menu === "voice" && <VoiceAdd lists={lists} onClose={closeMenu} />}
+        {menu === "assistant" && <AssistantPanel onClose={closeMenu} />}
         {menu === "household" && (
           <Dialog title="Your household" onClose={closeMenu}>
             <p className="dialog-copy">
@@ -361,6 +376,16 @@ export function HouseholdWorkspace({
                 onSlideshow={kitchen.setSlideshow}
               />
             )}
+            {kitchen.enabled && (
+              <KitchenNightSettings
+                nightHours={kitchen.nightHours}
+                onNightHours={kitchen.setNightHours}
+                sleepEnabled={kitchen.sleepEnabled}
+                onSleepEnabled={kitchen.setSleepEnabled}
+                sleepHours={kitchen.sleepHours}
+                onSleepHours={kitchen.setSleepHours}
+              />
+            )}
             <button
               className="secondary-button sign-out-button"
               disabled={signingOut}
@@ -384,6 +409,7 @@ export function HouseholdWorkspace({
           night={kitchen.night}
           offset={kitchen.offset}
           dim={kitchen.idleDim}
+          asleep={kitchen.asleep}
           slideshow={kitchen.slideshow}
           lists={lists}
           today={today}

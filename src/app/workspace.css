@@ -1024,6 +1024,10 @@ textarea:focus-visible {
     opacity: 0;
   }
 }
+/* Kitchen idle view covers Home: hold the sky still until someone is back. */
+.household-workspace.is-idle .sky-backdrop * {
+  animation-play-state: paused !important;
+}
 @media (prefers-reduced-motion: reduce) {
   .sky-backdrop * {
     animation: none !important;
@@ -2234,6 +2238,33 @@ textarea:focus-visible {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.55;
+}
+.kitchen-setting > div {
+  flex: 1;
+  min-width: 0;
+}
+.kitchen-hours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+.kitchen-hours label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.kitchen-hours input {
+  min-height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 600;
 }
 .switch {
   flex: none;
@@ -3473,6 +3504,122 @@ textarea:focus-visible {
   border-radius: 999px;
   background: var(--sage-deep);
   color: #fff;
+}
+
+/* ---------- Household assistant ---------- */
+
+.assistant {
+  display: grid;
+  /* Without this the text field's natural width can push the panel wider than a phone. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+.assistant-log {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: min(46vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.assistant-bubble {
+  max-width: 88%;
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: 17px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.assistant-bubble.is-user {
+  align-self: flex-end;
+  border-bottom-right-radius: 6px;
+  background: var(--sage-deep);
+  color: #fff;
+}
+.assistant-bubble.is-assistant {
+  align-self: flex-start;
+  border-bottom-left-radius: 6px;
+  background: var(--oat-soft);
+  color: var(--ink);
+}
+.assistant-bubble.is-thinking {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.assistant-bubble.is-thinking small {
+  flex-basis: 100%;
+  font-size: 14px;
+  font-weight: 500;
+}
+.assistant-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--sage);
+}
+.assistant-error {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+.assistant-error .data-status {
+  margin: 0;
+  font-size: 15px;
+}
+.assistant-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.assistant-chip {
+  min-height: 48px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--sage-tint-strong);
+  color: var(--sage-ink-text, var(--sage-ink));
+  font-size: 15px;
+  font-weight: 700;
+}
+.assistant-chip:hover {
+  background: var(--sage-tint);
+}
+.assistant-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.assistant-form input {
+  flex: 1;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--canvas);
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 600;
+}
+.assistant-mic {
+  flex: none;
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  color: var(--sage-deep-text, var(--sage-deep));
+}
+.assistant-mic.is-listening {
+  background: var(--sage-deep);
+  color: #fff;
+}
+.assistant-send {
+  flex: none;
+  min-width: 52px;
+  padding-inline: 14px;
 }
 
 /* ---------- Idle dim + photo slideshow ---------- */

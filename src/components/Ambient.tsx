@@ -278,6 +278,7 @@ export function AmbientScreen({
   now,
   offset,
   dim,
+  asleep,
   slideshow,
   forecast,
   prayer,
@@ -291,6 +292,8 @@ export function AmbientScreen({
   offset: { x: number; y: number };
   /** Dark overlay (a browser can't change real brightness). */
   dim: boolean;
+  /** Screen-off hours: cover everything in black until someone taps. */
+  asleep: boolean;
   /** Cover the today view with this device's photos, when it has any. */
   slideshow: boolean;
   forecast: Forecast | null;
@@ -383,12 +386,12 @@ export function AmbientScreen({
             </div>
             <p className="ambient-hint">Tap anywhere to open Fridgeboard</p>
           </div>
-          {slideshow && <IdleSlideshow night={night} now={now} offset={offset} />}
-          {dim && (
+          {slideshow && !asleep && <IdleSlideshow night={night} now={now} offset={offset} />}
+          {(dim || asleep) && (
             <div
               className="ambient-dim"
               aria-hidden
-              style={{ opacity: idleDimOpacity(night) }}
+              style={{ opacity: idleDimOpacity(night, asleep) }}
             />
           )}
         </motion.div>

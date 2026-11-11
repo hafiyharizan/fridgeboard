@@ -1,16 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   burnInOffset,
+  DEFAULT_NIGHT_HOURS,
+  DEFAULT_SLEEP_HOURS,
+  formatHours,
+  inHours,
   isNewVersion,
-  isNightTime,
   KITCHEN_IDLE_MS,
   IDLE_DIM_KEY,
   KITCHEN_MODE_KEY,
+  NIGHT_HOURS_KEY,
   parseFlag,
+  parseHours,
+  shouldSleep,
+  SLEEP_HOURS_KEY,
+  SLEEP_KEY,
   SLIDESHOW_KEY,
   VERSION_CHECK_MS,
+  type Hours,
 } from "@/lib/kitchen";
 
 const CHANGE_EVENT = "fridgeboard:kitchen-mode";
@@ -62,13 +71,41 @@ function writeFlag(key: string, on: boolean) {
 
 const readIdleDim = () => readFlag(IDLE_DIM_KEY, true);
 const readSlideshow = () => readFlag(SLIDESHOW_KEY, false);
+const readSleep = () => readFlag(SLEEP_KEY, true);
+
+// Hours are read as the raw stored string, so the snapshot stays stable
+// between renders; they are parsed where they are used.
+function readText(key: string) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeHours(key: string, hours: Hours) {
+  try {
+    localStorage.setItem(key, formatHours(hours));
+  } catch {
+    // Storage blocked: the default hours stay in use.
+  }
+  window.dispatchEvent(new Event(CHANGE_EVENT));
+}
+
+const readNightHours = () => readText(NIGHT_HOURS_KEY);
+const readSleepHours = () => readText(SLEEP_HOURS_KEY);
+const noHours = () => null;
 
 /** Whether this device is in kitchen display mode (read-only view of the switch). */
 export function useKitchenEnabled() {
   return useSyncExternalStore(subscribe, readEnabled, () => false);
 }
 
-/** Keeps the screen on while the page is visible; re-asks after the tablet wakes. */
+/**
+ * Keeps the screen on while the page is visible; re-asks after the tablet
+ * wakes. Switching it off releases the lock, which hands the screen back to
+ * the tablet's own screen timeout.
+ */
 function useWakeLock(enabled: boolean) {
   useEffect(() => {
     if (!enabled || !("wakeLock" in navigator)) return;
@@ -97,13 +134,18 @@ function useWakeLock(enabled: boolean) {
 
 /**
  * Everything an always-on kitchen tablet needs, switched on per device:
- * screen kept awake, idle reset, night dimming, burn-in shift and
- * self-updating when a new deploy is live.
+ * screen kept awake (and let off overnight), idle reset, night dimming,
+ * burn-in shift and self-updating when a new deploy is live.
  */
 export function useKitchenDisplay(onIdle: () => void) {
   const enabled = useSyncExternalStore(subscribe, readEnabled, () => false);
   const idleDim = useSyncExternalStore(subscribe, readIdleDim, () => true);
   const slideshow = useSyncExternalStore(subscribe, readSlideshow, () => false);
+  const sleepEnabled = useSyncExternalStore(subscribe, readSleep, () => true);
+  const nightRaw = useSyncExternalStore(subscribe, readNightHours, noHours);
+  const sleepRaw = useSyncExternalStore(subscribe, readSleepHours, noHours);
+  const nightHours = useMemo(() => parseHours(nightRaw, DEFAULT_NIGHT_HOURS), [nightRaw]);
+  const sleepHours = useMemo(() => parseHours(sleepRaw, DEFAULT_SLEEP_HOURS), [sleepRaw]);
   const [idle, setIdle] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const updateReady = useRef(false);
@@ -113,9 +155,11 @@ export function useKitchenDisplay(onIdle: () => void) {
     onIdleRef.current = onIdle;
   }, [onIdle]);
 
-  useWakeLock(enabled);
+  // Overnight, once nobody is using it, the screen is allowed to switch off.
+  const asleep = enabled && shouldSleep({ enabled: sleepEnabled, idle, now, hours: sleepHours });
+  useWakeLock(enabled && !asleep);
 
-  // Minute-level clock for night mode and the burn-in shift.
+  // Minute-level clock for night mode, screen-off hours and the burn-in shift.
   useEffect(() => {
     if (!enabled) return;
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
@@ -182,6 +226,9 @@ export function useKitchenDisplay(onIdle: () => void) {
   const setEnabled = useCallback((on: boolean) => writeEnabled(on), []);
   const setIdleDim = useCallback((on: boolean) => writeFlag(IDLE_DIM_KEY, on), []);
   const setSlideshow = useCallback((on: boolean) => writeFlag(SLIDESHOW_KEY, on), []);
+  const setSleepEnabled = useCallback((on: boolean) => writeFlag(SLEEP_KEY, on), []);
+  const setNightHours = useCallback((hours: Hours) => writeHours(NIGHT_HOURS_KEY, hours), []);
+  const setSleepHours = useCallback((hours: Hours) => writeHours(SLEEP_HOURS_KEY, hours), []);
   const active = enabled && idle;
 
   return {
@@ -195,8 +242,17 @@ export function useKitchenDisplay(onIdle: () => void) {
     setSlideshow,
     /** Kitchen mode and nobody has touched the screen for a while. */
     idle: active,
-    /** 22:00–06:00: the idle view switches to its dark, low-glare look. */
-    night: isNightTime(now),
+    /** Night hours (default 22:00–06:00): the idle view's dark, low-glare look. */
+    night: inHours(now, nightHours),
+    nightHours,
+    setNightHours,
+    /** Let the screen switch off overnight while idle (default on, 23:00–05:30). */
+    sleepEnabled,
+    setSleepEnabled,
+    sleepHours,
+    setSleepHours,
+    /** Idle inside the screen-off hours: wake lock released, idle view black. */
+    asleep,
     offset: enabled ? burnInOffset(now) : { x: 0, y: 0 },
   };
 }

@@ -2,27 +2,76 @@ import { describe, expect, it } from "vitest";
 import {
   burnInOffset,
   describeSync,
+  clockMinutes,
+  DEFAULT_NIGHT_HOURS,
+  DEFAULT_SLEEP_HOURS,
+  formatHours,
   idleDimOpacity,
+  inHours,
   isNewVersion,
-  isNightTime,
   nextSlide,
   parseFlag,
+  parseHours,
+  shouldSleep,
 } from "@/lib/kitchen";
 
 const at = (hour: number, minute = 0) => new Date(2026, 10, 3, hour, minute);
 
-describe("isNightTime", () => {
-  it("covers 22:00 through 05:59", () => {
-    expect(isNightTime(at(21, 59))).toBe(false);
-    expect(isNightTime(at(22))).toBe(true);
-    expect(isNightTime(at(0, 30))).toBe(true);
-    expect(isNightTime(at(5, 59))).toBe(true);
-    expect(isNightTime(at(6))).toBe(false);
-    expect(isNightTime(at(13))).toBe(false);
+describe("clockMinutes", () => {
+  it("reads strict 24-hour times only", () => {
+    expect(clockMinutes("00:00")).toBe(0);
+    expect(clockMinutes("05:30")).toBe(330);
+    expect(clockMinutes("23:59")).toBe(1439);
+    for (const bad of ["24:00", "9:00", "09:60", "0900", "", "09:00:00", "ab:cd"]) {
+      expect(clockMinutes(bad)).toBeNull();
+    }
+  });
+});
+
+describe("parseHours", () => {
+  it("round-trips a stored window and falls back on anything unreadable", () => {
+    expect(parseHours("21:30-07:00", DEFAULT_NIGHT_HOURS)).toEqual({ start: "21:30", end: "07:00" });
+    expect(parseHours(formatHours(DEFAULT_SLEEP_HOURS), DEFAULT_NIGHT_HOURS)).toEqual(DEFAULT_SLEEP_HOURS);
+    for (const bad of [null, "", "22:00", "22:00-", "25:00-06:00", "22:00-06:00-07:00", "night"]) {
+      expect(parseHours(bad, DEFAULT_NIGHT_HOURS)).toEqual(DEFAULT_NIGHT_HOURS);
+    }
+  });
+});
+
+describe("inHours", () => {
+  it("covers the default night, 22:00 through 05:59", () => {
+    expect(inHours(at(21, 59), DEFAULT_NIGHT_HOURS)).toBe(false);
+    expect(inHours(at(22), DEFAULT_NIGHT_HOURS)).toBe(true);
+    expect(inHours(at(0, 30), DEFAULT_NIGHT_HOURS)).toBe(true);
+    expect(inHours(at(5, 59), DEFAULT_NIGHT_HOURS)).toBe(true);
+    expect(inHours(at(6), DEFAULT_NIGHT_HOURS)).toBe(false);
+    expect(inHours(at(13), DEFAULT_NIGHT_HOURS)).toBe(false);
+  });
+  it("works to the minute across midnight", () => {
+    expect(inHours(at(22, 59), DEFAULT_SLEEP_HOURS)).toBe(false);
+    expect(inHours(at(23), DEFAULT_SLEEP_HOURS)).toBe(true);
+    expect(inHours(at(5, 29), DEFAULT_SLEEP_HOURS)).toBe(true);
+    expect(inHours(at(5, 30), DEFAULT_SLEEP_HOURS)).toBe(false);
   });
   it("supports a window that doesn't cross midnight", () => {
-    expect(isNightTime(at(2), 1, 5)).toBe(true);
-    expect(isNightTime(at(6), 1, 5)).toBe(false);
+    const hours = { start: "01:00", end: "05:00" };
+    expect(inHours(at(2), hours)).toBe(true);
+    expect(inHours(at(0, 59), hours)).toBe(false);
+    expect(inHours(at(5), hours)).toBe(false);
+  });
+  it("treats equal or unreadable times as no window", () => {
+    expect(inHours(at(3), { start: "03:00", end: "03:00" })).toBe(false);
+    expect(inHours(at(3), { start: "nope", end: "06:00" })).toBe(false);
+  });
+});
+
+describe("shouldSleep", () => {
+  const base = { enabled: true, idle: true, now: at(2), hours: DEFAULT_SLEEP_HOURS };
+  it("sleeps only when switched on, idle and inside the window", () => {
+    expect(shouldSleep(base)).toBe(true);
+    expect(shouldSleep({ ...base, enabled: false })).toBe(false);
+    expect(shouldSleep({ ...base, idle: false })).toBe(false);
+    expect(shouldSleep({ ...base, now: at(12) })).toBe(false);
   });
 });
 
@@ -94,5 +143,9 @@ describe("idleDimOpacity", () => {
     expect(idleDimOpacity(false)).toBe(0.55);
     expect(idleDimOpacity(true)).toBe(0.75);
     expect(idleDimOpacity(true)).toBeGreaterThan(idleDimOpacity(false));
+  });
+  it("is fully black while the screen is meant to be off", () => {
+    expect(idleDimOpacity(false, true)).toBe(1);
+    expect(idleDimOpacity(true, true)).toBe(1);
   });
 });

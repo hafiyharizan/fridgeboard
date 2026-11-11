@@ -44,6 +44,7 @@ src/
       push/prayer/              # Cron: athan push at prayer times
       calendar/{feed,import,sync}/  # iCal feed, holiday imports, sync links
       version/                  # Live deploy id (kitchen display self-update)
+      assistant/                # Household assistant: question in, short answer out
       news/                     # Perth headlines for the Home news card (server-side RSS)
       stocks/                   # Market numbers for the news card (Yahoo Finance chart API)
   components/
@@ -59,7 +60,8 @@ src/
     Ambient.tsx                 # Outside card (clock + weather), PrayerCard, athan banner, idle view, place settings
     Sky.tsx                     # Animated sky behind the Outside card
     IdleSlideshow.tsx           # Kitchen idle photo slideshow
-    KitchenDisplay.tsx          # Settings hold button, sync badge, kitchen switch
+    AssistantPanel.tsx          # "Ask": household assistant panel + useAssistantEnabled
+    KitchenDisplay.tsx          # Settings hold button, sync badge, kitchen switch, idle/night/screen-off settings
     WhoIsAdding.tsx             # Kitchen display member picker
     SwipeDeck.tsx               # Sideways card deck (News / Markets on Home)
     ListTab.tsx, ItemRow.tsx, AddItemInput.tsx, SuggestionPanel.tsx
@@ -80,6 +82,7 @@ src/
     supabase.ts / supabase-admin.ts   # Browser/route clients / service client (server only)
     calendar.ts, dashboard.ts   # Recurrence expansion, Home helpers
     kitchen.ts                  # Kitchen display rules and timings
+    assistant/                  # Household assistant: snapshot.ts (data → text + prompt), limits.ts, provider.ts
     weather.ts, prayer.ts       # Open-Meteo parsing, prayer times (adhan)
     news.ts                     # RSS/Atom parsing + Perth filter for the Home news card
     stocks.ts                   # STOCK_SYMBOLS, Yahoo chart parsing, price formatting
@@ -207,6 +210,10 @@ const supabase = createClient(
 | `TELEGRAM_BOT_TOKEN` | Optional | For Telegram notification channel |
 | `APP_TIMEZONE` | Optional | IANA zone for event dates/times in cron routes (default `Australia/Perth`; Netlify functions run in UTC) |
 | `NEWS_FEEDS` | Optional | Home news card feeds: comma-separated `Label\|https://…` or `Label\|https://…\|local` RSS/Atom URLs, max 6. Only Perth/WA stories are kept unless a feed is `local` (default: ABC News WA + WAtoday in full, ABC Top Stories filtered) |
+| `ASSISTANT_PROVIDER` | Optional | Household assistant: `ollama` or `anthropic`. Unset = the feature is hidden |
+| `OLLAMA_URL` | Optional | Ollama base URL for the `ollama` provider (default `http://localhost:11434`). Server only |
+| `OLLAMA_MODEL` | With `ollama` | Model name, e.g. `qwen3.5:9b` |
+| `ANTHROPIC_API_KEY` | With `anthropic` | Key for the `anthropic` provider. Server only |
 | `STOCK_SYMBOLS` | Optional | Markets card on Home: comma-separated `Label\|SYMBOL` in Yahoo Finance form, max 4 (default `SPUS,ASX 200\|^AXJO,AUD/MYR\|AUDMYR=X,MYR/USD\|MYRUSD=X`) |
 
 ---
@@ -264,13 +271,28 @@ Returns `{ version }`, the build stamp `APP_VERSION` (Netlify `DEPLOY_ID`, else 
 
 A microphone button in the header (and "Say it" in Quick Add) opens `VoiceAdd`. The browser's speech recognition (`hooks/useSpeech.ts`; Chrome, Edge, Safari — the button hides where it's missing, e.g. Firefox) hears one sentence; `parseVoiceCommand` in `lib/voice.ts` turns it into a grocery list ("add milk and eggs to the shopping list", "we're out of rice"), a to-do ("I need to fix the gate"), a reminder ("remind me to call Mum tomorrow at 5pm") or an event ("dentist on Friday at 3", "swimming every Tuesday at 4pm"). Parsing is rule-based on the device (no API). The result is always shown for checking (type, text, date, time) before "Add". Reminders with a time alert at that time. On a kitchen display it credits the "Who's adding?" pick. `next.config.ts` allows `microphone=(self)` in `Permissions-Policy`.
 
+### Household assistant ("Ask")
+
+A sparkle button in the header (shown only when `GET /api/assistant` says `enabled`) opens `AssistantPanel`: four suggested questions, a text field, a mic (reusing `hooks/useSpeech.ts`), and the conversation as plain text. Nothing is saved; closing the panel (or the kitchen idle reset) clears it. Read-only: the model has no tools and never changes data.
+
+- `POST /api/assistant` `{ question, history?, asker? }` → `{ answer }` (or `{ error }` in plain words). Same origin + signed-in session. All data is read with the member's own client (RLS), never the service role: `current_user_pin()`, `household_members()`, `household_people`, `household_settings.timezone`, `lists`, open `items`, `calendar_events`, `work_shifts`.
+- `lib/assistant/snapshot.ts` (pure) builds the text the model sees: the current date and time in the household's timezone, then today and the next 7 days of calendar and work roster with every day pre-labelled ("Today, Sat 7 Nov", "Tomorrow…", "Mon 9 Nov (in 2 days)") so the model never does date arithmetic, open groceries and to-dos, and routines that are due. It reuses `upcomingEvents`, `eventPhase`, `lib/work.ts` and `lib/routine.ts`, and converts instants to the household's wall clock first because the server may run in UTC. First names only; no ids, PIN or emails. Text typed by members is flattened to one line with angle brackets replaced (`cleanText`), and the prompt tells the model to treat the data block as information, not instructions.
+- `lib/assistant/provider.ts`: `ASSISTANT_PROVIDER=ollama` calls `{OLLAMA_URL}/api/chat` with plain `fetch` (non-streaming, `num_ctx` 8192, `think: false` with one retry without it, `keep_alive` 30m); `anthropic` uses `@anthropic-ai/sdk` with `claude-haiku-5-5`, `output_config.effort: "low"`, no sampling parameters, prefill or thinking budget. The model address and key come only from the server environment.
+- `lib/assistant/limits.ts`: question ≤ 500 characters, last 6 turns of history (each ≤ 1000), 8 questions a minute and 200 a day per member (in memory, per instance). Server timeout 55s (`maxDuration` 60); the panel shows "Thinking…", then "The first question can take a little longer", and a Try again button on failure.
+- `asker` is the "Who's adding?" pick on a kitchen display; the server uses it only if that member is in the household, otherwise the signed-in member. It decides who "I" and "my" mean.
+- Nothing about the question, the data or the answer is logged; failures log only the provider, the kind of failure and the duration.
+- Local model: tested with `qwen3.5:9b` (9B, about 6.5 GB, fits 12 GB VRAM; answers in about a second once loaded, follows the data-only rules, answers in Malay when asked in Malay). Pulling the model (`ollama pull qwen3.5:9b`) and running Ollama are manual steps. The Ollama provider only works where the server can reach Ollama (local `npm run dev`); a hosted deploy can't reach a home network without a tunnel, which is not built.
+
 ### Kitchen display mode
 
 A per-device switch in the household menu (localStorage `fridgeboard.kitchen-mode`) for a wall tablet. Logic in `hooks/useKitchenDisplay.ts`, pure rules and timings in `lib/kitchen.ts`, UI in `components/KitchenDisplay.tsx`.
 
 - Screen Wake Lock, re-acquired after the tablet wakes.
+- **Screen off overnight** (per device, default on, 23:00–05:30; localStorage `fridgeboard.screen-sleep`, `fridgeboard.sleep-hours`): while idle inside those hours (`shouldSleep`) the wake lock is released so the tablet's own screen timeout can switch the screen off, and the idle view is covered in black (`idleDimOpacity(night, asleep)` = 1). A touch counts as activity, so the lock comes back until the next idle reset. A web page can't turn a screen back on: once the tablet has switched it off it stays off until someone wakes the tablet.
+- **Night look hours** are per device too (`fridgeboard.night-hours`, default 22:00–06:00). Hours are stored as `HH:MM-HH:MM` and read with `parseHours` / `inHours` in `lib/kitchen.ts`.
+- While the idle view is up, `.household-workspace.is-idle` pauses the sky animations on Home underneath.
 - After 2 minutes untouched: back to Home, dialogs closed. Overlays built on `useModalSurface` close via the `DISMISS_OVERLAYS_EVENT` window event.
-- When idle: a full-screen "today" view (big time, next event, list counts, weather, next prayer) that swallows the first tap; dark and low-glare 22:00–06:00. An unsaved event form is parked and restored.
+- When idle: a full-screen "today" view (big time, next event, list counts, weather, next prayer) that swallows the first tap; dark and low-glare during the night look hours. An unsaved event form is parked and restored.
 - "Who's adding?" member picker on list tabs; resets on idle.
 - Header and content shift ±3px every 10 minutes (burn-in).
 - Idle options in the household menu (kitchen mode only, per device; localStorage `fridgeboard.idle-dim` default on, `fridgeboard.idle-slideshow` default off). **Dim** is a black `.ambient-dim` overlay at `idleDimOpacity(night)` (0.55 day, 0.75 night), because browsers can't change hardware brightness; it is `pointer-events: none` so the first tap still wakes the screen. **Slideshow** (`components/IdleSlideshow.tsx`) covers the today view with this device's photos, cross-fading every `SLIDE_SECONDS` (30) with a small corner clock that follows the burn-in shift; no photos, or none that load, leaves the normal today view. Photos are chosen in `KitchenIdleSettings` (max 30, downscaled to 1920px JPEG) and live only on the device, in IndexedDB `fridgeboard`/`photos` (`lib/photo-store.ts`); they are never uploaded or synced.
@@ -359,6 +381,8 @@ Vitest is configured. Tests live alongside source files as `*.test.ts`.
 - `src/lib/suggestions.test.ts` — covers autocomplete and smartSuggest
 - `src/lib/routine.test.ts` — "days ago" labels, due/overdue, sorting, chore detection
 - `src/lib/voice.test.ts` — spoken groceries, to-dos, reminders, events, dates, times and repeats
+- `src/lib/kitchen.test.ts` — night and screen-off hours, burn-in shift, sync label, idle options
+- `src/lib/assistant/*.test.ts` — snapshot wording, timezone handling and injection hygiene; request limits and rate limiter; provider config and Ollama failures
 - `src/lib/work.test.ts` — week helpers, overnight shifts, "everyone home" summary
 - `src/lib/news.test.ts` — feed parsing, merging, `NEWS_FEEDS`, Perth filter and story ages
 - `src/lib/stocks.test.ts` — `STOCK_SYMBOLS`, Yahoo chart parsing, price/change formatting

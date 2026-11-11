@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { burnInOffset, describeSync, isNewVersion, isNightTime } from "@/lib/kitchen";
+import {
+  burnInOffset,
+  describeSync,
+  idleDimOpacity,
+  isNewVersion,
+  isNightTime,
+  nextSlide,
+  parseFlag,
+} from "@/lib/kitchen";
 
 const at = (hour: number, minute = 0) => new Date(2026, 10, 3, hour, minute);
 
@@ -60,5 +68,31 @@ describe("isNewVersion", () => {
     expect(isNewVersion("abc", "dev")).toBe(false);
     expect(isNewVersion("abc", "")).toBe(false);
     expect(isNewVersion("abc", undefined)).toBe(false);
+  });
+});
+
+describe("parseFlag", () => {
+  it("falls back when unset and reads 0/1", () => {
+    expect(parseFlag(null, true)).toBe(true);
+    expect(parseFlag(null, false)).toBe(false);
+    expect(parseFlag("0", true)).toBe(false);
+    expect(parseFlag("1", false)).toBe(true);
+  });
+});
+
+describe("nextSlide", () => {
+  it("wraps and stays at 0 for one or no photos", () => {
+    expect(nextSlide(0, 3)).toBe(1);
+    expect(nextSlide(2, 3)).toBe(0);
+    expect(nextSlide(0, 1)).toBe(0);
+    expect(nextSlide(0, 0)).toBe(0);
+  });
+});
+
+describe("idleDimOpacity", () => {
+  it("is darker at night", () => {
+    expect(idleDimOpacity(false)).toBe(0.55);
+    expect(idleDimOpacity(true)).toBe(0.75);
+    expect(idleDimOpacity(true)).toBeGreaterThan(idleDimOpacity(false));
   });
 });

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import { watchWake } from "@/hooks/watchWake";
-import type { WorkShift } from "@/lib/types";
+import type { WorkPlace, WorkShift } from "@/lib/types";
 
 export type ShiftInput = {
   user_id: string;
@@ -12,6 +12,9 @@ export type ShiftInput = {
   start_time: string;
   end_time: string;
   note?: string | null;
+  /** Null clears the place. Leave out to keep what is saved. */
+  work_place?: WorkPlace | null;
+  location?: string | null;
 };
 
 const byDate = (a: WorkShift, b: WorkShift) =>

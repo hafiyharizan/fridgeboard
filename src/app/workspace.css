@@ -501,16 +501,6 @@ textarea:focus-visible {
   flex: 1;
   min-height: 0;
 }
-.workspace-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.is-home .workspace-toolbar {
-  display: none;
-}
 
 /* ---------- Home ---------- */
 
@@ -799,72 +789,70 @@ textarea:focus-visible {
 .weather-tip svg {
   color: #ffd98a;
 }
-.prayer-strip {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.22);
+/* Prayer times card: sits under the sky card, on a normal light/dark card. */
+.prayer-card {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 18px 14px;
 }
-.prayer-next {
+.prayer-card-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  color: rgba(255, 255, 255, 0.8);
+  justify-content: space-between;
+  gap: 10px;
 }
-.prayer-next svg {
-  flex: none;
-}
-.prayer-day {
-  color: #fff;
-  font-weight: 700;
-}
-.prayer-countdown {
-  margin-left: auto;
+.prayer-card-next {
+  color: var(--muted);
+  font-size: 14px;
   white-space: nowrap;
 }
-.prayer-countdown strong {
-  color: #fff;
+.prayer-card-next strong {
+  color: var(--ink);
 }
-.prayer-times {
+.prayer-card-day {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.prayer-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
-  margin: 8px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
-/* Tiles are tinted, not blurred: backdrop-filter over animated layers
-   would re-blur every frame on the tablet. */
-.prayer-times li {
+.prayer-grid li {
   display: flex;
   flex-direction: column;
   align-items: center;
   min-width: 0;
-  padding: 5px 2px;
+  padding: 6px 2px;
   border-radius: 12px;
-  background: rgba(8, 12, 28, 0.22);
+  background: var(--oat-soft);
+  color: var(--muted);
   font-size: 13px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.8);
+  font-variant-numeric: tabular-nums;
 }
-.prayer-times li span {
+.prayer-grid li span {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.prayer-times li strong {
+.prayer-grid li strong {
+  color: var(--ink);
   font-size: 18px;
   line-height: 24px;
+}
+.prayer-grid li.is-next {
+  background: var(--sage-deep);
+  color: rgba(255, 255, 255, 0.85);
+}
+.prayer-grid li.is-next strong {
   color: #fff;
-  font-variant-numeric: tabular-nums;
-}
-.prayer-times li.is-next {
-  background: rgba(255, 255, 255, 0.92);
-  color: #5b655e;
-  text-shadow: none;
-}
-.prayer-times li.is-next strong {
-  color: #2b332e;
 }
 
 /* Sky layers. Compositor-only loops (transform/opacity). */
@@ -1071,47 +1059,154 @@ textarea:focus-visible {
   color: var(--amber);
 }
 .news-head .text-button {
-  margin: -10px -4px -10px 0;
+  margin: -10px -6px -10px 0;
 }
-/* Market numbers above the headlines, one quiet line. */
-.stock-strip {
+/* News and Markets share one cell and swipe sideways; the deck fills the cell, never grows it. */
+.swipe-deck {
   display: flex;
-  flex-wrap: wrap;
-  gap: 2px 14px;
-  margin: 6px 0 2px;
-  padding: 0 0 8px;
-  border-bottom: 1px solid var(--line);
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: var(--radius-card);
+}
+.swipe-deck:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: 2px;
+}
+.swipe-slide {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  cursor: grab;
+}
+.swipe-slide:active {
+  cursor: grabbing;
+}
+.swipe-deck {
+  position: relative;
+}
+/* Header switcher: "News | Markets" replaces the card's eyebrow and takes no extra height. */
+.deck-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.deck-title svg {
+  color: var(--amber);
+}
+.deck-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--oat-soft);
+}
+.deck-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.deck-tab svg {
+  color: currentColor;
+}
+.deck-tab:hover {
+  color: var(--ink);
+}
+.deck-tab[aria-pressed="true"] {
+  background: var(--card);
+  color: var(--sage-deep-text, var(--sage-deep));
+  box-shadow: var(--shadow-1);
+}
+.deck-tab:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: 1px;
+}
+/* Markets: four tiles, two by two. */
+.market-grid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 8px;
+  min-height: 0;
+  margin: 8px 0 0;
+  padding: 0;
   list-style: none;
 }
-.stock-chip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  font-size: 14px;
+.market-tile {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-content: center;
+  align-items: center;
+  gap: 4px 6px;
+  min-height: 0;
+  padding: 8px 14px;
+  border-radius: 16px;
+  background: var(--oat-soft);
   font-variant-numeric: tabular-nums;
+}
+.market-tile.is-up {
+  background: var(--sage-tint);
+}
+.market-tile.is-down {
+  background: var(--rose-tint);
+}
+.market-tile.is-skeleton {
+  opacity: 0.6;
+}
+.market-label {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.market-change {
+  display: inline-flex;
+  grid-area: 1 / 2;
+  align-items: center;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.market-price {
+  display: flex;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  gap: 5px;
+  align-items: baseline;
   white-space: nowrap;
 }
-.stock-label {
+.market-price strong {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.market-currency {
   color: var(--muted);
   font-size: 13px;
   font-weight: 600;
 }
-.stock-chip strong {
-  font-weight: 700;
-}
-.stock-change {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--muted);
-}
-.stock-chip.is-up .stock-change {
+.market-tile.is-up .market-change {
   color: var(--sage-deep-text, var(--sage-deep));
 }
-.stock-chip.is-down .stock-change {
+.market-tile.is-down .market-change {
   color: var(--rose-ink);
 }
-.workspace-dialog .stock-strip {
-  margin: 0 0 8px;
+.market-updated {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
 }
 .news-list {
   position: relative;
@@ -1148,8 +1243,24 @@ textarea:focus-visible {
   -webkit-line-clamp: 2;
 }
 .news-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   color: var(--muted);
+}
+.news-source {
+  color: var(--sage-deep-text, var(--sage-deep));
+  font-weight: 700;
+}
+.news-age::before {
+  content: "·";
+  margin-right: 8px;
+}
+.news-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 .news-skeleton {
   display: block;
@@ -1562,17 +1673,29 @@ textarea:focus-visible {
   font-size: 17px;
 }
 .calendar-month-cell {
+  position: relative;
   min-height: 112px;
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--card);
 }
+.calendar-month-cell.is-weekend {
+  background: color-mix(in srgb, var(--oat-soft) 60%, var(--card));
+}
 .calendar-month-cell.is-today {
   background: var(--sage-tint);
   border-color: var(--sage-tint-strong);
 }
+/* Pure CSS hover for the grid (allowed: colour/shadow only, no motion). */
+.calendar-month-cell:hover,
+.calendar-month-cell:focus-within {
+  border-color: var(--sage-tint-strong);
+  box-shadow: var(--shadow-2);
+}
 .calendar-day-button {
+  display: flex;
+  align-items: center;
   width: 100%;
   min-height: 36px;
   text-align: left;
@@ -1580,8 +1703,52 @@ textarea:focus-visible {
   font-weight: 700;
   border-radius: 8px;
 }
-.is-today .calendar-day-button {
+.calendar-day-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  border-radius: 999px;
+}
+.is-today .calendar-day-number {
+  background: var(--sage-deep);
+  color: #fff;
+}
+.calendar-add-button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
   color: var(--sage-deep-text, var(--sage-deep));
+  background: var(--card);
+  border: 1px solid var(--sage-tint-strong);
+}
+.household-workspace .note-panel .calendar-day-button {
+  min-height: 48px;
+}
+.household-workspace .note-panel .calendar-add-button {
+  min-height: 32px;
+}
+.calendar-add-button:hover {
+  background: var(--sage-tint);
+}
+/* Touch has no hover; the day number already opens the day (48px target). */
+@media (pointer: coarse) {
+  .calendar-add-button {
+    display: none;
+  }
+}
+.calendar-day-button:focus-visible,
+.calendar-event-button:focus-visible,
+.calendar-add-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 .household-workspace .note-panel .calendar-event-button {
   min-height: 32px;
@@ -1600,6 +1767,57 @@ textarea:focus-visible {
   border-left: 3px solid var(--event, var(--sage));
   border-radius: 6px;
   background: var(--event-tint, var(--sage-tint));
+}
+.calendar-event-button:hover {
+  box-shadow: inset 0 0 0 1px var(--event, var(--sage));
+}
+/* Multi-day run: square off the joins and bleed across the cell gap. */
+.calendar-event-button.is-multi {
+  border-left-width: 0;
+  border-radius: 0;
+}
+.calendar-event-button.is-multi.is-start {
+  border-left-width: 3px;
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+.calendar-event-button.is-multi.is-end {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+/* A run broken by a week edge or the month edge rounds off like a new bar. */
+.calendar-event-button.is-multi.is-edge-l {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+.calendar-event-button.is-multi.is-edge-r {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+.calendar-event-button.bleed-l {
+  margin-left: -11px;
+  width: calc(100% + 11px);
+}
+.calendar-event-button.bleed-r {
+  margin-right: -11px;
+  width: calc(100% + 11px);
+}
+.calendar-event-button.bleed-l.bleed-r {
+  width: calc(100% + 22px);
+}
+/* Next-up header */
+.calendar-next-up {
+  display: block;
+  text-align: left;
+  max-width: 100%;
+  border-radius: 12px;
+}
+.calendar-next-up:hover h2 {
+  color: var(--sage-deep-text, var(--sage-deep));
+}
+.calendar-next-up:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
 }
 
 /* Calendar overlays (sheets and forms) */
@@ -2456,14 +2674,11 @@ textarea:focus-visible {
   .weather-tomorrow {
     margin-top: 4px;
   }
-  .prayer-strip {
-    margin-top: 8px;
-    padding-top: 8px;
+  .prayer-card {
+    gap: 8px;
+    padding: 10px 16px;
   }
-  .prayer-times {
-    margin-top: 6px;
-  }
-  .prayer-times li {
+  .prayer-grid li {
     padding: 3px 2px;
   }
   .schedule-card {
@@ -2493,10 +2708,10 @@ textarea:focus-visible {
 
 /* Portrait tablet / small laptop: two columns, lists underneath. */
 @media (max-width: 1179px) {
-  .prayer-times {
+  .prayer-grid {
     gap: 4px;
   }
-  .prayer-times li span {
+  .prayer-grid li span {
     font-size: 12px;
   }
   .dashboard-header {
@@ -2587,7 +2802,7 @@ textarea:focus-visible {
   .home-side {
     display: contents;
   }
-  .news-card {
+  .swipe-deck {
     order: 1;
   }
   .home-lists {
@@ -2646,9 +2861,23 @@ textarea:focus-visible {
     padding: 3px;
     border-radius: 10px;
   }
+  .calendar-day-button {
+    font-size: 15px;
+  }
   .calendar-event-button {
     font-size: 11px;
     padding: 3px 4px;
+  }
+  .calendar-event-button.bleed-l {
+    margin-left: -6px;
+    width: calc(100% + 6px);
+  }
+  .calendar-event-button.bleed-r {
+    margin-right: -6px;
+    width: calc(100% + 6px);
+  }
+  .calendar-event-button.bleed-l.bleed-r {
+    width: calc(100% + 12px);
   }
 }
 
@@ -2907,42 +3136,145 @@ textarea:focus-visible {
   flex: 1;
 }
 
-/* Home: who works on the shown day, and when everyone is home. */
-.work-strip {
+/* Where a shift happens (week grid cell and Home). */
+.work-place {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.work-cell .work-place {
+  opacity: 0.9;
+}
+.shift-place {
+  border: 0;
+  margin: 0;
+  padding: 0;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: 6px 12px;
+  gap: 8px;
+}
+.shift-place legend {
+  margin-bottom: 6px;
+}
+.shift-place > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.shift-place button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 0 8px;
+  border-radius: 12px;
+  background: var(--oat-soft);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.shift-place button[aria-pressed="true"] {
+  background: var(--sage-deep);
+  color: #fff;
+}
+
+/* Home: who works on the shown day, where, and when everyone is home. */
+.work-today {
   margin-top: 12px;
-  padding: 10px 14px;
+  padding: 6px 6px 8px;
   border-radius: 16px;
   background: var(--oat-soft);
-  text-align: left;
   font-size: 14px;
   line-height: 20px;
 }
-.work-strip-icon {
-  grid-row: span 2;
-  margin-top: 1px;
+.work-today-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 4px 8px;
+  border-radius: 12px;
   color: var(--muted);
+  text-align: left;
 }
-.work-strip-people {
+.work-today-head:hover {
+  background: var(--sage-tint);
+}
+.work-today-title {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  flex: 1 1 auto;
+  flex-direction: column;
   min-width: 0;
 }
-.work-strip-people > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-}
-.work-strip-people strong {
+.work-today-title strong {
   color: var(--ink);
 }
+.work-today-home {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--sage-ink-text, var(--sage-ink));
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+}
+.work-today ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0 8px;
+  list-style: none;
+}
+/* Two lines per person: name and hours, then where. */
+.work-today li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+  min-height: 40px;
+  padding: 3px 0;
+  color: var(--muted);
+}
+.work-today li .member-avatar {
+  grid-row: 1 / span 2;
+}
+.work-today-who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.work-today-who strong {
+  color: var(--ink);
+}
+.work-today-time {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.work-today li .work-place {
+  grid-column: 2 / -1;
+  color: var(--sage-ink-text, var(--sage-ink));
+  font-size: 13px;
+}
+.work-today li .work-place.is-home {
+  color: var(--amber-ink);
+}
+.work-today-more {
+  min-height: 28px;
+  font-size: 13px;
+  font-weight: 700;
+}
 .work-strip-now {
+  flex: none;
+  white-space: nowrap;
   padding: 0 8px;
   border-radius: 999px;
   background: var(--amber-tint);
@@ -2950,13 +3282,6 @@ textarea:focus-visible {
   font-style: normal;
   font-size: 12px;
   font-weight: 700;
-}
-.work-strip-home {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 700;
-  color: var(--sage-ink-text, var(--sage-ink));
 }
 
 /* Phones: one block per day, members stacked. */
@@ -3006,6 +3331,15 @@ textarea:focus-visible {
 
 /* ---------- Voice ("Say it") ---------- */
 
+/* Quick Add lives in the header (every tab but Home, which has its own "+" buttons). */
+.header-add {
+  flex: none;
+  background: var(--sage-deep);
+  color: #fff;
+}
+.header-add:hover {
+  background: var(--sage-ink);
+}
 .header-voice {
   flex: none;
   border: 1px solid var(--line);
@@ -3139,4 +3473,76 @@ textarea:focus-visible {
   border-radius: 999px;
   background: var(--sage-deep);
   color: #fff;
+}
+
+/* ---------- Idle dim + photo slideshow ---------- */
+
+/* Browsers can't change hardware brightness, so "dim" is a black veil.
+   It must never catch taps: the first touch wakes the screen. */
+.ambient-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: #000;
+  pointer-events: none;
+}
+.slideshow {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  background: #000;
+}
+.slideshow-slide {
+  position: absolute;
+  inset: 0;
+}
+.slideshow-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.slideshow-clock {
+  position: absolute;
+  right: 32px;
+  bottom: 28px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.photo-picker-note {
+  color: var(--amber-ink);
+}
+.photo-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+}
+.photo-picker-choose {
+  position: relative;
+  cursor: pointer;
+}
+.photo-picker-choose.is-busy {
+  opacity: 0.6;
+  cursor: progress;
+}
+.photo-picker-choose input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: inherit;
+}
+/* The real file input is invisible, so the label shows keyboard focus. */
+.photo-picker-choose:has(input:focus-visible) {
+  outline: 3px solid var(--focus, #4c6153);
+  outline-offset: 3px;
 }

@@ -49,7 +49,12 @@ export function nextDateKey(day: string): string {
   return dateKey(date);
 }
 
-type Timed = { occurrence_date: string; event_time?: string | null };
+type Timed = { occurrence_date: string; event_time?: string | null; day_index?: number };
+
+/** Start time that counts for the decisions below: days 2+ of a multi-day event are all-day. */
+function startTime(event: Timed): string | null {
+  return (event.day_index ?? 1) > 1 ? null : (event.event_time ?? null);
+}
 
 /**
  * The next event still ahead of `now`: later today (or all-day today),
@@ -63,7 +68,8 @@ export function nextUpEvent<T extends Timed>(events: T[], now: Date): T | null {
     events.find((event) => {
       if (event.occurrence_date > today) return true;
       if (event.occurrence_date < today) return false;
-      return !event.event_time || event.event_time.slice(0, 5) >= clock;
+      const time = startTime(event);
+      return !time || time.slice(0, 5) >= clock;
     }) ?? null
   );
 }
@@ -81,8 +87,9 @@ export function eventPhase(event: Timed, now: Date, graceMinutes = EVENT_GRACE_M
   const today = dateKey(now);
   if (event.occurrence_date < today) return "earlier";
   if (event.occurrence_date > today) return "later";
-  if (!event.event_time) return "now";
-  const [hours, minutes] = event.event_time.split(":").map(Number);
+  const time = startTime(event);
+  if (!time) return "now";
+  const [hours, minutes] = time.split(":").map(Number);
   const start = hours * 60 + minutes;
   const clock = now.getHours() * 60 + now.getMinutes();
   if (clock < start) return "later";

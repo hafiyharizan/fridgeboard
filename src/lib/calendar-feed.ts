@@ -94,7 +94,7 @@ export function buildCalendarFeed(
     lines.push(`DTSTAMP:${toUtcTimestamp(event.created_at)}`);
     lines.push(`SUMMARY:${escapeIcsText(event.title)}`);
     lines.push(`DTSTART;VALUE=DATE:${toDateStamp(event.event_date)}`);
-    lines.push(`DTEND;VALUE=DATE:${toDateStamp(addDays(event.event_date, 1))}`);
+    lines.push(`DTEND;VALUE=DATE:${toDateStamp(addDays(event.end_date ?? event.event_date, 1))}`);
     lines.push(`STATUS:${status}`);
 
     if (description) {

@@ -16,10 +16,12 @@ export type StockQuote = {
   at: string | null;
 };
 
-/** ASX 200 and the Aussie dollar. */
+/** SPUS, the ASX 200, and the Aussie dollar and ringgit pairs. */
 export const DEFAULT_STOCKS: StockSymbol[] = [
+  { symbol: "SPUS", label: "SPUS" },
   { symbol: "^AXJO", label: "ASX 200" },
-  { symbol: "AUDUSD=X", label: "AUD/USD" },
+  { symbol: "AUDMYR=X", label: "AUD/MYR" },
+  { symbol: "MYRUSD=X", label: "MYR/USD" },
 ];
 
 const SYMBOL = /^[A-Za-z0-9^=.\-]{1,15}$/;
@@ -75,6 +77,14 @@ export function parseChart(json: unknown, stock: StockSymbol): StockQuote | null
 export function formatPrice(quote: Pick<StockQuote, "symbol" | "price">): string {
   const digits = quote.symbol.endsWith("=X") ? 4 : quote.price >= 1000 ? 1 : 2;
   return quote.price.toLocaleString("en-AU", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+/**
+ * Currency to print beside a price ("USD" for a US-listed fund). Currency pairs
+ * (`=X`) already say what they are, and an index (`^`) is points, so neither gets one.
+ */
+export function priceCurrency(quote: Pick<StockQuote, "symbol" | "currency">): string | null {
+  return quote.symbol.endsWith("=X") || quote.symbol.startsWith("^") || !quote.currency ? null : quote.currency;
 }
 
 /** "+0.6%", "−1.2%" (or "" when unknown). */

@@ -27,6 +27,8 @@ import { formatEventTime } from "@/lib/calendar";
 import { countdown, isPrayerMethod, PRAYER_METHODS, type PrayerSlot } from "@/lib/prayer";
 import { describeWeather, geocodeUrl, parsePlaces, skyScene, uvLevel, weatherTip, type Forecast, type Place, type WeatherKind } from "@/lib/weather";
 import { SkyBackdrop } from "@/components/Sky";
+import { IdleSlideshow } from "@/components/IdleSlideshow";
+import { idleDimOpacity } from "@/lib/kitchen";
 import type { PrayerDay } from "@/hooks/useAmbient";
 import type { SettingsPatch } from "@/hooks/useHouseholdInfo";
 import type { ExpandedCalendarEvent, HouseholdSettings } from "@/lib/types";
@@ -87,7 +89,6 @@ export function OutsideCard({
   settings,
   forecast,
   weatherFailed,
-  prayer,
   now,
   onSetup,
   children,
@@ -95,7 +96,6 @@ export function OutsideCard({
   settings: HouseholdSettings | null;
   forecast: Forecast | null;
   weatherFailed?: boolean;
-  prayer: PrayerDay | null;
   now: Date;
   onSetup: () => void;
   /** Shown under the clock (Home's "Next up" line). */
@@ -108,7 +108,7 @@ export function OutsideCard({
   return (
     <section
       className={`card outside-card sky is-${scene.phase} is-${scene.weather}`}
-      aria-label="Time, weather and prayer times"
+      aria-label="Time and weather"
     >
       <SkyBackdrop scene={scene} />
       <div className="sky-content">
@@ -203,29 +203,38 @@ export function OutsideCard({
             {weatherFailed ? "Weather isn\u2019t available right now." : "Checking the weather…"}
           </p>
         )}
-        {prayer?.next && (
-          <div className="prayer-strip">
-            <p className="prayer-next">
-              <MoonStar size={16} aria-hidden />
-              <span className="prayer-day">{prayer.nextIsTomorrow ? "Tomorrow" : "Today"}</span>
-              <span className="prayer-countdown">
-                <strong>{prayer.next.label}</strong> {countdown(prayer.next.time, now)}
-              </span>
-            </p>
-            <ol className="prayer-times" aria-label={`Prayer times ${prayer.nextIsTomorrow ? "tomorrow" : "today"}`}>
-              {prayer.shown.map((slot) => {
-                const next = slot.name === prayer.next?.name;
-                return (
-                  <li key={slot.name} className={next ? "is-next" : ""} aria-current={next ? "time" : undefined}>
-                    <span>{slot.label}</span>
-                    <strong>{clock(slot.time).replace(/\s?[AP]M$/i, "")}</strong>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-        )}
       </div>
+    </section>
+  );
+}
+
+/* ---------- Prayer times: its own card, apart from the weather ---------- */
+
+export function PrayerCard({ prayer, now }: { prayer: PrayerDay | null; now: Date }) {
+  if (!prayer?.next) return null;
+  const when = prayer.nextIsTomorrow ? "Tomorrow" : "Today";
+  return (
+    <section className="card prayer-card" aria-label="Prayer times">
+      <div className="prayer-card-head">
+        <p className="eyebrow deck-title">
+          <MoonStar size={16} aria-hidden /> Prayer times
+        </p>
+        <p className="prayer-card-next">
+          <strong>{prayer.next.label}</strong> {countdown(prayer.next.time, now)}
+        </p>
+      </div>
+      <ol className="prayer-grid" aria-label={`Prayer times ${when.toLowerCase()}`}>
+        {prayer.shown.map((slot) => {
+          const next = slot.name === prayer.next?.name;
+          return (
+            <li key={slot.name} className={next ? "is-next" : ""} aria-current={next ? "time" : undefined}>
+              <span>{slot.label}</span>
+              <strong>{clock(slot.time).replace(/s?[AP]M$/i, "")}</strong>
+            </li>
+          );
+        })}
+      </ol>
+      {prayer.nextIsTomorrow && <p className="prayer-card-day">Showing tomorrow&apos;s times</p>}
     </section>
   );
 }
@@ -268,6 +277,8 @@ export function AmbientScreen({
   night,
   now,
   offset,
+  dim,
+  slideshow,
   forecast,
   prayer,
   nextUp,
@@ -278,6 +289,10 @@ export function AmbientScreen({
   night: boolean;
   now: Date;
   offset: { x: number; y: number };
+  /** Dark overlay (a browser can't change real brightness). */
+  dim: boolean;
+  /** Cover the today view with this device's photos, when it has any. */
+  slideshow: boolean;
   forecast: Forecast | null;
   prayer: PrayerDay | null;
   nextUp: ExpandedCalendarEvent | null;
@@ -368,6 +383,14 @@ export function AmbientScreen({
             </div>
             <p className="ambient-hint">Tap anywhere to open Fridgeboard</p>
           </div>
+          {slideshow && <IdleSlideshow night={night} now={now} offset={offset} />}
+          {dim && (
+            <div
+              className="ambient-dim"
+              aria-hidden
+              style={{ opacity: idleDimOpacity(night) }}
+            />
+          )}
         </motion.div>
       )}
     </AnimatePresence>

@@ -5,6 +5,7 @@ import { useModalSurface } from "@/hooks/useModalSurface";
 import { motion } from "framer-motion";
 import { Bell, Check, Clock, Repeat, Trash2, X } from "lucide-react";
 import {
+  formatDateRange,
   formatEventTime,
   NOTIFY_BEFORE_OPTIONS,
   RECURRENCE_LABELS,
@@ -106,6 +107,13 @@ export function EventDetail({
           {event.note ? (
             <p className="mt-1 text-sm leading-relaxed text-muted">
               {event.note}
+            </p>
+          ) : null}
+
+          {event.day_count > 1 ? (
+            <p className="mt-1 text-sm font-medium text-muted">
+              {formatDateRange(event.event_date, event.end_date)} · Day{" "}
+              {event.day_index} of {event.day_count}
             </p>
           ) : null}
 

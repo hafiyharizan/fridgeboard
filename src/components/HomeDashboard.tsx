@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
+  ArrowDownRight,
   ArrowUpRight,
   Bell,
   BriefcaseBusiness,
@@ -10,6 +11,8 @@ import {
   CalendarPlus,
   Check,
   ChevronDown,
+  ChevronRight,
+  Minus,
   Clock3,
   House,
   ListChecks,
@@ -18,11 +21,14 @@ import {
   Repeat,
   ShoppingBasket,
   Sunrise,
+  TrendingUp,
 } from "lucide-react";
-import { AmbientScreen, OutsideCard } from "@/components/Ambient";
+import { AmbientScreen, OutsideCard, PrayerCard } from "@/components/Ambient";
 import { Dialog } from "@/components/Dialog";
+import { SwipeDeck, type DeckCard } from "@/components/SwipeDeck";
+import { WorkPlaceChip } from "@/components/WorkPlaceChip";
 import { useNews, useNow, useStocks, type PrayerDay } from "@/hooks/useAmbient";
-import { formatChange, formatPrice, type StockQuote } from "@/lib/stocks";
+import { formatChange, formatPrice, priceCurrency, type StockQuote } from "@/lib/stocks";
 import { useWholeRows } from "@/hooks/useWholeRows";
 import { newsAge, type NewsItem } from "@/lib/news";
 import type { Forecast } from "@/lib/weather";
@@ -142,43 +148,82 @@ function NextUp({
 
 function NewsRow({ item, now }: { item: NewsItem; now: Date }) {
   return (
-    <a className="news-item" href={item.link} target="_blank" rel="noopener noreferrer">
+    <a className="news-item" href={item.link} draggable={false} target="_blank" rel="noopener noreferrer">
       <span className="news-title">{item.title}</span>
       <span className="news-meta">
-        {item.source}
-        {item.publishedAt && <> · {newsAge(item.publishedAt, now)}</>}
+        <span className="news-source">{item.source}</span>
+        {item.publishedAt && <span className="news-age">{newsAge(item.publishedAt, now)}</span>}
       </span>
     </a>
   );
 }
 
-/** One line of market numbers above the headlines: "ASX 200 8,812.4 +0.6%". */
-function StockStrip({ quotes }: { quotes: StockQuote[] }) {
-  if (!quotes.length) return null;
+/** Day-move direction for colouring a tile. */
+function trendOf(change: string) {
+  return !change || change === "0.0%" ? "flat" : change.startsWith("+") ? "up" : "down";
+}
+
+const TREND_ICON = { up: ArrowUpRight, down: ArrowDownRight, flat: Minus } as const;
+
+/** "Updated 3:05 PM" from the newest quote time, or null when none carries one. */
+function marketsUpdated(quotes: StockQuote[]): string | null {
+  const times = quotes.flatMap((quote) => (quote.at ? [Date.parse(quote.at)] : [])).filter(Number.isFinite);
+  if (!times.length) return null;
+  return new Date(Math.max(...times)).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+/** Market tiles from /api/stocks: share, index and currency pairs, one swipe away from the news. */
+function MarketsCard({ tabs, quotes, loaded }: { tabs: ReactNode; quotes: StockQuote[]; loaded: boolean }) {
+  const updated = marketsUpdated(quotes);
   return (
-    <ul className="stock-strip" aria-label="Markets">
-      {quotes.map((quote) => {
-        const change = formatChange(quote);
-        const trend = !change || change === "0.0%" ? "flat" : change.startsWith("+") ? "up" : "down";
-        return (
-          <li key={quote.symbol} className={`stock-chip is-${trend}`}>
-            <span className="stock-label">{quote.label}</span>
-            <strong>{formatPrice(quote)}</strong>
-            {change && <span className="stock-change">{change}</span>}
-          </li>
-        );
-      })}
-    </ul>
+    <section className="card news-card markets-card" aria-label="Markets">
+      <div className="news-head">
+        {tabs}
+        {updated && <span className="market-updated">Updated {updated}</span>}
+      </div>
+      {quotes.length ? (
+        <ul className="market-grid">
+          {quotes.map((quote) => {
+            const change = formatChange(quote);
+            const trend = trendOf(change);
+            const TrendIcon = TREND_ICON[trend];
+            const currency = priceCurrency(quote);
+            return (
+              <li key={quote.symbol} className={`market-tile is-${trend}`}>
+                <span className="market-label">{quote.label}</span>
+                {change && (
+                  <span className="market-change">
+                    <TrendIcon size={14} aria-hidden />
+                    {change}
+                  </span>
+                )}
+                <span className="market-price">
+                  <strong>{formatPrice(quote)}</strong>
+                  {currency && <span className="market-currency">{currency}</span>}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : loaded ? (
+        <p className="empty-copy">Market numbers aren&apos;t available right now.</p>
+      ) : (
+        <ul className="market-grid" aria-label="Loading markets">
+          {[0, 1, 2, 3].map((key) => (
+            <li key={key} className="market-tile is-skeleton" />
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
 /**
- * Market numbers (/api/stocks) and two Perth headlines from /api/news (ABC News WA + national by default); the
- * rest open in a dialog. Lowest priority on Home, so it stays small.
+ * Two Perth headlines from /api/news (ABC News WA + national by default); the rest open in a dialog.
+ * Lowest priority on Home, so it stays small.
  */
-function NewsCard() {
+function NewsCard({ tabs }: { tabs: ReactNode }) {
   const news = useNews();
-  const quotes = useStocks();
   const now = useNow(60_000);
   const [open, setOpen] = useState(false);
   const shown = news.items.slice(0, 2);
@@ -186,16 +231,13 @@ function NewsCard() {
   return (
     <section className="card news-card" aria-label="News">
       <div className="news-head">
-        <p className="eyebrow">
-          <Newspaper size={16} aria-hidden /> Perth news
-        </p>
+        {tabs}
         {news.items.length > 0 && (
-          <button className="text-button" onClick={() => setOpen(true)}>
-            More news
+          <button className="text-button news-more" onClick={() => setOpen(true)}>
+            More <ChevronRight size={16} aria-hidden />
           </button>
         )}
       </div>
-      <StockStrip quotes={quotes} />
       {news.loading && !news.items.length ? (
         <ul className="news-list" aria-label="Loading headlines">
           {[0, 1].map((key) => (
@@ -217,7 +259,6 @@ function NewsCard() {
       )}
       {open && (
         <Dialog title="Perth news" onClose={() => setOpen(false)}>
-          <StockStrip quotes={quotes} />
           <ul className="news-list is-dialog">
             {news.items.map((item) => (
               <li key={item.id}>
@@ -229,6 +270,23 @@ function NewsCard() {
       )}
     </section>
   );
+}
+
+/** News and Markets share one cell; Markets drops out when no numbers come back. */
+function NewsMarketsDeck() {
+  const { quotes, loaded } = useStocks();
+  const cards: DeckCard[] = [
+    { id: "news", label: "News", icon: <Newspaper size={16} aria-hidden />, render: (tabs) => <NewsCard tabs={tabs} /> },
+  ];
+  if (!loaded || quotes.length) {
+    cards.push({
+      id: "markets",
+      label: "Markets",
+      icon: <TrendingUp size={16} aria-hidden />,
+      render: (tabs) => <MarketsCard tabs={tabs} quotes={quotes} loaded={loaded} />,
+    });
+  }
+  return <SwipeDeck cards={cards} label="News and markets" />;
 }
 
 /* ---------- Middle column ---------- */
@@ -285,11 +343,13 @@ function AgendaRow({
   );
 }
 
+const WORK_TODAY_ROWS = 4;
+
 /**
- * One line under the schedule tabs: who works on the shown day and when the
- * whole household is home. Hidden when nobody has hours that day.
+ * Who works on the shown day, their hours and where (office, home or a named
+ * place), and when the whole household is home. Hidden when nobody has hours.
  */
-function WorkStrip({
+function WorkToday({
   day,
   today,
   now,
@@ -302,29 +362,45 @@ function WorkStrip({
 }) {
   const { shifts } = useWorkData();
   const lookup = useMemberLookup();
-  const dayShifts = shifts.filter((shift) => shift.shift_date === day);
+  const dayShifts = shifts
+    .filter((shift) => shift.shift_date === day)
+    .sort((a, b) => a.start_time.localeCompare(b.start_time));
   if (!dayShifts.length) return null;
   const away = day === today ? atWorkNow(shifts, now) : new Map<string, string>();
+  const shown = dayShifts.slice(0, WORK_TODAY_ROWS);
+  const more = dayShifts.length - shown.length;
+  const heading = day === today ? "Working today" : "Working tomorrow";
   return (
-    <button className="work-strip" onClick={onOpen} aria-label="Open the work schedule">
-      <BriefcaseBusiness size={18} aria-hidden className="work-strip-icon" />
-      <span className="work-strip-people">
-        {dayShifts.map((shift) => {
+    <section className="work-today" aria-label={heading}>
+      <button className="work-today-head" onClick={onOpen} aria-label={`${heading}. Open the work schedule`}>
+        <BriefcaseBusiness size={18} aria-hidden />
+        <span className="work-today-title">
+          <strong>{heading}</strong>
+          <span className="work-today-home">
+            <House size={14} aria-hidden /> {homeSummaryText(homeSummary(shifts, day))}
+          </span>
+        </span>
+        <ChevronRight size={16} aria-hidden />
+      </button>
+      <ul>
+        {shown.map((shift) => {
           const look = lookup(shift.user_id);
           if (!look) return null;
           return (
-            <span key={shift.id}>
+            <li key={shift.id}>
               <MemberAvatar look={look} size="sm" />
-              <strong>{look.short}</strong> {formatShift(shift)}
-              {away.has(shift.user_id) && <em className="work-strip-now">at work now</em>}
-            </span>
+              <span className="work-today-who">
+                <strong>{look.short}</strong>
+                {away.has(shift.user_id) && <em className="work-strip-now">at work now</em>}
+              </span>
+              <span className="work-today-time">{formatShift(shift)}</span>
+              <WorkPlaceChip shift={shift} />
+            </li>
           );
         })}
-      </span>
-      <span className="work-strip-home">
-        <House size={16} aria-hidden /> {homeSummaryText(homeSummary(shifts, day))}
-      </span>
-    </button>
+        {more > 0 && <li className="work-today-more">+{more} more</li>}
+      </ul>
+    </section>
   );
 }
 
@@ -410,7 +486,7 @@ function FamilySchedule({
         </div>
       </div>
       {calendarStatus}
-      {view !== "week" && <WorkStrip day={shownDay} today={today} now={now} onOpen={onOpenWork} />}
+      {view !== "week" && <WorkToday day={shownDay} today={today} now={now} onOpen={onOpenWork} />}
 
       {view === "week" ? (
         <ul className="agenda">
@@ -698,13 +774,13 @@ export function HomeDashboard({
           settings={settings}
           forecast={forecast}
           weatherFailed={weatherFailed}
-          prayer={prayer}
           now={now}
           onSetup={onSetup}
         >
           <NextUp nextUp={nextUp} today={today} onEvent={onEvent} />
         </OutsideCard>
-        <NewsCard />
+        <PrayerCard prayer={prayer} now={now} />
+        <NewsMarketsDeck />
       </div>
 
       <FamilySchedule
@@ -754,6 +830,8 @@ export function AmbientLayer({
   visible,
   night,
   offset,
+  dim,
+  slideshow,
   lists,
   today,
   forecast,
@@ -762,6 +840,8 @@ export function AmbientLayer({
   visible: boolean;
   night: boolean;
   offset: { x: number; y: number };
+  dim: boolean;
+  slideshow: boolean;
   lists: FridgeList[];
   today: string;
   forecast: Forecast | null;
@@ -780,6 +860,8 @@ export function AmbientLayer({
       night={night}
       now={now}
       offset={offset}
+      dim={dim}
+      slideshow={slideshow}
       forecast={forecast}
       prayer={prayer}
       nextUp={nextUpEvent(events, now)}

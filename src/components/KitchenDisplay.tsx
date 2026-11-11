@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSyncStatus } from "@/components/WorkspaceData";
-import { describeSync, SETTINGS_HOLD_MS } from "@/lib/kitchen";
+import { clockMinutes, describeSync, SETTINGS_HOLD_MS, type Hours } from "@/lib/kitchen";
 import { addPhotos, clearPhotos, listPhotos, MAX_PHOTOS, roomForPhotos } from "@/lib/photo-store";
 
 /**
@@ -126,9 +126,9 @@ export function KitchenModeSetting({
         <h3 id="kitchen-mode-label">Kitchen display</h3>
         <p>
           For a tablet that stays on the wall: keeps the screen on, shows a
-          big today view after 2 minutes (dark at night), asks who&apos;s
-          adding, updates itself, and needs a press-and-hold to open
-          settings. Only affects this device.
+          big today view after 2 minutes (dark at night), lets the screen
+          switch off overnight, asks who&apos;s adding, updates itself, and
+          needs a press-and-hold to open settings. Only affects this device.
         </p>
       </div>
       <button
@@ -235,6 +235,95 @@ function PhotoPicker() {
   );
 }
 
+/**
+ * "From 23:00 to 05:30". A half-typed or cleared time is ignored, so the
+ * saved window is always a complete one.
+ */
+function HoursFields({
+  label,
+  hours,
+  onChange,
+}: {
+  label: string;
+  hours: Hours;
+  onChange: (hours: Hours) => void;
+}) {
+  const set = (patch: Partial<Hours>) => {
+    const next = { ...hours, ...patch };
+    if (clockMinutes(next.start) !== null && clockMinutes(next.end) !== null) onChange(next);
+  };
+  return (
+    <div className="kitchen-hours" role="group" aria-label={label}>
+      <label>
+        <span>From</span>
+        <input type="time" value={hours.start} onChange={(event) => set({ start: event.target.value })} />
+      </label>
+      <label>
+        <span>To</span>
+        <input type="time" value={hours.end} onChange={(event) => set({ end: event.target.value })} />
+      </label>
+    </div>
+  );
+}
+
+function SettingSwitch({ labelledBy, on, onChange }: { labelledBy: string; on: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <button
+      className="switch"
+      role="switch"
+      aria-checked={on}
+      aria-labelledby={labelledBy}
+      onClick={() => onChange(!on)}
+      type="button"
+    >
+      <motion.span className="switch-thumb" layout transition={{ type: "spring", stiffness: 500, damping: 34 }} />
+    </button>
+  );
+}
+
+/** Night look and overnight screen-off hours; shown only while kitchen mode is on. */
+export function KitchenNightSettings({
+  nightHours,
+  onNightHours,
+  sleepEnabled,
+  onSleepEnabled,
+  sleepHours,
+  onSleepHours,
+}: {
+  nightHours: Hours;
+  onNightHours: (hours: Hours) => void;
+  sleepEnabled: boolean;
+  onSleepEnabled: (on: boolean) => void;
+  sleepHours: Hours;
+  onSleepHours: (hours: Hours) => void;
+}) {
+  return (
+    <>
+      <section className="kitchen-setting">
+        <div>
+          <h3>Night look</h3>
+          <p>The idle view goes dark and low-glare between these times. Only affects this device.</p>
+          <HoursFields label="Night look hours" hours={nightHours} onChange={onNightHours} />
+        </div>
+      </section>
+      <section className="kitchen-setting">
+        <div>
+          <h3 id="screen-sleep-label">Screen off overnight</h3>
+          <p>
+            Between these times the idle view goes black and the tablet is free
+            to switch its screen off, using its own screen timeout. A tap
+            brings it back while the screen is still on; once it is off, wake
+            the tablet as usual. It stays off in the morning until someone
+            wakes it. Only affects this device.
+          </p>
+          {sleepEnabled && <HoursFields label="Screen off hours" hours={sleepHours} onChange={onSleepHours} />}
+        </div>
+        <SettingSwitch labelledBy="screen-sleep-label" on={sleepEnabled} onChange={onSleepEnabled} />
+      </section>
+    </>
+  );
+}
+
 /** Idle-view options; shown only while kitchen mode is on. */
 export function KitchenIdleSettings({
   idleDim,
@@ -271,20 +360,7 @@ export function KitchenIdleSettings({
             <h3 id={row.id}>{row.title}</h3>
             <p>{row.text}</p>
           </div>
-          <button
-            className="switch"
-            role="switch"
-            aria-checked={row.on}
-            aria-labelledby={row.id}
-            onClick={() => row.set(!row.on)}
-            type="button"
-          >
-            <motion.span
-              className="switch-thumb"
-              layout
-              transition={{ type: "spring", stiffness: 500, damping: 34 }}
-            />
-          </button>
+          <SettingSwitch labelledBy={row.id} on={row.on} onChange={row.set} />
         </section>
       ))}
       <PhotoPicker />

@@ -16,14 +16,6 @@ export const STALE_CONNECTION_MS = 5 * 60 * 1000;
 /** Hold the settings button this long to open it in kitchen mode. */
 export const SETTINGS_HOLD_MS = 1200;
 
-export const NIGHT_START_HOUR = 22;
-export const NIGHT_END_HOUR = 6;
-
-/** Night runs across midnight: 22:00 up to (not including) 06:00. */
-export function isNightTime(date: Date, start = NIGHT_START_HOUR, end = NIGHT_END_HOUR): boolean {
-  const hour = date.getHours();
-  return start > end ? hour >= start || hour < end : hour >= start && hour < end;
-}
 
 /**
  * Small layout shift that changes every 10 minutes, so a static clock and
@@ -89,7 +81,62 @@ export function nextSlide(index: number, count: number): number {
   return count <= 1 ? 0 : (index + 1) % count;
 }
 
-/** Strength of the dark overlay on the idle view (a browser can't change real brightness). */
-export function idleDimOpacity(night: boolean): number {
+/**
+ * Strength of the dark overlay on the idle view (a browser can't change real
+ * brightness). Fully black while the screen is meant to be off.
+ */
+export function idleDimOpacity(night: boolean, asleep = false): number {
+  if (asleep) return 1;
   return night ? 0.75 : 0.55;
+}
+
+/** A daily window as "HH:MM" clock times; an end before the start runs past midnight. */
+export type Hours = { start: string; end: string };
+
+/** localStorage keys for the night look and overnight screen-off (per device). */
+export const NIGHT_HOURS_KEY = "fridgeboard.night-hours";
+export const SLEEP_KEY = "fridgeboard.screen-sleep";
+export const SLEEP_HOURS_KEY = "fridgeboard.sleep-hours";
+
+/** The idle view's dark look. */
+export const DEFAULT_NIGHT_HOURS: Hours = { start: "22:00", end: "06:00" };
+/** When the tablet may switch its screen off. */
+export const DEFAULT_SLEEP_HOURS: Hours = { start: "23:00", end: "05:30" };
+
+/** Minutes since midnight for a strict 24-hour "HH:MM"; null for anything else. */
+export function clockMinutes(value: string): number | null {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
+/** Stored as "22:00-06:00". Anything unreadable uses the fallback. */
+export function parseHours(raw: string | null, fallback: Hours): Hours {
+  const [start, end, extra] = (raw ?? "").split("-");
+  if (extra !== undefined || !start || !end) return fallback;
+  if (clockMinutes(start) === null || clockMinutes(end) === null) return fallback;
+  return { start, end };
+}
+
+export function formatHours(hours: Hours): string {
+  return `${hours.start}-${hours.end}`;
+}
+
+/**
+ * Whether `date` (device time) falls in the window: from the start up to, not
+ * including, the end. Equal start and end is an empty window, never "all day".
+ */
+export function inHours(date: Date, hours: Hours): boolean {
+  const start = clockMinutes(hours.start);
+  const end = clockMinutes(hours.end);
+  if (start === null || end === null || start === end) return false;
+  const clock = date.getHours() * 60 + date.getMinutes();
+  return start < end ? clock >= start && clock < end : clock >= start || clock < end;
+}
+
+/**
+ * Overnight screen-off: only while nobody is using the screen, so a touch
+ * during the window keeps it on until the next idle reset.
+ */
+export function shouldSleep(state: { enabled: boolean; idle: boolean; now: Date; hours: Hours }): boolean {
+  return state.enabled && state.idle && inHours(state.now, state.hours);
 }

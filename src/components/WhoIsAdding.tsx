@@ -9,14 +9,14 @@ import { MemberAvatar, useAccountLooks } from "@/components/MemberTag";
  * members get) are credited to the right person rather than to whoever the
  * tablet is signed in as. Resets to the account on the idle reset.
  */
-export function WhoIsAdding() {
+export function WhoIsAdding({ label = "Who's adding?" }: { label?: string }) {
   const { members, userId, adderId, setAdderId } = useHousehold();
   const looks = useAccountLooks();
   if (members.length < 2) return null;
   const current = adderId ?? userId;
   return (
-    <div className="who-adding" role="radiogroup" aria-label="Who's adding?">
-      <span className="eyebrow">Who&apos;s adding?</span>
+    <div className="who-adding" role="radiogroup" aria-label={label}>
+      <span className="eyebrow">{label}</span>
       <div className="who-adding-row">
         {members.map((member, index) => {
           const look = looks[index];

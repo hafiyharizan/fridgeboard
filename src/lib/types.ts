@@ -202,6 +202,30 @@ export type NotificationLog = {
   status: string;
 };
 
+export type NotificationJobKind = "event" | "athan" | "summary" | "grocery";
+export type NotificationJobStatus = "pending" | "sending" | "sent" | "skipped" | "failed" | "expired";
+
+/** A due alert in the delivery queue (service role only). */
+export type NotificationJob = {
+  id: string;
+  /** Idempotency key: the same alert is only ever queued once. */
+  job_key: string;
+  kind: NotificationJobKind;
+  pin_code: string;
+  due_at: string;
+  expires_at: string;
+  payload: Record<string, string>;
+  status: NotificationJobStatus;
+  attempts: number;
+  next_try_at: string;
+  locked_until: string | null;
+  /** Channels that already got this alert ("push", "email:<id>"…); retries skip them. */
+  done_targets: string[];
+  last_error: string | null;
+  sent_at: string | null;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -437,6 +461,21 @@ export type Database = {
         };
         Relationships: [];
       };
+      notification_jobs: {
+        Row: NotificationJob;
+        Insert: {
+          job_key: string;
+          kind: NotificationJobKind;
+          pin_code: string;
+          due_at: string;
+          expires_at: string;
+          payload?: Record<string, string>;
+        };
+        Update: Partial<
+          Pick<NotificationJob, "status" | "next_try_at" | "locked_until" | "done_targets" | "last_error" | "sent_at">
+        >;
+        Relationships: [];
+      };
       notification_log: {
         Row: NotificationLog;
         Insert: {
@@ -473,6 +512,10 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      claim_notification_jobs: {
+        Args: { batch?: number; lease_seconds?: number };
+        Returns: NotificationJob[];
+      };
       create_household: {
         Args: {
           profile_display_name?: string | null;

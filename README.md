@@ -25,7 +25,7 @@ Members sign in with Google, belong to a household, and see updates instantly ac
 - Supabase (PostgreSQL + Realtime + Auth)
 - @supabase/ssr
 - Lucide React
-- Netlify functions for scheduled background jobs
+- Supabase Cron (pg_cron) driving a notification queue for reminders, athan and daily pushes
 
 ## App overview
 
@@ -132,15 +132,13 @@ src/
 public/
 supabase/
   migrations/
-netlify/
-  functions/
 ```
 
 The app uses the App Router, a shared household workspace layout, and client-side realtime hooks to keep the UI synced with Supabase.
 
 ## Deployment notes
 
-This repo is set up for deployment on Netlify, with scheduled functions under `netlify/functions/` and server-side cron routes under `src/app/api/`.
+This repo deploys on Vercel. Scheduled work runs from Supabase Cron, which calls `POST /api/cron/tick` every minute (see CLAUDE.md, Deployment, for the one-time Vault setup).
 
 For production, ensure:
 

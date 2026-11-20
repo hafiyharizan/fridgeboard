@@ -30,7 +30,26 @@ export type PushPayload = {
 export type PushOptions = {
   /** Skip devices owned by this member (e.g. the person who made the change). */
   excludeUserId?: string;
+  /**
+   * Seconds the push service may hold the alert for an offline device. Past
+   * that it is dropped, so a reminder never turns up hours late. Default 1 hour.
+   */
+  ttlSeconds?: number;
+  /** "high" wakes a sleeping phone promptly (reminders, athan). */
+  urgency?: "very-low" | "low" | "normal" | "high";
 };
+
+export type PushResult = {
+  /** Devices subscribed for this household (after excludeUserId). */
+  devices: number;
+  sent: number;
+  /** Failures worth retrying (not expired subscriptions, which are removed). */
+  failed: number;
+  /** False when VAPID keys are missing, so nothing could be sent. */
+  configured: boolean;
+};
+
+const SEND_TIMEOUT_MS = 10_000;
 
 /**
  * Send a push notification to all subscribed devices for a given PIN.
@@ -44,7 +63,18 @@ export async function sendPushToPin(
   supabase: SupabaseClient<any>,
   options: PushOptions = {},
 ): Promise<number> {
-  if (!initWebPush()) return 0;
+  return (await sendPush(pinCode, payload, supabase, options)).sent;
+}
+
+/** Like sendPushToPin, with the detail the delivery queue needs to decide on a retry. */
+export async function sendPush(
+  pinCode: string,
+  payload: PushPayload,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any>,
+  options: PushOptions = {},
+): Promise<PushResult> {
+  if (!initWebPush()) return { devices: 0, sent: 0, failed: 0, configured: false };
 
   let query = supabase
     .from("push_subscriptions")
@@ -54,9 +84,9 @@ export async function sendPushToPin(
     // Devices with no owner yet still get the alert; `neq` alone would drop them.
     query = query.or(`user_id.is.null,user_id.neq.${options.excludeUserId}`);
   }
-  const { data: subs } = await query;
-
-  if (!subs?.length) return 0;
+  const { data: subs, error } = await query;
+  if (error) return { devices: 0, sent: 0, failed: 1, configured: true };
+  if (!subs?.length) return { devices: 0, sent: 0, failed: 0, configured: true };
 
   const message = JSON.stringify({ ...payload, url: payload.url ?? "/list" });
 
@@ -73,6 +103,11 @@ export async function sendPushToPin(
                 keys: { p256dh: sub.p256dh, auth: sub.auth },
               },
               message,
+              {
+                TTL: options.ttlSeconds ?? 3600,
+                urgency: options.urgency ?? "normal",
+                timeout: SEND_TIMEOUT_MS,
+              },
             )
             .catch(async (err: { statusCode?: number; message?: string }) => {
               if (err.statusCode === 410 || err.statusCode === 404) {
@@ -80,14 +115,19 @@ export async function sendPushToPin(
                   .from("push_subscriptions")
                   .delete()
                   .eq("endpoint", sub.endpoint);
-              } else {
-                console.error("[Push] Send failed:", err.message);
+                throw new GoneError();
               }
+              console.error("[Push] Send failed:", err.statusCode ?? "", err.message);
               throw err;
             })
-        : Promise.reject(new Error("Unsupported push destination")),
+        : Promise.reject(new GoneError()),
     ),
   );
 
-  return results.filter((r) => r.status === "fulfilled").length;
+  const sent = results.filter((r) => r.status === "fulfilled").length;
+  const failed = results.filter((r) => r.status === "rejected" && !(r.reason instanceof GoneError)).length;
+  return { devices: subs.length, sent, failed, configured: true };
 }
+
+/** A device that can never receive this push (unsubscribed or unsupported); not retried. */
+class GoneError extends Error {}

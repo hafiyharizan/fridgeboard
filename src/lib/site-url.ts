@@ -5,11 +5,21 @@ function trimTrailingSlash(url: string) {
   return url.replace(/\/+$/, "");
 }
 
+// Vercel sets the production domain (no scheme) on every build, and exposes
+// the NEXT_PUBLIC_ copy to the browser bundle for Next.js projects.
+function vercelProductionUrl() {
+  const host =
+    process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  return host ? `https://${host}` : undefined;
+}
+
 export function getCanonicalSiteUrl() {
   const configuredUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.SITE_URL ||
-    process.env.NEXT_PUBLIC_APP_URL;
+    process.env.NEXT_PUBLIC_APP_URL ||
+    vercelProductionUrl();
 
   return trimTrailingSlash(configuredUrl || DEFAULT_SITE_URL);
 }

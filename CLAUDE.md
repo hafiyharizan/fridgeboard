@@ -37,11 +37,9 @@ src/
     globals.css                 # Tailwind + global tokens
     workspace.css               # Signed-in workspace design system (Warm & Homely)
     api/
-      notifications/            # Cron: calendar reminders (email/Telegram/webhook)
+      cron/tick/                # Cron (Supabase, every minute): queue + send reminders, athan, daily pushes
       push/subscribe/           # Register a device for Web Push
       push/new-item/            # Alert the household about a new list item
-      push/remind/              # Cron: grocery reminder / morning summary
-      push/prayer/              # Cron: athan push at prayer times
       calendar/{feed,import,sync}/  # iCal feed, holiday imports, sync links
       version/                  # Live deploy id (kitchen display self-update)
       assistant/                # Household assistant: question in, short answer out
@@ -90,11 +88,11 @@ src/
     voice.ts                    # Spoken sentence → grocery / to-do / event / reminder (rule-based)
     work.ts                     # Work roster: weeks, overnight shifts, "everyone home" summary
     push.ts, new-item-push.ts   # Web Push sending and wording
+    notify/                     # Notification queue: plan.ts (pure: what's due), queue.ts (enqueue, claim, deliver), channels.ts (email/Telegram/webhook)
     photo-store.ts              # Idle slideshow photos in IndexedDB
     swipe.ts                    # Swipe gesture helpers (Home News/Markets cards)
     offline-snapshot.ts         # Last-known board for public/offline.html
 supabase/migrations/            # SQL migrations (apply in filename order)
-netlify/functions/              # Scheduled functions calling the cron routes
 public/                         # sw.js, offline.html, manifest.json, icons
 ```
 
@@ -111,7 +109,7 @@ Use `@/*` for all imports from `src/`. Example: `import { createSupabaseBrowserC
 Google sign-in via Supabase Auth. Each user has a `user_profiles` row whose `pin_code` links them to a household (the 4-digit PIN is the internal household ID, not a secret). RLS scopes household data with `public.current_user_pin()`.
 
 - Clients may write only `display_name` / `avatar_url` on `user_profiles`; `pin_code` is set only by the security definer functions `create_household` and `join_household_with_invite`.
-- `push_subscriptions`, `notification_log`, `item_push_log` and `suggestion_feedback` have RLS on with no policies: service role only, via API routes.
+- `push_subscriptions`, `notification_jobs`, `notification_log`, `item_push_log` and `suggestion_feedback` have RLS on with no policies: service role only, via API routes.
 - Webhook notification URLs must be public HTTPS (`lib/webhook-url.ts`).
 - New members join with a single-use invite code (8 chars, expires after 7 days) made by an existing member via `create_household_invite`. Joining by PIN was removed. Helpers live in `lib/invite-code.ts` and `lib/household.ts`.
 
@@ -142,7 +140,9 @@ Managed via SQL migrations in `supabase/migrations/`. Apply in filename timestam
 - `id` uuid PK, `pin_code` text, `channel_type`: `"email" | "telegram" | "webhook"`
 - `channel_value` text, `label` text|null, `is_enabled` bool
 
-**`notification_log`** — idempotency log for sent notifications
+**`notification_jobs`** — the delivery queue (service role only). One row per alert: `kind` (`event` | `athan` | `summary` | `grocery`), unique `job_key` (e.g. `event:<id>:<occurrence date>:<HH:MM>:<lead>`, `athan:<pin>:<date>:<prayer>`), `due_at` / `expires_at`, `payload`, `status` (`pending` → `sending` → `sent` | `skipped` | `failed` | `expired`), `attempts`, `next_try_at`, `done_targets` (channels that already got it: `push`, `telegram:<channel id>`…). `claim_notification_jobs(batch, lease_seconds)` claims due rows with `FOR UPDATE SKIP LOCKED` and a lease, and expires stale ones. Finished rows are deleted after 30 days by a second cron job.
+
+**`notification_log`** — superseded by `notification_jobs`; kept for history, nothing writes to it
 - `id` uuid PK, `event_id` uuid, `channel_type` text, `sent_at` timestamptz, `status` text
 
 **`suggestion_feedback`** — tracks accepted/dismissed suggestions
@@ -164,7 +164,7 @@ Managed via SQL migrations in `supabase/migrations/`. Apply in filename timestam
 
 **`work_shifts`** — weekly work roster: one row per member per day (`unique (user_id, shift_date)`), `start_time`/`end_time` as `HH:MM` (end at or before start = overnight), optional `note`, `work_place` (`office` | `home` | `other`; null = not said) and `location` (the place name when `work_place` is `other`). Any household member can edit it; a trigger keeps `user_id` inside the household. Realtime enabled. Shown in the **Work** tab (Mon–Sun grid, "All home" column, copy last week) and as a "Working today" section on Home's schedule (a row per person: hours, where they work — office, home or a named place — "at work now", and when everyone is home). Shown with `WorkPlaceChip`.
 
-**`prayer_push_log`**, **`item_push_log`** — single-use logs for athan and new-item pushes (service role only).
+**`item_push_log`** — single-use log for new-item pushes (service role only). `prayer_push_log` is superseded by `notification_jobs` (kept for history).
 
 ### Key Types (src/lib/types.ts)
 
@@ -206,9 +206,10 @@ const supabase = createClient(
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key (public) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes (API routes) | Supabase service role key (server-side only) |
-| `CRON_SECRET` | Yes (cron routes) | Bearer token for `/api/notifications` and `/api/push/remind`. If unset, those routes reject every request (fail closed). |
+| `CRON_SECRET` | Yes (cron route) | Bearer token for `/api/cron/tick`; the same value goes in Supabase Vault as `fridgeboard_cron_secret`. If unset, the route rejects every request (fail closed). |
 | `TELEGRAM_BOT_TOKEN` | Optional | For Telegram notification channel |
-| `APP_TIMEZONE` | Optional | IANA zone for event dates/times in cron routes (default `Australia/Perth`; Netlify functions run in UTC) |
+| `APP_TIMEZONE` | Optional | IANA zone for households with no `household_settings.timezone` (default `Australia/Perth`; the server runs in UTC) |
+| `NEXT_PUBLIC_SITE_URL` | Optional | Canonical app URL for OAuth redirects and calendar feed links. Unset on Vercel = the project's production domain (`VERCEL_PROJECT_PRODUCTION_URL`) |
 | `NEWS_FEEDS` | Optional | Home news card feeds: comma-separated `Label\|https://…` or `Label\|https://…\|local` RSS/Atom URLs, max 6. Only Perth/WA stories are kept unless a feed is `local` (default: ABC News WA + WAtoday in full, ABC Top Stories filtered) |
 | `ASSISTANT_PROVIDER` | Optional | Household assistant: `ollama` or `anthropic`. Unset = the feature is hidden |
 | `OLLAMA_URL` | Optional | Ollama base URL for the `ollama` provider (default `http://localhost:11434`). Server only |
@@ -220,16 +221,17 @@ const supabase = createClient(
 
 ## API Routes
 
-### `POST /api/notifications`
+### `POST /api/cron/tick`
 
-Cron-triggered notification dispatcher, called every minute by the `event-reminders` Netlify scheduled function.
+Called every minute by Supabase Cron (`pg_cron` job `fridgeboard-notification-tick`, which POSTs through `pg_net`). Auth: `Authorization: Bearer <CRON_SECRET>` (`lib/cron-auth.ts`, fails closed). Two steps (`lib/notify/queue.ts`):
 
-- Auth: `Authorization: Bearer <CRON_SECRET>` header (required; checked by `lib/cron-auth.ts`)
-- Finds `calendar_events` for today with `notify_before >= 0`
-- Checks `notification_log` for idempotency
-- Dispatches to enabled `notification_channels` matching `pin_code`
-- Supports: email (Resend), Telegram (live), webhook (live)
-- Returns `{ sent: number, checked: number }`
+1. **Plan** (`lib/notify/plan.ts`, pure): every alert due right now becomes a `notification_jobs` row (upsert, `ignoreDuplicates` on `job_key`, so repeated or overlapping runs never queue twice). All times are in the household's own `timezone` (`household_settings`, else `APP_TIMEZONE`).
+   - **Event reminders**: events with a time and `notify_before >= 0`, due from `start - notify_before` for 30 minutes. Recurring events remind on every occurrence; multi-day events on their first day; finished one-offs never. Looks at yesterday/today/tomorrow, so reminders across midnight work. The time and lead are in `job_key`, so editing an event queues a fresh reminder and the old one is skipped.
+   - **Athan**: households with prayer times and athan alerts on, due at each prayer time for 10 minutes (`ATHAN_WINDOW_MS`).
+   - **Morning summary** 07:00 and **grocery reminder** 08:00 household time, for households with push devices, sendable for 2 hours. The summary counts events that START today (recurrences included) and open groceries; nothing to say = skipped.
+2. **Deliver**: claims up to 50 due jobs (`claim_notification_jobs`, 2-minute lease) and sends them. Event reminders always push to the household's devices, plus each enabled `notification_channels` entry the event asked for (`notify_channels`). Pushes carry a TTL that ends with the job's window (a phone that was offline never gets a stale reminder) and `urgency: high` for reminders and athan. Each target that succeeds goes into `done_targets`; a retry (1, 2, 3… minutes later, at most 5 attempts) only resends what failed. Failures that can't pass (missing key, 4xx, disallowed webhook) are not retried.
+
+Returns `{ planned, queued, claimed, sent, skipped, retrying, failed, errors }` (500 if any step errored). To check on it: `select * from cron.job_run_details order by start_time desc limit 5;` and `select kind, status, last_error, due_at from notification_jobs order by due_at desc limit 20;`.
 
 ---
 
@@ -242,10 +244,6 @@ Called by `useRealtimeItems` right after a member adds a list item. Body: `{ ite
 - Skips the adder's own devices (`push_subscriptions.user_id`). Notifications are tagged per list, so a burst of additions replaces itself instead of stacking.
 
 `InstallPrompt` (mounted in `HouseholdWorkspace`) suggests installing the app: a native install button on Chromium, Share → Add to Home Screen steps on iPhone/iPad (the only way iOS allows web push). "Not now" snoozes it for 30 days.
-
-### `POST /api/push/prayer`
-
-Cron, every minute (same `event-reminders` scheduled function). For households with prayer times and athan alerts on, sends a push when a prayer time arrives (10-minute catch-up window), once per prayer per day via `prayer_push_log`. Times are calculated locally with `adhan` in the household's `timezone` (default `APP_TIMEZONE`).
 
 ### Weather and prayer times
 
@@ -265,7 +263,7 @@ Market numbers for the Markets card (SPUS, ASX 200, AUD/MYR, MYR/USD by default)
 
 ### `GET /api/version`
 
-Returns `{ version }`, the build stamp `APP_VERSION` (Netlify `DEPLOY_ID`, else `COMMIT_REF`, else `"dev"`; set in `next.config.ts`). Kitchen displays poll it and reload while idle when it changes. `"dev"` never triggers a reload.
+Returns `{ version }`, the build stamp `APP_VERSION` (Vercel `VERCEL_DEPLOYMENT_ID`, else `VERCEL_GIT_COMMIT_SHA`, else Netlify's `DEPLOY_ID` / `COMMIT_REF`, else `"dev"`; set in `next.config.ts`). Kitchen displays poll it and reload while idle when it changes. `"dev"` never triggers a reload.
 
 ### Voice ("Say it")
 
@@ -301,7 +299,7 @@ A per-device switch in the household menu (localStorage `fridgeboard.kitchen-mod
 
 Slideshow photos (IndexedDB) and the idle flags are device-level settings and survive sign-out.
 
-The morning-summary push (`/api/push/remind`) lists only events that START today, so days 2..N of a running multi-day event are not listed. On Home and the idle view, entries with `day_index > 1` count as all-day (`lib/dashboard.ts`), so a running multi-day event stays "now".
+The morning-summary push (`/api/cron/tick`) lists only events that START today, so days 2..N of a running multi-day event are not listed. On Home and the idle view, entries with `day_index > 1` count as all-day (`lib/dashboard.ts`), so a running multi-day event stays "now".
 
 On every device, `useRealtimeItems` and `useRealtimeCalendar` refetch when the page becomes visible again, and resubscribe if it was hidden for over 5 minutes (`hooks/watchWake.ts`).
 
@@ -365,10 +363,10 @@ npm run test:coverage # Run tests with coverage report
 
 ## Notification Integrations
 
-All three channels are fully implemented in `src/app/api/notifications/route.ts`:
+All three channels are implemented in `src/lib/notify/channels.ts` and used for event reminders by the queue (`lib/notify/queue.ts`):
 
 - **Email** — uses [Resend](https://resend.com). Requires `RESEND_API_KEY` and `RESEND_FROM_EMAIL` env vars. The `from` address must be a verified sender in your Resend account.
-- **Telegram** — live. Requires `TELEGRAM_BOT_TOKEN`. The `channel_value` is the Telegram chat ID.
+- **Telegram** — live. Requires `TELEGRAM_BOT_TOKEN`. The `channel_value` is the Telegram chat ID. Sent as plain text (no `parse_mode`), so titles with `_` or `*` don't get rejected.
 - **Webhook** — live. POSTs a JSON payload to the configured URL.
 
 ---
@@ -387,6 +385,9 @@ Vitest is configured. Tests live alongside source files as `*.test.ts`.
 - `src/lib/news.test.ts` — feed parsing, merging, `NEWS_FEEDS`, Perth filter and story ages
 - `src/lib/stocks.test.ts` — `STOCK_SYMBOLS`, Yahoo chart parsing, price/change formatting
 - `src/app/api/news/route.test.ts` — redirect, size-cap and caching rules for `/api/news`
+- `src/lib/notify/plan.test.ts` — due windows, recurrence, midnight, household timezones, athan, daily pushes, backoff
+- `src/lib/notify/queue.test.ts` — delivery outcomes, retries that skip delivered channels, permanent failures, edited/deleted events
+- `src/app/api/notification-security.test.ts` — `/api/cron/tick` fails closed
 
 The vitest config (`vitest.config.ts`) sets up the `@/*` path alias and uses the `node` environment (no DOM needed for pure utility tests).
 
@@ -394,15 +395,16 @@ The vitest config (`vitest.config.ts`) sets up the `@/*` path alias and uses the
 
 ## Deployment
 
-Netlify is the target host. Configuration is in `netlify.toml`.
+Vercel hosts the app (project `fridgeboard`, production domain `fridgeboard-three.vercel.app`), deployed from `master` through the Git integration; no `vercel.json` is needed. Set env vars in Vercel → Project → Settings → Environment Variables.
 
-- Build command: `npm run build`
-- Publish directory: `.next`
-- Plugin: `@netlify/plugin-nextjs` v5 (handles SSR + API routes as Netlify Functions)
-- Node version: 20
-- Set env vars in Netlify UI → Site configuration → Environment variables
+Scheduling is done by **Supabase Cron**, not Vercel (whose free plan can't run every minute). Migration `20261119000000_notification_jobs.sql` enables `pg_cron` + `pg_net` and schedules `fridgeboard-notification-tick` (every minute → `POST /api/cron/tick`) and `fridgeboard-notification-cleanup` (daily). The URL and secret are read from Supabase Vault at run time; set them once in the SQL editor:
 
-Cron routes are called by Netlify Scheduled Functions in `netlify/functions/` (shared helper `netlify/lib/call-cron-route.ts`, which uses Netlify's `URL` and `CRON_SECRET` env vars): `event-reminders` every minute → `/api/notifications`, `morning-summary` 07:00 Perth (`0 23 * * *` UTC) and `grocery-reminder` 08:00 Perth (`0 0 * * *` UTC) → `/api/push/remind`. They only run on the published production deploy; use **Run now** in Netlify → Functions to test. Reminders stay due for 30 minutes after their trigger time (`lib/local-time.ts`); `notification_log` prevents duplicates.
+```sql
+select vault.create_secret('https://fridgeboard-three.vercel.app', 'fridgeboard_site_url');
+select vault.create_secret('<CRON_SECRET from Vercel>', 'fridgeboard_cron_secret');
+```
+
+Until both exist the tick job runs but posts nowhere. To change one later: `select vault.update_secret((select id from vault.secrets where name = 'fridgeboard_site_url'), 'https://…');`.
 
 ---
 
